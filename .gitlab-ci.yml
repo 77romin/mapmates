@@ -1,0 +1,16 @@
+stages:
+  - mirror
+
+mirror_to_github:
+  stage: mirror
+  image: alpine:latest
+
+  before_script:
+    - apk add --no-cache git
+
+  script:
+    - git remote add github https://77romin:${GITHUB_TOKEN}@github.com/77romin/ssafy-frontend-project.git
+    - git push github HEAD:main
+
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
