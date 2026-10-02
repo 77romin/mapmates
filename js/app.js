@@ -5,10 +5,11 @@ const STORAGE_KEY = "neorang-galjido-v1";
 const NEARBY_RADIUS_METERS = 20000;
 const CHARGER_VISIBLE_MAX_MAP_LEVEL = 4;
 const INITIAL_MAP_CENTER = { lat: 37.50079, lng: 127.03689 };
+const PLACE_CATEGORY_IDS = ["attraction", "food", "stay", "culture", "course"];
 const defaultState = {
   activeView: "explore",
   selectedPlaceId: 1,
-  category: "all",
+  placeCategories: [...PLACE_CATEGORY_IDS],
   search: "",
   favorites: [1, 2, 4, 5, 6, 8],
   itinerary: [2, 4, 1],
@@ -30,9 +31,12 @@ const loadState = () => {
 };
 
 const state = loadState();
+state.placeCategories = Array.isArray(state.placeCategories)
+  ? state.placeCategories.filter((category) => PLACE_CATEGORY_IDS.includes(category))
+  : state.category && state.category !== "all" ? [state.category] : [...PLACE_CATEGORY_IDS];
 const fallbackPlaces = places.map((place) => ({ ...place }));
 const liveData = { tour: false, weather: null, chargerCount: null };
-const layerVisibility = { place: true, weather: true, charger: false, hotplace: false };
+const layerVisibility = { place: state.placeCategories.length > 0, weather: true, charger: false, hotplace: false };
 let kakaoMap = null;
 let kakaoMarkers = [];
 let kakaoRoute = null;
@@ -84,6 +88,28 @@ function applyMapType() {
   if (selectedMapType === "roadview") kakaoMap.addOverlayMapTypeId(MapTypeId.ROADVIEW);
 }
 
+function renderPlaceFilterControls() {
+  const allSelected = PLACE_CATEGORY_IDS.every((category) => state.placeCategories.includes(category));
+  $$('[data-place-category]').forEach((button) => {
+    const selected = button.dataset.placeCategory === "all"
+      ? allSelected
+      : state.placeCategories.includes(button.dataset.placeCategory);
+    button.classList.toggle("is-active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+  layerVisibility.place = state.placeCategories.length > 0;
+  $("#place-filter-toggle").classList.toggle("is-active", layerVisibility.place);
+  $("#place-filter-toggle").setAttribute("aria-pressed", String(layerVisibility.place));
+  $("#place-filter-off").classList.toggle("is-active", !layerVisibility.place);
+}
+
+function updatePlaceCategories(categories) {
+  state.placeCategories = [...new Set(categories)].filter((category) => PLACE_CATEGORY_IDS.includes(category));
+  renderPlaceFilterControls();
+  persist();
+  renderPlaces();
+}
+
 function setView(view) {
   state.activeView = view;
   $$(".app-view").forEach((section) => section.classList.toggle("is-active", section.dataset.view === view));
@@ -97,7 +123,7 @@ function setView(view) {
 function filteredPlaces() {
   const query = state.search.trim().toLowerCase();
   let result = places.filter((place) => {
-    const categoryMatch = state.category === "all" || place.category === state.category;
+    const categoryMatch = state.placeCategories.includes(place.category);
     const textMatch = !query || `${place.title} ${place.region} ${place.categoryLabel}`.toLowerCase().includes(query);
     return categoryMatch && textMatch;
   });
@@ -489,7 +515,19 @@ function bindGlobalEvents() {
   $("#search-form").addEventListener("submit", async (event) => { event.preventDefault(); state.search = $("#search-input").value.trim(); persist(); await refreshTourData(state.search); });
   $("#search-input").addEventListener("input", (event) => { state.search = event.target.value; renderPlaces(); });
   $("#sort-select").addEventListener("change", renderPlaces);
-  $$('[data-category]').forEach((button) => button.addEventListener("click", () => { state.category = button.dataset.category; $$('[data-category]').forEach((item) => item.classList.toggle("is-active", item === button)); renderPlaces(); }));
+  $("#place-filter-toggle").addEventListener("click", () => {
+    const panel = $("#place-filter-panel");
+    const isOpen = panel.hidden;
+    panel.hidden = !isOpen;
+    $("#place-filter-toggle").setAttribute("aria-expanded", String(isOpen));
+  });
+  $$('[data-place-category]').forEach((button) => button.addEventListener("click", () => {
+    const category = button.dataset.placeCategory;
+    if (category === "all") updatePlaceCategories(PLACE_CATEGORY_IDS);
+    else if (state.placeCategories.includes(category)) updatePlaceCategories(state.placeCategories.filter((item) => item !== category));
+    else updatePlaceCategories([...state.placeCategories, category]);
+  }));
+  $("#place-filter-off").addEventListener("click", () => updatePlaceCategories([]));
   $("#map-search-trigger").addEventListener("click", () => { $(".search-panel").classList.add("is-open"); $("#search-input").focus(); });
   $("#mobile-search-fab").addEventListener("click", () => $(".search-panel").classList.add("is-open"));
   $("#mobile-panel-close").addEventListener("click", () => $(".search-panel").classList.remove("is-open"));
@@ -545,10 +583,15 @@ function bindGlobalEvents() {
     applyMapType();
   });
   document.addEventListener("click", (event) => {
-    if (event.target.closest(".map-type-picker")) return;
-    $("#map-type-menu").hidden = true;
-    $("#map-type-toggle").classList.remove("is-active");
-    $("#map-type-toggle").setAttribute("aria-expanded", "false");
+    if (!event.target.closest(".map-type-picker")) {
+      $("#map-type-menu").hidden = true;
+      $("#map-type-toggle").classList.remove("is-active");
+      $("#map-type-toggle").setAttribute("aria-expanded", "false");
+    }
+    if (!event.target.closest("#place-filter-toggle, #place-filter-panel")) {
+      $("#place-filter-panel").hidden = true;
+      $("#place-filter-toggle").setAttribute("aria-expanded", "false");
+    }
   });
   $$('[data-layer]').forEach((button) => button.addEventListener("click", async () => {
     const layer = button.dataset.layer;
@@ -874,9 +917,9 @@ async function hydrateLiveData() {
 
 function init() {
   renderAll();
+  renderPlaceFilterControls();
   $("#favorite-count").textContent = state.favorites.length;
   $("#search-input").value = state.search;
-  $$('[data-category]').forEach((item) => item.classList.toggle("is-active", item.dataset.category === state.category));
   $$('[data-layer]').forEach((item) => item.setAttribute("aria-pressed", String(layerVisibility[item.dataset.layer])));
   bindGlobalEvents();
   setView(state.activeView || "explore");
