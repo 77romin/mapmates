@@ -71,15 +71,6 @@
             <button type="submit" aria-label="검색">검색</button>
           </form>
 
-          <div class="quick-filters" aria-label="관광지 분류">
-            <button class="filter-chip is-active" type="button" data-category="all">전체</button>
-            <button class="filter-chip" type="button" data-category="attraction">관광지</button>
-            <button class="filter-chip" type="button" data-category="food">맛집</button>
-            <button class="filter-chip" type="button" data-category="stay">숙소</button>
-            <button class="filter-chip" type="button" data-category="culture">문화</button>
-            <button class="filter-chip" type="button" data-category="course">코스</button>
-          </div>
-
           <div class="nearby-heading"><h3>지금 지도 주변 여행지</h3><button type="button" id="refresh-nearby-button" aria-label="현재 지도 다시 검색">↻</button></div>
           <div class="result-summary">
             <div><strong id="result-count">8</strong>개의 여행지 <span class="live-data-status" id="live-data-status">데이터 연결 중</span></div>
@@ -108,9 +99,24 @@
           </div>
 
           <div class="map-categories" aria-label="지도 레이어">
-            <button class="map-category is-active" type="button" data-layer="place"><span>⌖</span>여행지</button>
+            <button class="map-category is-active" id="place-filter-toggle" type="button" aria-expanded="false" aria-controls="place-filter-panel"><span>⌖</span>여행지</button>
             <button class="map-category" type="button" data-layer="charger"><span>ϟ</span>충전소</button>
             <button class="map-category" type="button" data-layer="hotplace"><span>♡</span>핫플</button>
+          </div>
+
+          <div class="place-filter-panel" id="place-filter-panel" hidden>
+            <div class="place-filter-section">
+              <strong>ON</strong>
+              <div class="place-filter-options" aria-label="표시할 여행지 종류">
+                <button class="is-active" type="button" data-place-category="all" aria-pressed="true">전체</button>
+                <button class="is-active" type="button" data-place-category="attraction" aria-pressed="true">관광지</button>
+                <button class="is-active" type="button" data-place-category="food" aria-pressed="true">맛집</button>
+                <button class="is-active" type="button" data-place-category="stay" aria-pressed="true">숙소</button>
+                <button class="is-active" type="button" data-place-category="culture" aria-pressed="true">문화</button>
+                <button class="is-active" type="button" data-place-category="course" aria-pressed="true">코스</button>
+              </div>
+            </div>
+            <button class="place-filter-off" id="place-filter-off" type="button">OFF <span>표시하지 않기</span></button>
           </div>
 
           <section class="weather-forecast-card" id="weather-map-badge" aria-label="지도 중심 5일 날씨" aria-live="polite">
