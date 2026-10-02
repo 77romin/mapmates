@@ -445,6 +445,15 @@ function closeModal() {
 
 function bindGlobalEvents() {
   $$('[data-view-target]').forEach((button) => button.addEventListener("click", () => setView(button.dataset.viewTarget)));
+  $("#global-search-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const keyword = $("#global-search-input").value.trim();
+    if (!keyword) return;
+    setView("explore");
+    state.search = keyword;
+    $("#search-input").value = keyword;
+    await refreshTourData(keyword);
+  });
   $("#search-form").addEventListener("submit", async (event) => { event.preventDefault(); state.search = $("#search-input").value.trim(); persist(); await refreshTourData(state.search); });
   $("#search-input").addEventListener("input", (event) => { state.search = event.target.value; renderPlaces(); });
   $("#sort-select").addEventListener("change", renderPlaces);
@@ -460,7 +469,9 @@ function bindGlobalEvents() {
     $("#search-panel-toggle").setAttribute("aria-label", collapsed ? "여행지 정보 펼치기" : "여행지 정보 접기");
     setTimeout(() => kakaoMap?.relayout(), 260);
   });
-  $("#trip-collapse-button").addEventListener("click", () => $("#trip-panel").classList.toggle(window.innerWidth <= 1120 ? "is-open" : "is-collapsed"));
+  $("#trip-collapse-button").addEventListener("click", () => $("#trip-panel").classList.remove("is-open"));
+  $("#rail-start-trip").addEventListener("click", () => $("#trip-panel").classList.toggle("is-open"));
+  $("#refresh-nearby-button").addEventListener("click", () => refreshNearbyFromMap(true));
   $("#add-stop-button").addEventListener("click", () => { $(".search-panel").classList.add("is-open"); toast("지도에서 추가할 장소를 선택하세요."); });
   $("#save-trip-button").addEventListener("click", () => { persist(); toast("여행 일정을 저장했어요."); });
   $("#planner-save-button").addEventListener("click", () => { persist(); toast("변경사항을 저장했어요."); });
@@ -704,6 +715,7 @@ async function refreshTourData(keyword = "") {
     state.selectedPlaceId = places.some((place) => place.id === state.selectedPlaceId) ? state.selectedPlaceId : places[0].id;
     renderPlaces();
     renderItinerary();
+    if (keyword && kakaoMap && places[0]?.lat && places[0]?.lng) kakaoMap.panTo(new window.kakao.maps.LatLng(places[0].lat, places[0].lng));
     status.textContent = "TourAPI LIVE";
     status.classList.add("is-live");
   } catch {
