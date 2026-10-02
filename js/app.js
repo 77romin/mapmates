@@ -683,11 +683,29 @@ async function refreshWeatherLayer() {
   if (!kakaoMap) return;
   const center = kakaoMap.getCenter();
   const grid = latLngToGrid(center.getLat(), center.getLng());
+  $("#weather-map-badge").innerHTML = `<p class="weather-loading">5일 날씨를 불러오는 중이에요.</p>`;
   const weather = await api.getWeather({ ...grid, ...weatherBase() }).catch(() => null);
+  const dailyForecast = summarizeDailyWeather(weather);
   liveData.weather = summarizeWeather(weather) || "예보 없음";
-  $("#weather-map-badge").textContent = `☼ ${liveData.weather}`;
+  renderWeatherForecast(dailyForecast);
   places.forEach((place) => { place.weather = liveData.weather; });
   renderPlaces();
+}
+
+function renderWeatherForecast(days) {
+  const root = $("#weather-map-badge");
+  if (!days.length) {
+    root.innerHTML = `<p class="weather-loading">예보 정보를 불러오지 못했어요.</p>`;
+    return;
+  }
+  root.innerHTML = `
+    <div class="weather-forecast-heading"><strong>지도 중심 5일 예보</strong><span>기상청 단기예보</span></div>
+    <div class="weather-table-scroll">
+      <table class="weather-forecast-table">
+        <thead><tr>${days.map((day, index) => `<th class="${index === 0 ? "is-today" : ""}" scope="col">${index === 0 ? "오늘 " : ""}${day.dateLabel}</th>`).join("")}</tr></thead>
+        <tbody><tr>${days.map((day) => `<td><span class="forecast-icon" role="img" aria-label="${day.label}" title="${day.label}">${day.icon}</span><span class="forecast-label">${day.label}</span><span class="forecast-temperature"><span class="low">${day.minTemp}</span> / <span class="high">${day.maxTemp}</span></span></td>`).join("")}</tr></tbody>
+      </table>
+    </div>`;
 }
 
 function regionToZcode(regionName = "") {
@@ -809,13 +827,34 @@ function weatherBase() {
   };
 }
 
+function summarizeDailyWeather(items) {
+  if (!items?.length) return [];
+  const grouped = items.reduce((result, item) => {
+    (result[item.fcstDate] ||= []).push(item);
+    return result;
+  }, {});
+  const skyMap = { 1: ["맑음", "☀️"], 3: ["구름 많음", "🌤️"], 4: ["흐림", "☁️"] };
+  const rainMap = { 1: ["비", "🌧️"], 2: ["비·눈", "🌨️"], 3: ["눈", "🌨️"], 4: ["소나기", "🌦️"], 5: ["빗방울", "🌦️"], 6: ["빗방울·눈", "🌨️"], 7: ["눈날림", "🌨️"] };
+  const formatTemp = (value) => Number.isFinite(value) ? `${Math.round(value)}°` : "-";
+  return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).slice(0, 5).map(([date, values]) => {
+    const daytime = values.filter((item) => Number(item.fcstTime) >= 600 && Number(item.fcstTime) <= 1800);
+    const source = daytime.length ? daytime : values;
+    const precipitation = source.find((item) => item.category === "PTY" && Number(item.fcstValue) > 0);
+    const skies = source.filter((item) => item.category === "SKY");
+    const noonSky = skies.reduce((closest, item) => Math.abs(Number(item.fcstTime) - 1200) < Math.abs(Number(closest?.fcstTime ?? 9999) - 1200) ? item : closest, null);
+    const [label, icon] = precipitation ? rainMap[Number(precipitation.fcstValue)] : (skyMap[Number(noonSky?.fcstValue)] || ["날씨", "🌡️"]);
+    const temperatures = values.filter((item) => item.category === "TMP").map((item) => Number(item.fcstValue)).filter(Number.isFinite);
+    const tmn = Number(values.find((item) => item.category === "TMN")?.fcstValue);
+    const tmx = Number(values.find((item) => item.category === "TMX")?.fcstValue);
+    const min = Number.isFinite(tmn) ? tmn : Math.min(...temperatures);
+    const max = Number.isFinite(tmx) ? tmx : Math.max(...temperatures);
+    return { dateLabel: `${Number(date.slice(4, 6))}/${Number(date.slice(6, 8))}`, label, icon, minTemp: formatTemp(min), maxTemp: formatTemp(max) };
+  });
+}
+
 function summarizeWeather(items) {
-  if (!items?.length) return null;
-  const firstTime = items[0].fcstTime;
-  const values = Object.fromEntries(items.filter((item) => item.fcstTime === firstTime).map((item) => [item.category, item.fcstValue]));
-  const sky = { 1: "맑음", 3: "구름 많음", 4: "흐림" }[values.SKY] || "날씨";
-  const precipitation = Number(values.PTY) > 0 ? "비/눈" : sky;
-  return `${precipitation} ${values.TMP ?? "-"}°`;
+  const today = summarizeDailyWeather(items)[0];
+  return today ? `${today.label} ${today.minTemp}/${today.maxTemp}` : null;
 }
 
 function mapTourPlace(item, index) {
