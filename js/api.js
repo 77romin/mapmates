@@ -84,12 +84,12 @@ export const api = {
     }
   },
 
-  async getEvChargers({ zcode = 50, numOfRows = 300 } = {}) {
+  async getEvChargers({ zcode, numOfRows = 9999, pageNo = 1 } = {}) {
     const serviceKey = config.EV_CHARGER_API_KEY || config.DATA_GO_KR_KEY;
     if (!serviceKey) return null;
     const url = withQuery("https://apis.data.go.kr/B552584/EvCharger/getChargerInfo", {
       serviceKey,
-      pageNo: 1,
+      pageNo,
       numOfRows,
       zcode,
       dataType: "JSON",
@@ -100,6 +100,30 @@ export const api = {
     } catch {
       return null;
     }
+  },
+
+  async getAllEvChargers({ pageSize = 9999 } = {}) {
+    const serviceKey = config.EV_CHARGER_API_KEY || config.DATA_GO_KR_KEY;
+    if (!serviceKey) return null;
+    const allChargers = [];
+    let pageNo = 1;
+    let totalCount = Infinity;
+    while (allChargers.length < totalCount && pageNo <= 20) {
+      const url = withQuery("https://apis.data.go.kr/B552584/EvCharger/getChargerInfo", {
+        serviceKey,
+        pageNo,
+        numOfRows: pageSize,
+        dataType: "JSON",
+      });
+      const data = await requestJson(url);
+      const body = data?.response?.body || data;
+      const items = body?.items?.item || data?.items?.item || [];
+      totalCount = Number(body?.totalCount ?? data?.totalCount ?? items.length);
+      allChargers.push(...items);
+      if (!items.length || allChargers.length >= totalCount) break;
+      pageNo += 1;
+    }
+    return allChargers;
   },
 
   loadKakaoMap() {

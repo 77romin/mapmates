@@ -2,6 +2,9 @@ import { places, companions as seedCompanions, posts as seedPosts, hotplaces as 
 import { api } from "./api.js";
 
 const STORAGE_KEY = "neorang-galjido-v1";
+const NEARBY_RADIUS_METERS = 20000;
+const CHARGER_VISIBLE_MAX_MAP_LEVEL = 4;
+const INITIAL_MAP_CENTER = { lat: 37.50079, lng: 127.03689 };
 const defaultState = {
   activeView: "explore",
   selectedPlaceId: 1,
@@ -29,13 +32,18 @@ const loadState = () => {
 const state = loadState();
 const fallbackPlaces = places.map((place) => ({ ...place }));
 const liveData = { tour: false, weather: null, chargerCount: null };
-const layerVisibility = { place: true, weather: false, charger: false, hotplace: false };
+const layerVisibility = { place: true, weather: true, charger: false, hotplace: false };
 let kakaoMap = null;
 let kakaoMarkers = [];
 let kakaoRoute = null;
-let weatherOverlay = null;
 let chargerMarkers = [];
+let allChargers = null;
+let chargerDataPromise = null;
+let currentUserLocation = null;
+let currentLocationPromise = null;
 let hotplaceMarkers = [];
+let selectedMapType = "roadmap";
+let terrainEnabled = false;
 let mapIdleTimer = null;
 let lastMapFetchKey = "";
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -44,12 +52,36 @@ const persist = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 const placeById = (id) => places.find((place) => place.id === Number(id));
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 
+function getCurrentLocation() {
+  if (currentUserLocation) return Promise.resolve(currentUserLocation);
+  if (!navigator.geolocation) return Promise.resolve(null);
+  if (!currentLocationPromise) {
+    currentLocationPromise = new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(({ coords }) => {
+        currentUserLocation = { lat: coords.latitude, lng: coords.longitude };
+        resolve(currentUserLocation);
+      }, () => resolve(null), { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+    }).finally(() => { currentLocationPromise = null; });
+  }
+  return currentLocationPromise;
+}
+
 function toast(message) {
   const element = document.createElement("div");
   element.className = "toast";
   element.textContent = message;
   $("#toast-container").append(element);
   setTimeout(() => element.remove(), 2800);
+}
+
+function applyMapType() {
+  if (!kakaoMap || !window.kakao?.maps) return;
+  const { MapTypeId } = window.kakao.maps;
+  kakaoMap.removeOverlayMapTypeId(MapTypeId.ROADVIEW);
+  kakaoMap.removeOverlayMapTypeId(MapTypeId.TERRAIN);
+  kakaoMap.setMapTypeId(selectedMapType === "skyview" ? MapTypeId.SKYVIEW : MapTypeId.ROADMAP);
+  if (terrainEnabled) kakaoMap.addOverlayMapTypeId(MapTypeId.TERRAIN);
+  if (selectedMapType === "roadview") kakaoMap.addOverlayMapTypeId(MapTypeId.ROADVIEW);
 }
 
 function setView(view) {
@@ -476,12 +508,12 @@ function bindGlobalEvents() {
   $("#save-trip-button").addEventListener("click", () => { persist(); toast("여행 일정을 저장했어요."); });
   $("#planner-save-button").addEventListener("click", () => { persist(); toast("변경사항을 저장했어요."); });
   $("#share-trip-button").addEventListener("click", async () => { const text = "너랑 갈.지도 - 제주, 우리 둘의 지도"; try { await navigator.clipboard.writeText(`${text}\n${location.href}`); toast("공유 링크를 복사했어요."); } catch { toast("공유할 여행 링크를 준비했어요."); } });
-  $("#locate-button").addEventListener("click", () => {
-    if (!navigator.geolocation) return toast("현재 위치를 지원하지 않는 브라우저예요.");
-    navigator.geolocation.getCurrentPosition(({ coords }) => {
-      if (kakaoMap) kakaoMap.panTo(new window.kakao.maps.LatLng(coords.latitude, coords.longitude));
-      toast("현재 위치로 지도를 이동했어요.");
-    }, () => toast("위치 권한을 허용하면 현재 위치를 표시할 수 있어요."));
+  $("#locate-button").addEventListener("click", async () => {
+    const location = await getCurrentLocation();
+    if (!location) return toast("위치 권한을 허용하면 현재 위치를 표시할 수 있어요.");
+    if (kakaoMap) kakaoMap.panTo(new window.kakao.maps.LatLng(location.lat, location.lng));
+    if (layerVisibility.charger) await refreshChargerLayer();
+    toast("현재 위치로 지도를 이동했어요.");
   });
   $("#zoom-in").addEventListener("click", () => {
     if (kakaoMap) kakaoMap.setLevel(Math.max(1, kakaoMap.getLevel() - 1), { animate: true });
@@ -491,13 +523,44 @@ function bindGlobalEvents() {
     if (kakaoMap) kakaoMap.setLevel(Math.min(14, kakaoMap.getLevel() + 1), { animate: true });
     else $(".map-pattern").style.transform = "rotate(-4deg) scale(1)";
   });
+  $("#map-type-toggle").addEventListener("click", () => {
+    const menu = $("#map-type-menu");
+    const isOpen = menu.hidden;
+    menu.hidden = !isOpen;
+    $("#map-type-toggle").classList.toggle("is-active", isOpen);
+    $("#map-type-toggle").setAttribute("aria-expanded", String(isOpen));
+  });
+  $$('[data-map-base]').forEach((button) => button.addEventListener("click", () => {
+    selectedMapType = button.dataset.mapBase;
+    $$('[data-map-base]').forEach((item) => {
+      const selected = item === button;
+      item.classList.toggle("is-active", selected);
+      item.setAttribute("aria-checked", String(selected));
+    });
+    applyMapType();
+  }));
+  $("#terrain-toggle").addEventListener("click", () => {
+    terrainEnabled = !terrainEnabled;
+    $("#terrain-toggle").setAttribute("aria-pressed", String(terrainEnabled));
+    applyMapType();
+  });
+  document.addEventListener("click", (event) => {
+    if (event.target.closest(".map-type-picker")) return;
+    $("#map-type-menu").hidden = true;
+    $("#map-type-toggle").classList.remove("is-active");
+    $("#map-type-toggle").setAttribute("aria-expanded", "false");
+  });
   $$('[data-layer]').forEach((button) => button.addEventListener("click", async () => {
     const layer = button.dataset.layer;
     layerVisibility[layer] = !layerVisibility[layer];
     button.classList.toggle("is-active", layerVisibility[layer]);
     button.setAttribute("aria-pressed", String(layerVisibility[layer]));
     await updateMapLayer(layer);
-    toast(`${button.textContent.trim()} 표시를 ${layerVisibility[layer] ? "켰어요" : "껐어요"}.`);
+    if (layer === "charger" && layerVisibility.charger && kakaoMap?.getLevel() > CHARGER_VISIBLE_MAX_MAP_LEVEL) {
+      toast("충전소는 지도를 250m 축척까지 확대하면 표시돼요.");
+    } else {
+      toast(`${button.textContent.trim()} 표시를 ${layerVisibility[layer] ? "켰어요" : "껐어요"}.`);
+    }
   }));
   $("#companion-filter-button").addEventListener("click", renderCompanions);
   $("#create-companion-button").addEventListener("click", showCompanionForm);
@@ -518,27 +581,46 @@ async function initKakaoMap() {
   mapElement.id = "kakao-map";
   Object.assign(mapElement.style, { position: "absolute", inset: "0", zIndex: "1" });
   stage.prepend(mapElement);
-  kakaoMap = new window.kakao.maps.Map(mapElement, { center: new window.kakao.maps.LatLng(33.42, 126.62), level: 9 });
+  kakaoMap = new window.kakao.maps.Map(mapElement, {
+    center: new window.kakao.maps.LatLng(INITIAL_MAP_CENTER.lat, INITIAL_MAP_CENTER.lng),
+    level: 9,
+  });
   kakaoMap.setDraggable(true);
   kakaoMap.setZoomable(true);
   stage.classList.add("has-live-map");
+  applyMapType();
   syncKakaoMarkers();
   syncKakaoRoute();
   window.kakao.maps.event.addListener(kakaoMap, "idle", () => {
     clearTimeout(mapIdleTimer);
-    mapIdleTimer = setTimeout(refreshNearbyFromMap, 350);
+    mapIdleTimer = setTimeout(() => {
+      refreshNearbyFromMap();
+      if (layerVisibility.charger) refreshChargerLayer();
+    }, 350);
   });
   await refreshNearbyFromMap(true);
 }
 
 function mapRadiusMeters() {
-  const center = kakaoMap.getCenter();
-  const corner = kakaoMap.getBounds().getNorthEast();
+  return NEARBY_RADIUS_METERS;
+}
+
+function distanceMeters(lat1, lng1, lat2, lng2) {
   const rad = (value) => value * Math.PI / 180;
-  const dLat = rad(corner.getLat() - center.getLat());
-  const dLng = rad(corner.getLng() - center.getLng());
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(center.getLat())) * Math.cos(rad(corner.getLat())) * Math.sin(dLng / 2) ** 2;
-  return Math.min(20000, Math.max(1000, 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))));
+  const dLat = rad(lat2 - lat1);
+  const dLng = rad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function chargersWithinRadius(chargers, origin, radius) {
+  return chargers.filter((charger) => {
+    const lat = Number(charger.lat);
+    const lng = Number(charger.lng);
+    return Number.isFinite(lat)
+      && Number.isFinite(lng)
+      && distanceMeters(origin.lat, origin.lng, lat, lng) <= radius;
+  });
 }
 
 async function refreshNearbyFromMap(force = false) {
@@ -571,7 +653,6 @@ async function refreshNearbyFromMap(force = false) {
     status.textContent = `지도 중심 ${Math.round(radius / 1000)}km`;
     status.classList.add("is-live");
     if (layerVisibility.weather) await refreshWeatherLayer();
-    if (layerVisibility.charger) await refreshChargerLayer();
   } catch {
     status.textContent = "지도 데이터 재시도";
     status.classList.add("is-fallback");
@@ -599,17 +680,12 @@ function latLngToGrid(lat, lon) {
 }
 
 async function refreshWeatherLayer() {
-  if (!kakaoMap || !layerVisibility.weather) return;
+  if (!kakaoMap) return;
   const center = kakaoMap.getCenter();
   const grid = latLngToGrid(center.getLat(), center.getLng());
   const weather = await api.getWeather({ ...grid, ...weatherBase() }).catch(() => null);
   liveData.weather = summarizeWeather(weather) || "예보 없음";
-  weatherOverlay?.setMap(null);
-  const content = document.createElement("div");
-  content.className = "weather-map-badge";
-  content.textContent = `☼ ${liveData.weather}`;
-  weatherOverlay = new window.kakao.maps.CustomOverlay({ position: center, content, yAnchor: 1.4, zIndex: 10 });
-  weatherOverlay.setMap(kakaoMap);
+  $("#weather-map-badge").textContent = `☼ ${liveData.weather}`;
   places.forEach((place) => { place.weather = liveData.weather; });
   renderPlaces();
 }
@@ -629,25 +705,92 @@ function currentRegionZcode() {
 
 async function refreshChargerLayer() {
   if (!kakaoMap || !layerVisibility.charger) return;
-  const zcode = await currentRegionZcode();
-  const chargers = await api.getEvChargers({ zcode, numOfRows: 500 }).catch(() => []);
-  chargerMarkers.forEach((marker) => marker.setMap(null));
-  const bounds = kakaoMap.getBounds();
-  const nearby = (chargers || []).filter((item) => item.lat && item.lng && bounds.contain(new window.kakao.maps.LatLng(Number(item.lat), Number(item.lng)))).slice(0, 80);
-  chargerMarkers = nearby.map((item) => new window.kakao.maps.Marker({ position: new window.kakao.maps.LatLng(Number(item.lat), Number(item.lng)), map: kakaoMap, title: `충전소 · ${item.statNm || "전기차 충전소"}`, zIndex: 7 }));
-  liveData.chargerCount = nearby.length;
+  if (kakaoMap.getLevel() > CHARGER_VISIBLE_MAX_MAP_LEVEL) {
+    chargerMarkers.forEach(({ marker, info }) => { marker.setMap(null); info.setMap(null); });
+    chargerMarkers = [];
+    return;
+  }
+  const currentLocation = await getCurrentLocation();
+  if (!currentLocation) {
+    layerVisibility.charger = false;
+    const chargerButton = $('[data-layer="charger"]');
+    chargerButton?.classList.remove("is-active");
+    chargerButton?.setAttribute("aria-pressed", "false");
+    toast("충전소를 보려면 위치 권한을 허용해주세요.");
+    return;
+  }
+  if (!chargerDataPromise) {
+    chargerDataPromise = api.getAllEvChargers().then((items) => {
+      allChargers = items || [];
+      return allChargers;
+    }).catch(() => {
+      chargerDataPromise = null;
+      return [];
+    });
+  }
+  const chargers = allChargers || await chargerDataPromise;
+  if (!kakaoMap || !layerVisibility.charger) return;
+  chargerMarkers.forEach(({ marker, info }) => { marker.setMap(null); info.setMap(null); });
+  const nearby = chargersWithinRadius(chargers, currentLocation, NEARBY_RADIUS_METERS);
+  const stations = [...nearby.reduce((groups, charger) => {
+    const key = charger.statId || `${charger.statNm}:${charger.lat}:${charger.lng}`;
+    if (!groups.has(key)) groups.set(key, { name: charger.statNm || "전기차 충전소", address: charger.addr || "", lat: Number(charger.lat), lng: Number(charger.lng), chargers: [] });
+    groups.get(key).chargers.push(charger);
+    return groups;
+  }, new Map()).values()];
+
+  chargerMarkers = stations.map((station) => {
+    const position = new window.kakao.maps.LatLng(station.lat, station.lng);
+    const available = station.chargers.filter((charger) => String(charger.stat) === "2").length;
+    const charging = station.chargers.filter((charger) => String(charger.stat) === "3").length;
+    const markerButton = document.createElement("button");
+    markerButton.className = "charger-map-marker";
+    markerButton.type = "button";
+    markerButton.title = `${station.name} · ${available}대 충전 가능`;
+    markerButton.setAttribute("aria-label", `${station.name}, 총 ${station.chargers.length}대 중 ${available}대 충전 가능`);
+    markerButton.innerHTML = '<span aria-hidden="true">ϟ</span>';
+
+    const infoContent = document.createElement("section");
+    infoContent.className = "charger-info-window";
+    infoContent.innerHTML = `
+      <div class="charger-info-heading">
+        <div><strong>${escapeHtml(station.name)}</strong><small>${escapeHtml(station.address)}</small></div>
+        <button type="button" aria-label="충전소 정보 닫기">×</button>
+      </div>
+      <div class="charger-availability">
+        <strong><b>${available}</b>대 충전 가능</strong>
+        <span>전체 ${station.chargers.length}대 · 충전 중 ${charging}대</span>
+      </div>
+      <div class="charger-status-list">
+        ${station.chargers.slice(0, 8).map((charger, index) => {
+          const status = String(charger.stat);
+          const label = { 1: "통신 이상", 2: "충전 가능", 3: "충전 중", 4: "운영 중지", 5: "점검 중", 9: "상태 미확인" }[status] || "상태 미확인";
+          const tone = status === "2" ? "ready" : status === "3" ? "charging" : "unavailable";
+          return `<span class="charger-status ${tone}">${escapeHtml(charger.chgerId || String(index + 1).padStart(2, "0"))} · ${label}</span>`;
+        }).join("")}
+      </div>`;
+
+    const marker = new window.kakao.maps.CustomOverlay({ position, map: kakaoMap, content: markerButton, yAnchor: 1, zIndex: 8 });
+    const info = new window.kakao.maps.CustomOverlay({ position, content: infoContent, yAnchor: 1.22, zIndex: 20 });
+    const entry = { marker, info, open: false };
+    const close = () => { info.setMap(null); entry.open = false; markerButton.classList.remove("is-active"); };
+    markerButton.addEventListener("click", () => {
+      chargerMarkers.forEach((item) => { if (item !== entry) { item.info.setMap(null); item.open = false; item.marker.getContent().classList.remove("is-active"); } });
+      if (entry.open) close();
+      else { info.setMap(kakaoMap); entry.open = true; markerButton.classList.add("is-active"); }
+    });
+    infoContent.querySelector("button").addEventListener("click", close);
+    return entry;
+  });
+  liveData.chargerCount = stations.length;
 }
 
 async function updateMapLayer(layer) {
   if (layer === "place") kakaoMarkers.forEach((marker) => marker.setMap(layerVisibility.place ? kakaoMap : null));
   if (layer === "hotplace") syncHotplaceLayer();
-  if (layer === "weather") {
-    if (layerVisibility.weather) await refreshWeatherLayer();
-    else weatherOverlay?.setMap(null);
-  }
   if (layer === "charger") {
     if (layerVisibility.charger) await refreshChargerLayer();
-    else chargerMarkers.forEach((marker) => marker.setMap(null));
+    else chargerMarkers.forEach(({ marker, info }) => { marker.setMap(null); info.setMap(null); });
   }
 }
 
