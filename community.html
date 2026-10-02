@@ -1,3 +1,43 @@
-<!doctype html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>커뮤니티 | 너랑 갈.지도</title><link rel="stylesheet" href="./css/style.css"><link rel="stylesheet" href="./css/subpages.css"></head>
-<body><header class="topbar"><a class="brand" href="./index.html"><span class="brand-mark"><span></span></span><span>너랑 <strong>갈.지도</strong></span></a><form class="topbar-search" id="global-search-form"><span class="icon icon-search"></span><input id="global-search-input" placeholder="장소를 검색해보세요"><button>검색</button></form><nav class="desktop-nav"><a class="nav-item" data-page-link="explore" href="./index.html">지도 탐색</a><a class="nav-item" data-page-link="planner" href="./planner.html">여행 계획</a><a class="nav-item" data-page-link="companions" href="./companions.html">동행 찾기</a><a class="nav-item" data-page-link="community" href="./community.html">커뮤니티</a></nav><div class="topbar-actions"><a class="profile-button" href="./mypage.html"><span class="avatar" data-user-avatar>강</span><span data-user-name>김강민</span></a></div></header>
-<main class="subpage-main"><div class="subpage-shell is-narrow"><header class="subpage-header"><div><p class="eyebrow">COMMUNITY</p><h1>여행자 라운지</h1><p>여행 팁과 새로운 소식을 나누는 공간입니다.</p></div><a class="button button-primary" href="./post-write.html">＋ 글쓰기</a></header><div class="community-tabs" id="community-tabs"><button class="is-active" data-board="travel">여행정보 공유</button><button data-board="notice">공지사항</button><button data-board="news">관광 뉴스</button></div><div class="board-toolbar"><form id="post-search"><span class="icon icon-search"></span><input id="post-keyword" placeholder="게시글을 검색하세요"><button>검색</button></form></div><section class="subpage-card post-list-page" id="post-list"></section></div></main><nav class="mobile-nav"><a data-page-link="explore" href="./index.html"><span>⌖</span>지도</a><a data-page-link="planner" href="./planner.html"><span>☷</span>일정</a><a data-page-link="companions" href="./companions.html"><span>♙</span>동행</a><a data-page-link="community" href="./community.html"><span>□</span>라운지</a><a href="./mypage.html"><span>○</span>MY</a></nav><script type="module" src="./js/community.js"></script></body></html>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>커뮤니티 | 너랑 갈.지도</title>
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/subpages.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><span class="brand-mark"><span></span></span><span>너랑 <strong>갈.지도</strong></span></a>
+    <form class="topbar-search" id="global-search-form" role="search"><span class="icon icon-search"></span><input id="global-search-input" placeholder="장소를 검색해보세요" aria-label="장소 검색"><button>검색</button></form>
+    <nav class="desktop-nav" aria-label="주요 메뉴"><a class="nav-item" data-page-link="explore" href="./index.html">지도 탐색</a><a class="nav-item" data-page-link="planner" href="./planner.html">여행 계획</a><a class="nav-item" data-page-link="companions" href="./companions.html">동행 찾기</a><a class="nav-item" data-page-link="community" href="./community.html">커뮤니티</a></nav>
+    <div class="topbar-actions"><a class="profile-button" href="./mypage.html"><span class="avatar" data-user-avatar></span><span class="profile-name" data-user-name></span></a></div>
+  </header>
+
+  <main class="subpage-main" id="main">
+    <div class="subpage-shell is-narrow">
+      <header class="subpage-header">
+        <div><p class="eyebrow">COMMUNITY</p><h1>여행자 라운지</h1><p>여행 팁과 새로운 소식을 나누는 공간입니다.</p></div>
+        <a class="button button-primary" id="write-post" href="./post-write.html">＋ 글쓰기</a>
+      </header>
+      <div class="community-tabs" id="community-tabs" role="tablist" aria-label="게시판">
+        <button class="is-active" type="button" role="tab" aria-selected="true" aria-controls="post-list" data-board="travel">여행정보 공유</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="post-list" data-board="notice">공지사항</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="post-list" data-board="news">관광 뉴스</button>
+      </div>
+      <div class="board-toolbar">
+        <form id="post-search" role="search"><span class="icon icon-search"></span><input id="post-keyword" type="search" placeholder="제목, 내용, 작성자, 분류 검색" aria-label="게시글 검색"><button>검색</button></form>
+        <label class="sort-select"><span class="sr-only">정렬</span><select id="post-sort"><option value="latest">최신순</option><option value="views">조회순</option><option value="comments">댓글순</option></select></label>
+      </div>
+      <p class="helper-text board-summary" id="board-summary"></p>
+      <section class="subpage-card post-list-page" id="post-list" role="tabpanel" aria-live="polite"></section>
+    </div>
+  </main>
+
+  <nav class="mobile-nav" aria-label="모바일 메뉴"><a data-page-link="explore" href="./index.html"><span>⌖</span>지도</a><a data-page-link="planner" href="./planner.html"><span>☷</span>일정</a><a data-page-link="companions" href="./companions.html"><span>♙</span>동행</a><a data-page-link="community" href="./community.html"><span>□</span>라운지</a><a data-page-link="mypage" href="./mypage.html"><span>○</span>MY</a></nav>
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+  <script type="module" src="./js/community.js"></script>
+</body>
+</html>

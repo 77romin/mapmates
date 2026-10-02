@@ -1,1 +1,79 @@
-<!doctype html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>회원가입 | 너랑 갈.지도</title><link rel="stylesheet" href="./css/style.css"><link rel="stylesheet" href="./css/subpages.css"></head><body><header class="topbar"><a class="brand" href="./index.html"><span class="brand-mark"><span></span></span><span>너랑 <strong>갈.지도</strong></span></a><div></div><nav class="desktop-nav"><a class="nav-item" href="./index.html">지도 탐색</a><a class="nav-item" href="./planner.html">여행 계획</a><a class="nav-item" href="./companions.html">동행 찾기</a><a class="nav-item" href="./community.html">커뮤니티</a></nav><div></div></header><main class="subpage-main"><div class="subpage-shell is-narrow"><header class="subpage-header"><div><p class="eyebrow">JOIN US</p><h1>회원가입</h1><p>여행계획과 동행 기록을 한 계정에서 관리하세요.</p></div></header><form class="subpage-card account-card form-grid-page" id="signup-form"><label class="field is-full"><span>이메일</span><input id="signup-email" type="email" required></label><label class="field"><span>비밀번호</span><input id="signup-password" type="password" minlength="8" required></label><label class="field"><span>비밀번호 확인</span><input id="signup-password-confirm" type="password" minlength="8" required></label><label class="field"><span>이름</span><input id="signup-name" required></label><label class="field"><span>닉네임</span><input id="signup-nickname" required></label><label class="field"><span>생년월일</span><input id="signup-birth" type="date" required></label><label class="field"><span>성별</span><select id="signup-gender" required><option value="male">남성</option><option value="female">여성</option></select></label><label class="field is-full"><span>프로필 사진</span><div class="photo-picker"><div class="photo-preview" id="signup-preview">＋</div><input id="signup-photo" type="file" accept="image/*"></div></label><button class="button button-primary is-full" type="submit">가입 완료</button></form></div></main><div class="toast-container" id="toast-container"></div><script type="module" src="./js/signup.js"></script></body></html>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>회원가입 | 너랑 갈.지도</title>
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/subpages.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><span class="brand-mark"><span></span></span><span>너랑 <strong>갈.지도</strong></span></a>
+    <div></div>
+    <nav class="desktop-nav" aria-label="주요 메뉴"><a class="nav-item" data-page-link="explore" href="./index.html">지도 탐색</a><a class="nav-item" data-page-link="planner" href="./planner.html">여행 계획</a><a class="nav-item" data-page-link="companions" href="./companions.html">동행 찾기</a><a class="nav-item" data-page-link="community" href="./community.html">커뮤니티</a></nav>
+    <div></div>
+  </header>
+
+  <main class="subpage-main" id="main">
+    <div class="subpage-shell is-narrow">
+      <header class="subpage-header">
+        <div><p class="eyebrow">JOIN US</p><h1 id="account-title">회원가입</h1><p>여행계획과 동행 기록을 한 계정에서 관리하세요.</p></div>
+      </header>
+
+      <section class="subpage-card account-card logged-in-notice" id="logged-in-notice" hidden>
+        <h2>이미 로그인되어 있어요</h2>
+        <p class="helper-text" id="logged-in-text"></p>
+        <div class="subpage-actions">
+          <a class="button button-primary" href="./mypage.html">마이페이지로 이동</a>
+          <button class="button button-secondary" id="logout-button" type="button">로그아웃</button>
+        </div>
+      </section>
+
+      <div id="account-forms">
+        <div class="community-tabs account-tabs" role="tablist" aria-label="계정">
+          <button class="is-active" id="tab-signup" type="button" role="tab" aria-selected="true" aria-controls="signup-form" data-account-tab="signup">회원가입</button>
+          <button id="tab-login" type="button" role="tab" aria-selected="false" aria-controls="login-form" data-account-tab="login">로그인</button>
+        </div>
+
+        <form class="subpage-card account-card form-grid-page" id="signup-form" role="tabpanel" aria-labelledby="tab-signup" novalidate>
+          <label class="field is-full"><span>이메일</span><input id="signup-email" type="email" autocomplete="email" required></label>
+          <label class="field"><span>비밀번호</span><input id="signup-password" type="password" minlength="8" maxlength="64" autocomplete="new-password" required aria-describedby="password-help"></label>
+          <label class="field"><span>비밀번호 확인</span><input id="signup-password-confirm" type="password" minlength="8" maxlength="64" autocomplete="new-password" required></label>
+          <p class="helper-text is-full" id="password-help">영문과 숫자를 포함해 8자 이상 입력해주세요.</p>
+          <label class="field"><span>이름</span><input id="signup-name" maxlength="20" autocomplete="name" required></label>
+          <label class="field"><span>닉네임</span><input id="signup-nickname" maxlength="20" autocomplete="nickname" required></label>
+          <label class="field"><span>생년월일</span><input id="signup-birth" type="date" min="1900-01-01" required></label>
+          <label class="field"><span>성별</span><select id="signup-gender" required><option value="" disabled selected>선택해주세요</option><option value="male">남성</option><option value="female">여성</option></select></label>
+          <div class="field is-full">
+            <span id="signup-photo-label">프로필 사진 (선택)</span>
+            <div class="photo-picker">
+              <div class="photo-preview" id="signup-preview" aria-hidden="true">＋</div>
+              <div class="photo-picker-actions">
+                <label class="button button-secondary file-button">사진 선택<input class="sr-only" id="signup-photo" type="file" accept="image/*" aria-labelledby="signup-photo-label"></label>
+                <button class="text-button" id="signup-photo-remove" type="button" hidden>사진 삭제</button>
+                <p class="helper-text">동행 참가자 목록과 댓글에 표시돼요. 성별에 따라 테두리 색이 달라집니다.</p>
+              </div>
+            </div>
+          </div>
+          <p class="form-error is-full" id="signup-error" role="alert"></p>
+          <button class="button button-primary is-full" type="submit">가입 완료</button>
+        </form>
+
+        <form class="subpage-card account-card form-stack" id="login-form" role="tabpanel" aria-labelledby="tab-login" hidden novalidate>
+          <label class="field"><span>이메일</span><input id="login-email" type="email" autocomplete="email" required></label>
+          <label class="field"><span>비밀번호</span><input id="login-password" type="password" autocomplete="current-password" required></label>
+          <p class="form-error" id="login-error" role="alert"></p>
+          <button class="button button-primary" type="submit">로그인</button>
+          <p class="helper-text">이 브라우저에 가입한 계정으로 로그인할 수 있어요.</p>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <nav class="mobile-nav" aria-label="모바일 메뉴"><a data-page-link="explore" href="./index.html"><span>⌖</span>지도</a><a data-page-link="planner" href="./planner.html"><span>☷</span>일정</a><a data-page-link="companions" href="./companions.html"><span>♙</span>동행</a><a data-page-link="community" href="./community.html"><span>□</span>라운지</a><a data-page-link="mypage" href="./mypage.html"><span>○</span>MY</a></nav>
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+  <script type="module" src="./js/signup.js"></script>
+</body>
+</html>

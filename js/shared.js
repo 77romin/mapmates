@@ -80,11 +80,22 @@ export function showToast(message) {
   setTimeout(() => item.remove(), 2600);
 }
 
+export function ensureLoggedIn(state, message = "로그인이 필요한 기능이에요.") {
+  if (state.loggedIn) return true;
+  showToast(message);
+  const next = `${location.pathname.split("/").pop() || "index.html"}${location.search}`;
+  setTimeout(() => { location.href = `./signup.html?next=${encodeURIComponent(next)}`; }, 500);
+  return false;
+}
+
 export function initShell(page, state = loadState()) {
   document.querySelectorAll("[data-page-link]").forEach((link) => link.classList.toggle("is-active", link.dataset.pageLink === page));
   document.querySelectorAll("[data-user-name]").forEach((node) => { node.textContent = state.loggedIn ? state.user.name : "로그인"; });
   document.querySelectorAll("[data-user-avatar]").forEach((node) => {
     node.innerHTML = state.user.photo ? `<img src="${escapeHtml(state.user.photo)}" alt="" />` : escapeHtml((state.user.name || "?")[0]);
+  });
+  document.querySelectorAll(".profile-button").forEach((link) => {
+    if (!state.loggedIn) link.setAttribute("href", "./signup.html");
   });
   document.querySelector("#global-search-form")?.addEventListener("submit", (event) => {
     event.preventDefault();
