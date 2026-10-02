@@ -9,16 +9,8 @@ mirror_to_github:
     - apk add --no-cache git
 
   script:
-<<<<<<< HEAD
-    - git remote add github https://77romin:${GITHUB_TOKEN}@github.com/77romin/ssafy-frontend-project.git
+    - git remote add github "https://77romin:${GITHUB_TOKEN}@github.com/77romin/ssafy-frontend-project.git"
     - git push github HEAD:main
 
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
-=======
-    - git remote add github https://oauth2:${GITHUB_TOKEN}@github.com/77romin/ssafy-frontend-project.git
-    - git push github HEAD:${CI_COMMIT_REF_NAME}
-
-  rules:
-    - if: '$CI_COMMIT_BRANCH'
->>>>>>> 72a0c2ca870a5d6c4f9fa8dc41f7359414e3bfb3
