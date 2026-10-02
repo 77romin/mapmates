@@ -16,8 +16,25 @@ const mime = {
   ".webp": "image/webp",
 };
 
-http.createServer((request, response) => {
+http.createServer(async (request, response) => {
   const pathname = decodeURIComponent(new URL(request.url, `http://${request.headers.host}`).pathname);
+  if (pathname === "/api/kakao-directions") {
+    const incoming = new URL(request.url, `http://${request.headers.host}`);
+    const target = new URL("https://apis-navi.kakaomobility.com/v1/directions");
+    ["origin", "destination", "waypoints", "priority", "car_fuel"].forEach((key) => {
+      if (incoming.searchParams.has(key)) target.searchParams.set(key, incoming.searchParams.get(key));
+    });
+    try {
+      const apiResponse = await fetch(target, { headers: { Accept: "application/json", Authorization: request.headers.authorization || "" } });
+      const body = await apiResponse.text();
+      response.writeHead(apiResponse.status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(body);
+    } catch {
+      response.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: "Kakao Mobility proxy failed" }));
+    }
+    return;
+  }
   const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
   const file = path.resolve(root, relative);
 

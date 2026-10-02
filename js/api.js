@@ -126,6 +126,26 @@ export const api = {
     return allChargers;
   },
 
+  async getCarDirections({ origin, destination, waypoints = [] }) {
+    if (!config.KAKAO_REST_KEY || !origin || !destination) return null;
+    const sameOriginProxy = location.protocol.startsWith("http") ? location.origin : "";
+    const proxyBase = String(config.API_PROXY_URL || sameOriginProxy).replace(/\/$/, "");
+    const endpoint = proxyBase ? `${proxyBase}/api/kakao-directions` : "https://apis-navi.kakaomobility.com/v1/directions";
+    const url = withQuery(endpoint, {
+      origin: `${origin.lng},${origin.lat}`,
+      destination: `${destination.lng},${destination.lat}`,
+      waypoints: waypoints.map((point) => `${point.lng},${point.lat}`).join("|"),
+      priority: "RECOMMEND",
+      car_fuel: "GASOLINE",
+    });
+    try {
+      const data = await requestJson(url, { headers: { Authorization: `KakaoAK ${config.KAKAO_REST_KEY}` } });
+      return data?.routes?.[0] || null;
+    } catch {
+      return null;
+    }
+  },
+
   loadKakaoMap() {
     if (!config.KAKAO_JS_KEY || window.kakao?.maps) return Promise.resolve(Boolean(window.kakao?.maps));
     return new Promise((resolve) => {

@@ -111,9 +111,13 @@ function updatePlaceCategories(categories) {
 }
 
 function setView(view) {
-  state.activeView = view;
-  $$(".app-view").forEach((section) => section.classList.toggle("is-active", section.dataset.view === view));
-  $$('[data-view-target]').forEach((button) => button.classList.toggle("is-active", button.dataset.viewTarget === view));
+  if (view !== "explore") {
+    const page = { planner: "planner.html", companions: "companions.html", community: "community.html", mypage: "mypage.html" }[view];
+    if (page) window.location.href = `./${page}`;
+    return;
+  }
+  state.activeView = "explore";
+  $$(".app-view").forEach((section) => section.classList.toggle("is-active", section.dataset.view === "explore"));
   $(".search-panel")?.classList.remove("is-open");
   document.body.style.overflow = "";
   persist();
@@ -267,7 +271,8 @@ function renderItinerary() {
       <div class="itinerary-actions"><button type="button" data-move-up="${index}" aria-label="위로 이동">▲</button><button type="button" data-remove-stop="${index}" aria-label="일정에서 삭제">×</button><button type="button" data-move-down="${index}" aria-label="아래로 이동">▼</button></div>
     </article>`).join("") : `<div class="empty-state"><div><strong>아직 일정이 비어 있어요</strong><span>지도에서 장소를 추가해보세요.</span></div></div>`;
   $("#itinerary-list").innerHTML = html;
-  $("#planner-itinerary").innerHTML = items.length ? items.map((place, index) => `
+  const plannerItinerary = $("#planner-itinerary");
+  if (plannerItinerary) plannerItinerary.innerHTML = items.length ? items.map((place, index) => `
     <article class="planner-row">
       <div class="planner-row-number"><span>${index === 0 ? "09:30" : index === 1 ? "11:20" : "14:10"}</span><strong>${index + 1}</strong></div>
       <img src="${place.image}" alt="${escapeHtml(place.title)}" />
@@ -349,6 +354,7 @@ function showPlaceDetail(place) {
 }
 
 function renderCompanions() {
+  if (!$("#companion-list")) return;
   const region = $("#companion-region")?.value || "all";
   const theme = $("#companion-theme")?.value || "all";
   const status = $("#companion-status")?.value || "all";
@@ -390,6 +396,7 @@ function showCompanionForm() {
 }
 
 function renderPosts() {
+  if (!$("#post-list")) return;
   const query = ($("#board-search")?.value || "").trim().toLowerCase();
   const result = state.posts.filter((post) => post.board === state.currentBoard && (!query || `${post.title} ${post.author} ${post.category}`.toLowerCase().includes(query)));
   $("#post-list").innerHTML = result.length ? result.map((post) => `
@@ -430,6 +437,7 @@ function renderBoardTabs() {
 }
 
 function renderHotplaces() {
+  if (!$("#hotplace-list")) return;
   $("#hotplace-list").innerHTML = state.hotplaces.map((item) => `<article class="hotplace" style="background-image:url('${item.image}')"><span>${escapeHtml(item.title)}</span></article>`).join("");
 }
 
@@ -477,11 +485,11 @@ function showWithdrawConfirm() {
 function renderUser() {
   $(".profile-name").textContent = state.loggedIn ? state.user.name : "로그인";
   $$(".avatar, .large-avatar").forEach((item) => { item.textContent = state.loggedIn ? state.user.name[0] : "?"; });
-  $("#mypage-title").textContent = state.loggedIn ? `${state.user.name} 님의 여행 지도` : "로그인이 필요해요";
+  if ($("#mypage-title")) $("#mypage-title").textContent = state.loggedIn ? `${state.user.name} 님의 여행 지도` : "로그인이 필요해요";
 }
 
 function renderAll() {
-  renderPlaces(); renderItinerary(); renderCompanions(); renderBoardTabs(); renderPosts(); renderHotplaces(); renderUser();
+  renderPlaces(); renderItinerary(); renderUser();
 }
 
 function formModal(title, description, fields, submitLabel, formId) {
@@ -543,8 +551,8 @@ function bindGlobalEvents() {
   $("#rail-start-trip").addEventListener("click", () => $("#trip-panel").classList.toggle("is-open"));
   $("#refresh-nearby-button").addEventListener("click", () => refreshNearbyFromMap(true));
   $("#add-stop-button").addEventListener("click", () => { $(".search-panel").classList.add("is-open"); toast("지도에서 추가할 장소를 선택하세요."); });
-  $("#save-trip-button").addEventListener("click", () => { persist(); toast("여행 일정을 저장했어요."); });
-  $("#planner-save-button").addEventListener("click", () => { persist(); toast("변경사항을 저장했어요."); });
+  $("#save-trip-button")?.addEventListener("click", () => { persist(); toast("여행 일정을 저장했어요."); });
+  $("#planner-save-button")?.addEventListener("click", () => { persist(); toast("변경사항을 저장했어요."); });
   $("#share-trip-button").addEventListener("click", async () => { const text = "너랑 갈.지도 - 제주, 우리 둘의 지도"; try { await navigator.clipboard.writeText(`${text}\n${location.href}`); toast("공유 링크를 복사했어요."); } catch { toast("공유할 여행 링크를 준비했어요."); } });
   $("#locate-button").addEventListener("click", async () => {
     const location = await getCurrentLocation();
@@ -605,14 +613,14 @@ function bindGlobalEvents() {
       toast(`${button.textContent.trim()} 표시를 ${layerVisibility[layer] ? "켰어요" : "껐어요"}.`);
     }
   }));
-  $("#companion-filter-button").addEventListener("click", renderCompanions);
-  $("#create-companion-button").addEventListener("click", showCompanionForm);
-  $("#write-post-button").addEventListener("click", () => showPostForm());
+  $("#companion-filter-button")?.addEventListener("click", renderCompanions);
+  $("#create-companion-button")?.addEventListener("click", showCompanionForm);
+  $("#write-post-button")?.addEventListener("click", () => showPostForm());
   $$('[data-board]').forEach((button) => button.addEventListener("click", () => { state.currentBoard = button.dataset.board; persist(); renderBoardTabs(); renderPosts(); }));
-  $("#board-search-form").addEventListener("submit", (event) => { event.preventDefault(); renderPosts(); });
-  $("#add-hotplace-button").addEventListener("click", showHotplaceForm);
-  $("#profile-edit-button").addEventListener("click", showProfileForm);
-  $("#account-button").addEventListener("click", () => showAccountModal());
+  $("#board-search-form")?.addEventListener("submit", (event) => { event.preventDefault(); renderPosts(); });
+  $("#add-hotplace-button")?.addEventListener("click", showHotplaceForm);
+  $("#profile-edit-button")?.addEventListener("click", showProfileForm);
+  $("#account-button")?.addEventListener("click", () => showAccountModal());
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeModal(); if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setView("explore"); $(".search-panel").classList.add("is-open"); $("#search-input").focus(); } });
 }
 
@@ -957,11 +965,11 @@ async function hydrateLiveData() {
 function init() {
   renderAll();
   renderPlaceFilterControls();
-  $("#favorite-count").textContent = state.favorites.length;
+  if ($("#favorite-count")) $("#favorite-count").textContent = state.favorites.length;
   $("#search-input").value = state.search;
   $$('[data-layer]').forEach((item) => item.setAttribute("aria-pressed", String(layerVisibility[item.dataset.layer])));
   bindGlobalEvents();
-  setView(state.activeView || "explore");
+  setView("explore");
   initKakaoMap();
   hydrateLiveData();
 }

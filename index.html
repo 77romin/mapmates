@@ -13,10 +13,10 @@
   <body>
     <a class="skip-link" href="#main-content">본문 바로가기</a>
     <header class="topbar">
-      <button class="brand" type="button" data-view-target="explore" aria-label="지도 탐색으로 이동">
+      <a class="brand" href="./index.html" aria-label="지도 탐색으로 이동">
         <span class="brand-mark" aria-hidden="true"><span></span></span>
         <span>너랑 <strong>갈.지도</strong></span>
-      </button>
+      </a>
 
       <form class="topbar-search" id="global-search-form" role="search">
         <span class="icon icon-search" aria-hidden="true"></span>
@@ -25,19 +25,19 @@
       </form>
 
       <nav class="desktop-nav" aria-label="주요 메뉴">
-        <button class="nav-item is-active" type="button" data-view-target="explore">지도 탐색</button>
-        <button class="nav-item" type="button" data-view-target="planner">여행 계획</button>
-        <button class="nav-item" type="button" data-view-target="companions">동행 찾기</button>
-        <button class="nav-item" type="button" data-view-target="community">커뮤니티</button>
+        <a class="nav-item is-active" href="./index.html">지도 탐색</a>
+        <a class="nav-item" href="./planner.html">여행 계획</a>
+        <a class="nav-item" href="./companions.html">동행 찾기</a>
+        <a class="nav-item" href="./community.html">커뮤니티</a>
       </nav>
 
       <div class="topbar-actions">
         <button class="icon-button notification-button" type="button" aria-label="알림">
           <span class="icon icon-bell" aria-hidden="true"></span><span class="notification-dot"></span>
         </button>
-        <button class="profile-button" id="profile-button" type="button" data-view-target="mypage">
+        <a class="profile-button" id="profile-button" href="./mypage.html">
           <span class="avatar">강</span><span class="profile-name">김강민</span>
-        </button>
+        </a>
       </div>
     </header>
 
@@ -45,9 +45,9 @@
       <section class="app-view map-view is-active" id="view-explore" data-view="explore" aria-labelledby="explore-title">
         <h1 class="sr-only" id="explore-title">지도에서 여행지 탐색</h1>
         <aside class="map-rail" aria-label="지도 빠른 메뉴">
-          <button class="is-active" type="button" data-view-target="explore"><span>⌖</span><small>탐색</small></button>
-          <button type="button" data-view-target="planner"><span>☷</span><small>일정</small></button>
-          <button type="button" data-view-target="mypage"><span>♡</span><small>내 여행</small></button>
+          <a class="is-active" href="./index.html"><span>⌖</span><small>탐색</small></a>
+          <a href="./planner.html"><span>☷</span><small>일정</small></a>
+          <a href="./mypage.html"><span>♡</span><small>내 여행</small></a>
           <button class="rail-start" id="rail-start-trip" type="button"><span>＋</span><small>여행 시작</small></button>
         </aside>
         <aside class="search-panel" aria-label="여행지 검색">
@@ -59,11 +59,11 @@
             <button class="icon-button mobile-panel-close" id="mobile-panel-close" type="button" aria-label="검색 패널 닫기">×</button>
           </div>
 
-          <button class="planning-promo" type="button" data-view-target="planner">
+          <a class="planning-promo" href="./planner.html">
             <span class="planning-promo-image" aria-hidden="true"></span>
             <span><strong>다음 여행을<br />계획해 보세요</strong><small>나만의 여행 동선 만들기</small></span>
             <b>›</b>
-          </button>
+          </a>
 
           <form class="search-form" id="search-form">
             <span class="icon icon-search" aria-hidden="true"></span>
@@ -168,87 +168,18 @@
           </div>
           <div class="trip-actions">
             <button class="button button-secondary" id="share-trip-button" type="button">공유</button>
-            <button class="button button-primary" id="save-trip-button" type="button">일정 저장</button>
+            <a class="button button-primary" href="./planner.html">여행계획 확인</a>
           </div>
         </aside>
-      </section>
-
-      <section class="app-view content-view" id="view-planner" data-view="planner" aria-labelledby="planner-title">
-        <div class="content-shell">
-          <header class="page-header">
-            <div><p class="eyebrow">TRIP PLANNER</p><h1 id="planner-title">여행 계획</h1><p>가고 싶은 장소를 모아 나만의 동선을 완성하세요.</p></div>
-            <button class="button button-primary" type="button" data-view-target="explore">＋ 지도에서 장소 추가</button>
-          </header>
-          <div class="planner-grid">
-            <section class="surface planner-main">
-              <div class="section-title-row"><div><span class="status-badge navy">저장됨</span><h2>제주, 우리 둘의 지도</h2></div><button class="more-button" type="button">•••</button></div>
-              <div class="planner-date-row"><span class="icon icon-calendar"></span><strong>2026.10.12 - 2026.10.14</strong><span>2박 3일</span><span>2명</span></div>
-              <div class="day-tabs"><button class="is-active" type="button">DAY 1 <small>10.12</small></button><button type="button">DAY 2 <small>10.13</small></button><button type="button">DAY 3 <small>10.14</small></button></div>
-              <div id="planner-itinerary" class="planner-itinerary"></div>
-            </section>
-            <aside class="planner-side">
-              <section class="surface mini-map-card"><div class="mini-map"><div class="mini-route"></div><span class="mini-pin p1">1</span><span class="mini-pin p2">2</span><span class="mini-pin p3">3</span></div><button class="text-button" type="button" data-view-target="explore">전체 지도에서 보기 →</button></section>
-              <section class="surface expense-card"><div class="section-title-row"><h2>예상 여행 정보</h2><span class="icon icon-info"></span></div><div><span>이동 거리</span><strong>42.8km</strong></div><div><span>이동 시간</span><strong>1시간 35분</strong></div><div><span>예상 경비</span><strong>약 185,000원</strong></div></section>
-              <button class="button button-primary full-width" id="planner-save-button" type="button">변경사항 저장</button>
-            </aside>
-          </div>
-        </div>
-      </section>
-
-      <section class="app-view content-view" id="view-companions" data-view="companions" aria-labelledby="companions-title">
-        <div class="content-shell">
-          <header class="page-header">
-            <div><p class="eyebrow">FIND COMPANIONS</p><h1 id="companions-title">같이 갈 사람을 찾아보세요</h1><p>취향과 일정이 맞는 여행 친구를 만나 더 좋은 여행을 시작하세요.</p></div>
-            <button class="button button-primary" id="create-companion-button" type="button">＋ 동행 모집하기</button>
-          </header>
-          <div class="companion-filters surface">
-            <label><span>여행 지역</span><select id="companion-region"><option value="all">전체 지역</option><option>제주</option><option>서울</option><option>부산</option><option>강원</option></select></label>
-            <label><span>여행 테마</span><select id="companion-theme"><option value="all">전체 테마</option><option>맛집</option><option>자연</option><option>사진</option><option>문화</option></select></label>
-            <label><span>모집 상태</span><select id="companion-status"><option value="all">전체 상태</option><option value="open">모집 중</option><option value="soon">마감 임박</option></select></label>
-            <button class="button button-dark" id="companion-filter-button" type="button"><span class="icon icon-search"></span>찾아보기</button>
-          </div>
-          <div class="section-title-row list-heading"><div><h2>지금 모집 중인 여행</h2><p><strong id="companion-count">6</strong>개의 동행을 기다리고 있어요.</p></div><select aria-label="동행 글 정렬"><option>최신순</option><option>마감순</option></select></div>
-          <div class="companion-grid" id="companion-list"></div>
-        </div>
-      </section>
-
-      <section class="app-view content-view" id="view-community" data-view="community" aria-labelledby="community-title">
-        <div class="content-shell narrow-shell">
-          <header class="page-header"><div><p class="eyebrow">COMMUNITY</p><h1 id="community-title">여행자 라운지</h1><p>생생한 여행 팁과 새로운 소식을 나눠보세요.</p></div><button class="button button-primary" id="write-post-button" type="button">＋ 글쓰기</button></header>
-          <div class="community-layout">
-            <main>
-              <div class="community-tabs"><button class="is-active" type="button" data-board="travel">여행정보 공유</button><button type="button" data-board="notice">공지사항</button><button type="button" data-board="news">관광 뉴스</button></div>
-              <div class="board-toolbar"><form id="board-search-form"><span class="icon icon-search"></span><input id="board-search" placeholder="게시글을 검색하세요" /><button type="submit">검색</button></form><select id="board-sort"><option>최신순</option><option>조회순</option></select></div>
-              <div class="post-list surface" id="post-list"></div>
-            </main>
-            <aside class="community-side">
-              <section class="surface side-card"><p class="eyebrow">WEEKLY HOT</p><h2>이번 주 인기 여행지</h2><ol><li><strong>제주 동쪽</strong><span>124 posts</span></li><li><strong>경주 황리단길</strong><span>98 posts</span></li><li><strong>부산 영도</strong><span>81 posts</span></li></ol></section>
-              <section class="surface side-card tip-card"><span>i</span><h2>여행자 안전 가이드</h2><p>동행 전 일정과 비상 연락망을 가족이나 지인에게 공유하세요.</p><a href="#">자세히 보기 →</a></section>
-            </aside>
-          </div>
-        </div>
-      </section>
-
-      <section class="app-view content-view" id="view-mypage" data-view="mypage" aria-labelledby="mypage-title">
-        <div class="content-shell narrow-shell">
-          <header class="profile-hero surface">
-            <div class="large-avatar">강</div><div><p class="eyebrow">MY TRAVEL MAP</p><h1 id="mypage-title">김강민 님의 여행 지도</h1><p>함께 걷고, 함께 기억하는 여행을 만들고 있어요.</p></div><div class="profile-actions"><button class="button button-secondary" id="account-button" type="button">계정 관리</button><button class="button button-primary" id="profile-edit-button" type="button">프로필 수정</button></div>
-          </header>
-          <div class="profile-stats"><div class="surface"><span>저장한 여행</span><strong>3</strong></div><div class="surface"><span>찜한 장소</span><strong id="favorite-count">6</strong></div><div class="surface"><span>동행 기록</span><strong>2</strong></div><div class="surface"><span>내 게시글</span><strong>4</strong></div></div>
-          <div class="mypage-grid">
-            <section class="surface"><div class="section-title-row"><h2>다가오는 여행</h2><button class="text-button" type="button" data-view-target="planner">전체 보기 →</button></div><article class="upcoming-trip"><div class="trip-cover"></div><div><span class="status-badge navy">D-10</span><h3>제주, 우리 둘의 지도</h3><p>2026.10.12 - 10.14 · 2명</p><div class="mini-people"><span>강</span><span>예</span></div></div></article></section>
-            <section class="surface"><div class="section-title-row"><h2>나의 핫플레이스</h2><button class="text-button" id="add-hotplace-button" type="button">＋ 등록</button></div><div class="hotplace-grid" id="hotplace-list"></div></section>
-          </div>
-        </div>
       </section>
     </main>
 
     <nav class="mobile-nav" aria-label="모바일 주요 메뉴">
-      <button class="is-active" type="button" data-view-target="explore"><span>⌖</span>지도</button>
-      <button type="button" data-view-target="planner"><span>☷</span>일정</button>
-      <button type="button" data-view-target="companions"><span>♙</span>동행</button>
-      <button type="button" data-view-target="community"><span>□</span>라운지</button>
-      <button type="button" data-view-target="mypage"><span>○</span>MY</button>
+      <a class="is-active" href="./index.html"><span>⌖</span>지도</a>
+      <a href="./planner.html"><span>☷</span>일정</a>
+      <a href="./companions.html"><span>♙</span>동행</a>
+      <a href="./community.html"><span>□</span>라운지</a>
+      <a href="./mypage.html"><span>○</span>MY</a>
     </nav>
 
     <div class="modal-root" id="modal-root" aria-live="polite"></div>
