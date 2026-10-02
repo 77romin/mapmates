@@ -49,8 +49,7 @@ h1, h2, h3, p { margin-top: 0; }
 }
 .brand { display: inline-flex; align-items: center; gap: 8px; width: max-content; border: 0; background: transparent; color: var(--gray-900); font-size: 17px; font-weight: 500; letter-spacing: -.04em; text-decoration: none; }
 .brand strong { color: var(--navy-900); font-weight: 800; }
-.brand-mark { position: relative; width: 24px; height: 28px; border: 2.5px solid var(--navy-900); border-radius: 50% 50% 50% 4px; transform: rotate(-45deg); }
-.brand-mark span { position: absolute; width: 8px; height: 8px; inset: 8px; border: 2px solid var(--navy-900); border-radius: 50%; }
+.brand-logo { display: block; width: 34px; height: 34px; object-fit: cover; border-radius: 9px; box-shadow: 0 0 0 1px rgba(15, 39, 71, .1); }
 .desktop-nav { height: 100%; display: flex; align-items: center; justify-content: flex-end; gap: 24px; }
 .nav-item { position: relative; display: flex; align-items: center; align-self: stretch; border: 0; background: transparent; color: var(--navy-700); font-size: 12px; font-weight: 700; text-decoration: none; }
 .nav-item::after { content: ""; position: absolute; left: 50%; right: 50%; bottom: -1px; height: 2px; background: var(--navy-900); transition: .2s; }
@@ -441,7 +440,7 @@ h1, h2, h3, p { margin-top: 0; }
   body { padding-bottom: 64px; }
   .topbar { grid-template-columns: 1fr auto; height: var(--topbar-height); padding: 0 15px; }
   .brand { font-size: 18px; }
-  .brand-mark { width: 24px; height: 28px; }
+  .brand-logo { width: 36px; height: 36px; }
   .topbar-search, .desktop-nav, .notification-button, .profile-name { display: none; }
   .map-view.is-active { display: block; height: calc(100vh - 124px); }
   .map-rail { display: none; }
