@@ -1,0 +1,10 @@
+window.APP_CONFIG = {
+  KAKAO_JS_KEY: "",
+  KAKAO_REST_KEY: "",
+  TOUR_API_KEY: "",
+  WEATHER_API_KEY: "",
+  EV_CHARGER_API_KEY: "",
+  SGIS_CONSUMER_KEY: "",
+  SGIS_CONSUMER_SECRET: "",
+  API_PROXY_URL: "",
+};

@@ -1,0 +1,115 @@
+const config = window.APP_CONFIG || {};
+
+function withQuery(base, params) {
+  const url = new URL(base);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, value);
+  });
+  return url.toString();
+}
+
+async function requestJson(url, options = {}) {
+  const response = await fetch(url, { ...options, headers: { Accept: "application/json", ...(options.headers || {}) } });
+  if (!response.ok) throw new Error(`API 요청 실패 (${response.status})`);
+  return response.json();
+}
+
+export const api = {
+  hasLiveTourApi: Boolean(config.TOUR_API_KEY),
+  hasKakaoMap: Boolean(config.KAKAO_JS_KEY),
+
+  async searchTour({ keyword = "", areaCode = 39, contentTypeId = "" } = {}) {
+    if (!config.TOUR_API_KEY) return null;
+    const endpoint = keyword
+      ? "https://apis.data.go.kr/B551011/KorService2/searchKeyword2"
+      : "https://apis.data.go.kr/B551011/KorService2/areaBasedList2";
+    const url = withQuery(endpoint, {
+      serviceKey: config.TOUR_API_KEY,
+      MobileOS: "ETC",
+      MobileApp: "NeorangGaljido",
+      _type: "json",
+      numOfRows: 30,
+      pageNo: 1,
+      arrange: "Q",
+      keyword,
+      areaCode,
+      contentTypeId,
+    });
+    const data = await requestJson(url);
+    return data?.response?.body?.items?.item || [];
+  },
+
+  async searchNearby({ lng, lat, radius = 10000, contentTypeId = "" }) {
+    if (!config.TOUR_API_KEY) return null;
+    const url = withQuery("https://apis.data.go.kr/B551011/KorService2/locationBasedList2", {
+      serviceKey: config.TOUR_API_KEY,
+      MobileOS: "ETC",
+      MobileApp: "NeorangGaljido",
+      _type: "json",
+      numOfRows: 100,
+      pageNo: 1,
+      arrange: "E",
+      mapX: lng,
+      mapY: lat,
+      radius: Math.round(Math.max(1000, Math.min(20000, radius))),
+      contentTypeId,
+    });
+    const data = await requestJson(url);
+    return data?.response?.body?.items?.item || [];
+  },
+
+  async getWeather({ nx, ny, baseDate, baseTime }) {
+    const serviceKey = config.WEATHER_API_KEY || config.DATA_GO_KR_KEY;
+    if (!serviceKey) return null;
+    const url = withQuery("https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst", {
+      serviceKey,
+      pageNo: 1,
+      numOfRows: 1000,
+      dataType: "JSON",
+      base_date: baseDate,
+      base_time: baseTime,
+      nx,
+      ny,
+    });
+    const data = await requestJson(url);
+    return data?.response?.body?.items?.item || [];
+  },
+
+  async getSunTimes({ lat = 33.45, lng = 126.57, date = "today" } = {}) {
+    const url = withQuery("https://api.sunrise-sunset.org/v2", { lat, lng, date, timezone: "Asia/Seoul" });
+    try {
+      return await requestJson(url);
+    } catch {
+      return null;
+    }
+  },
+
+  async getEvChargers({ zcode = 50, numOfRows = 300 } = {}) {
+    const serviceKey = config.EV_CHARGER_API_KEY || config.DATA_GO_KR_KEY;
+    if (!serviceKey) return null;
+    const url = withQuery("https://apis.data.go.kr/B552584/EvCharger/getChargerInfo", {
+      serviceKey,
+      pageNo: 1,
+      numOfRows,
+      zcode,
+      dataType: "JSON",
+    });
+    try {
+      const data = await requestJson(url);
+      return data?.items?.item || data?.response?.body?.items?.item || [];
+    } catch {
+      return null;
+    }
+  },
+
+  loadKakaoMap() {
+    if (!config.KAKAO_JS_KEY || window.kakao?.maps) return Promise.resolve(Boolean(window.kakao?.maps));
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(config.KAKAO_JS_KEY)}&autoload=false&libraries=services,clusterer`;
+      script.onload = () => window.kakao.maps.load(() => resolve(true));
+      script.onerror = () => resolve(false);
+      document.head.append(script);
+    });
+  },
+};
