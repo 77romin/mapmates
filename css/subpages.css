@@ -30,11 +30,16 @@
 .planner-weather strong { font-size: 10px; }
 .planner-weather b { display: block; margin: 5px 0 2px; font-size: 20px; }
 .planner-weather span { color: var(--gray-500); font-size: 9px; }
+.planner-weather small { display: block; margin-top: 5px; color: #0872ef; font-size: 8px; font-weight: 700; }
 .schedule-list { display: grid; gap: 10px; }
 .schedule-row { display: grid; grid-template-columns: 76px 78px minmax(0, 1fr); gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--gray-200); border-radius: 12px; }
 .schedule-row img { width: 78px; height: 62px; object-fit: cover; border-radius: 9px; }
 .schedule-time { width: 76px; padding: 5px 2px; border: 0; border-bottom: 1px solid var(--gray-300); color: var(--navy-900); font-size: 11px; font-weight: 800; }
 .schedule-copy h3 { margin: 0 0 6px; font-size: 13px; }
+.schedule-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.schedule-heading > div { display: flex; align-items: center; gap: 5px; }
+.schedule-heading select { padding: 4px 7px; border: 1px solid var(--gray-200); border-radius: 7px; background: #fff; color: var(--gray-600); font-size: 9px; font-weight: 700; }
+.schedule-heading button { width: 25px; height: 25px; padding: 0; border: 1px solid var(--gray-200); border-radius: 50%; background: #fff; color: var(--gray-500); }
 .schedule-copy textarea { width: 100%; min-height: 48px; padding: 7px 9px; border: 1px solid var(--gray-200); border-radius: 8px; resize: vertical; color: var(--gray-700); font-size: 10px; }
 .planner-map-card { overflow: hidden; }
 .planner-map { height: 330px; background: #e5ebe5; }

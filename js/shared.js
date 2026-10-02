@@ -6,6 +6,7 @@ export const CURRENT_USER_ID = "user-me";
 const baseState = {
   favorites: [1, 2, 4, 5, 6, 8],
   itinerary: [2, 4, 1],
+  itineraryPlaces: {},
   companions: seedCompanions,
   joinedCompanions: [],
   posts: seedPosts,
@@ -40,6 +41,7 @@ export function loadState() {
   state.companions = Array.isArray(saved.companions) ? saved.companions : clone(seedCompanions);
   state.posts = Array.isArray(saved.posts) ? saved.posts : clone(seedPosts);
   state.postComments = saved.postComments && typeof saved.postComments === "object" ? saved.postComments : {};
+  state.itineraryPlaces = saved.itineraryPlaces && typeof saved.itineraryPlaces === "object" ? saved.itineraryPlaces : {};
   state.itinerary = Array.isArray(saved.itinerary) ? saved.itinerary.map(Number).filter(Number.isFinite) : [...baseState.itinerary];
   if (!Array.isArray(saved.tripSchedule) || !saved.tripSchedule.length) {
     const times = ["09:30", "11:20", "14:10"];

@@ -8,7 +8,7 @@ let map = null;
 let routeLine = null;
 let routeMarkers = [];
 const $ = (selector) => document.querySelector(selector);
-const placeById = (id) => places.find((place) => place.id === Number(id));
+const placeById = (id) => places.find((place) => place.id === Number(id)) || state.itineraryPlaces?.[Number(id)] || null;
 const placePoint = (place) => ({ ...place, lat: Number(place.lat) || 33.18 + (70 - Number(place.y || 35)) * .006, lng: Number(place.lng) || 126.2 + Number(place.x || 50) * .0065 });
 
 function dayDate(day) {
@@ -52,7 +52,7 @@ function renderSchedule() {
     return `<article class="schedule-row" data-place-id="${place.id}">
       <input class="schedule-time" type="time" value="${escapeHtml(item.time)}" aria-label="${escapeHtml(place.title)} 여행 시각" data-time-id="${place.id}" />
       <img src="${place.image}" alt="" />
-      <div class="schedule-copy"><h3>${escapeHtml(place.title)}</h3><textarea data-memo-id="${place.id}" aria-label="${escapeHtml(place.title)} 메모" placeholder="메모를 입력하세요">${escapeHtml(item.memo)}</textarea></div>
+      <div class="schedule-copy"><div class="schedule-heading"><h3>${escapeHtml(place.title)}</h3><div><select data-schedule-day="${place.id}" aria-label="${escapeHtml(place.title)} 여행 일자">${[1, 2, 3].map((day) => `<option value="${day}" ${Number(item.day) === day ? "selected" : ""}>DAY ${day}</option>`).join("")}</select><button type="button" data-remove-schedule="${place.id}" aria-label="${escapeHtml(place.title)} 일정에서 삭제">×</button></div></div><textarea data-memo-id="${place.id}" aria-label="${escapeHtml(place.title)} 메모" placeholder="메모를 입력하세요">${escapeHtml(item.memo)}</textarea></div>
     </article>`;
   }).join("") : `<div class="empty-state"><div><strong>이 날짜에는 일정이 없어요.</strong><span>지도에서 여행지를 추가하거나 다른 날짜를 선택하세요.</span></div></div>`;
   document.querySelectorAll("[data-time-id]").forEach((input) => input.addEventListener("change", () => {
@@ -65,6 +65,25 @@ function renderSchedule() {
     const item = state.tripSchedule.find((entry) => Number(entry.placeId) === Number(input.dataset.memoId));
     item.memo = input.value;
     saveState(state);
+  }));
+  document.querySelectorAll("[data-schedule-day]").forEach((select) => select.addEventListener("change", () => {
+    const item = state.tripSchedule.find((entry) => Number(entry.placeId) === Number(select.dataset.scheduleDay));
+    item.day = Number(select.value);
+    saveState(state);
+    renderSchedule();
+    drawRoute();
+    showToast(`DAY ${item.day} 일정으로 이동했어요.`);
+  }));
+  document.querySelectorAll("[data-remove-schedule]").forEach((button) => button.addEventListener("click", () => {
+    const placeId = Number(button.dataset.removeSchedule);
+    state.itinerary = state.itinerary.filter((id) => Number(id) !== placeId);
+    state.tripSchedule = state.tripSchedule.filter((item) => Number(item.placeId) !== placeId);
+    if (!places.some((place) => place.id === placeId)) delete state.itineraryPlaces?.[placeId];
+    saveState(state);
+    renderSchedule();
+    drawRoute();
+    renderWeather();
+    showToast("일정에서 여행지를 삭제했어요.");
   }));
 }
 
@@ -146,10 +165,48 @@ function weatherBase() {
   return { baseDate: `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}`, baseTime: `${String(baseHour).padStart(2, "0")}00` };
 }
 
+function midForecastBase() {
+  const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  let hour = now.getUTCHours() >= 18 ? 18 : now.getUTCHours() >= 6 ? 6 : -6;
+  if (hour < 0) { now.setUTCDate(now.getUTCDate() - 1); hour = 18; }
+  return `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}${String(hour).padStart(2, "0")}00`;
+}
+
+function midRegionCodes(place) {
+  const region = `${place.region || ""} ${place.title || ""}`;
+  if (/서울|경기|인천/.test(region)) return { landRegId: "11B00000", temperatureRegId: "11B10101" };
+  if (/강원/.test(region)) return { landRegId: "11D10000", temperatureRegId: "11D10301" };
+  if (/대전|세종|충남/.test(region)) return { landRegId: "11C20000", temperatureRegId: "11C20401" };
+  if (/충북/.test(region)) return { landRegId: "11C10000", temperatureRegId: "11C10301" };
+  if (/광주|전남/.test(region)) return { landRegId: "11F20000", temperatureRegId: "11F20501" };
+  if (/전북/.test(region)) return { landRegId: "11F10000", temperatureRegId: "11F10201" };
+  if (/대구|경북/.test(region)) return { landRegId: "11H10000", temperatureRegId: "11H10701" };
+  if (/부산|울산|경남/.test(region)) return { landRegId: "11H20000", temperatureRegId: "11H20201" };
+  return { landRegId: "11G00000", temperatureRegId: "11G00201" };
+}
+
+function dateDiffFromToday(date) {
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((date - start) / 86400000);
+}
+
+function weatherIcon(label) {
+  if (/비.*눈|눈.*비/.test(label)) return "🌨️";
+  if (label.includes("눈")) return "❄️";
+  if (label.includes("비")) return "🌧️";
+  if (label.includes("흐림")) return "☁️";
+  if (label.includes("구름")) return "🌤️";
+  return "☀️";
+}
+
 async function renderWeather() {
   const place = routePlaces()[0] || places[0];
   const point = placePoint(place);
-  const items = await api.getWeather({ ...latLngToGrid(point.lat, point.lng), ...weatherBase() }).catch(() => null);
+  const [items, mid] = await Promise.all([
+    api.getWeather({ ...latLngToGrid(point.lat, point.lng), ...weatherBase() }).catch(() => null),
+    api.getMidWeather({ ...midRegionCodes(place), tmFc: midForecastBase() }).catch(() => null),
+  ]);
   const grouped = (items || []).reduce((result, item) => { (result[item.fcstDate] ||= []).push(item); return result; }, {});
   $("#planner-weather").innerHTML = [1, 2, 3].map((day) => {
     const date = dayDate(day);
@@ -158,10 +215,16 @@ async function renderWeather() {
     const sky = Number(values.find((item) => item.category === "SKY" && item.fcstTime === "1200")?.fcstValue);
     const rain = values.some((item) => item.category === "PTY" && Number(item.fcstValue) > 0);
     const temps = values.filter((item) => item.category === "TMP").map((item) => Number(item.fcstValue)).filter(Number.isFinite);
-    const label = !values.length ? "예보 제공 전" : rain ? "비/눈" : ({ 1: "맑음", 3: "구름 많음", 4: "흐림" }[sky] || "날씨");
-    const icon = !values.length ? "🗓️" : rain ? "🌧️" : ({ 1: "☀️", 3: "🌤️", 4: "☁️" }[sky] || "🌡️");
-    const temperature = temps.length ? `${Math.round(Math.min(...temps))}° / ${Math.round(Math.max(...temps))}°` : "중기예보 연동 대기";
-    return `<article><strong>DAY ${day} · ${todayLabel(key.slice(0, 4) + "-" + key.slice(4, 6) + "-" + key.slice(6))}</strong><b>${icon}</b><span>${label}<br>${temperature}</span></article>`;
+    const diff = dateDiffFromToday(date);
+    const suffix = diff >= 3 && diff <= 10 ? String(diff) : "";
+    const midLabel = suffix ? (diff <= 7 ? mid?.land?.[`wf${suffix}Am`] || mid?.land?.[`wf${suffix}Pm`] : mid?.land?.[`wf${suffix}`]) : "";
+    const midMin = suffix ? Number(mid?.temperature?.[`taMin${suffix}`]) : NaN;
+    const midMax = suffix ? Number(mid?.temperature?.[`taMax${suffix}`]) : NaN;
+    const label = values.length ? (rain ? "비/눈" : ({ 1: "맑음", 3: "구름 많음", 4: "흐림" }[sky] || "날씨")) : midLabel || "예보 제공 전";
+    const icon = values.length ? (rain ? "🌧️" : ({ 1: "☀️", 3: "🌤️", 4: "☁️" }[sky] || "🌡️")) : midLabel ? weatherIcon(midLabel) : "🗓️";
+    const temperature = temps.length ? `${Math.round(Math.min(...temps))}° / ${Math.round(Math.max(...temps))}°` : Number.isFinite(midMin) && Number.isFinite(midMax) ? `${Math.round(midMin)}° / ${Math.round(midMax)}°` : "예보 발표 전";
+    const source = values.length ? "단기예보" : (midLabel || Number.isFinite(midMin) ? "중기예보" : "예보 대기");
+    return `<article><strong>DAY ${day} · ${todayLabel(key.slice(0, 4) + "-" + key.slice(4, 6) + "-" + key.slice(6))}</strong><b>${icon}</b><span>${label}<br>${temperature}</span><small>${source}</small></article>`;
   }).join("");
 }
 
