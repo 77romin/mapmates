@@ -1,41 +1,151 @@
 # 너랑 갈.지도
 
-지도에서 여행지를 찾고, 일정을 만들고, 함께 갈 동행을 만나는 지도 기반 여행 서비스입니다.
+> 너랑 갈 다음 여행을 지도 위에
 
-팀원: 김강민, 마예은
+`너랑 갈.지도`는 지도에서 여행지를 탐색하고, 날짜와 시간에 맞춰 여행 일정을 만든 뒤, 같은 여행을 함께할 동행까지 찾을 수 있는 지도 기반 여행 웹앱입니다.
 
-## 주요 기능
+관광지 검색에서 끝나는 대신 **여행지 탐색 → 일정 설계 → 이동 경로 확인 → 동행 모집 → 여행 정보 공유**가 하나의 흐름으로 이어지도록 구성했습니다.
 
-- 한국관광공사 TourAPI 기반 관광지·숙박·음식점·문화시설·여행코스 검색
-- 지도 마커, 카테고리 필터, 장소 상세정보와 찜 기능
-- 여행 장소별 시각·메모, 시각 자동 정렬, 직선/카카오모빌리티 차량 경로, 일정 저장
-- 기상청 단기예보, 일출·일몰, 전기차 충전소 정보
-- 핫플레이스 등록 및 개인 여행 기록
-- 이메일·비밀번호·이름·닉네임·생년월일·성별·사진을 받는 회원가입
-- 닉네임·사진 프로필 수정과 비밀번호 변경·회원탈퇴
-- 서브페이지 기반 게시판 글쓰기·상세·댓글 권한
-- 여행계획에서 동행 모집글 발행, 소유자 수정, 참가자 프로필 표시
-- PC·태블릿·모바일 반응형 UI
+## 프로젝트 소개
 
-API 키가 없는 경우에도 프로젝트 전체를 확인할 수 있도록 목업 데이터가 자동으로 표시됩니다.
+- 프로젝트 유형: 지도 기반 여행 정보 검색 및 동행 매칭 서비스
+- 개발 기간: SSAFY 프론트엔드 관통 프로젝트
+- 개발 인원: 2명
+- 개발 환경: HTML, CSS, JavaScript, VS Code
+- 저장 방식: 브라우저 `localStorage`
+- 지원 화면: 데스크톱, 태블릿, 모바일
+
+API 키가 없거나 외부 API 요청에 실패해도 주요 화면을 확인할 수 있도록 내장 데모 데이터를 함께 제공합니다.
+
+## 주요 사용자 흐름
+
+1. 지도를 이동하거나 검색어와 카테고리로 주변 여행지를 찾습니다.
+2. 마음에 드는 여행지를 일정에 추가합니다.
+3. 여행 날짜별 시간과 메모를 작성하고 자동 정렬된 일정을 확인합니다.
+4. 직선 경로와 카카오모빌리티 차량 경로를 비교합니다.
+5. 완성한 여행계획을 동행 모집글로 발행합니다.
+6. 동행에 참가하거나 커뮤니티에서 여행 정보를 공유합니다.
+
+### 사용자 흐름 캡처
+
+#### 1) 지도에서 여행지 탐색
+
+지도 중심을 이동하면서 주변 관광지를 확인하고, 검색·필터·날씨 정보를 함께 살펴봅니다.
+
+![지도 탐색 화면](./docs/screenshots/01-map-explore.png)
+
+#### 2) 여행계획 작성
+
+여행지를 DAY별 일정에 추가하고 방문 시각, 메모, 날씨와 이동 경로를 확인합니다.
+
+![여행계획 화면](./docs/screenshots/02-planner.png)
+
+#### 3) 동행 찾기
+
+지역·테마·상태로 모집 중인 여행을 찾고, 나의 여행계획에서 새 모집글을 만들 수 있습니다.
+
+![동행 찾기 화면](./docs/screenshots/03-companions.png)
+
+#### 4) 커뮤니티에서 여행 정보 공유
+
+여행정보 공유 게시판에서 다른 여행자의 글을 읽고, 글쓰기와 댓글로 경험을 나눕니다.
+
+![커뮤니티 화면](./docs/screenshots/04-community.png)
+
+## 핵심 기능
+
+### 지도 탐색
+
+- 카카오맵 드래그 이동 및 휠 확대·축소
+- 현재 지도 중심 반경의 한국관광공사 TourAPI 여행지 검색
+- 관광지·숙박·음식점·문화시설·여행코스 카테고리 필터
+- 지도 마커와 여행지 카드 동기화
+- 여행지 상세정보, 찜, 일정 추가
+- 여행지 패널 접기·펼치기
+- 날씨·전기차 충전소·핫플레이스 레이어 표시 전환
+
+### 여행 계획
+
+- 여행지별 DAY, 방문 시각, 메모 편집
+- 방문 시각 기준 일정 자동 정렬
+- 직선 경로와 카카오모빌리티 차량 경로 전환
+- 예상 이동 거리와 시간 표시
+- 기상청 단기예보와 중기예보를 결합한 일자별 날씨
+- 완성한 여행계획을 동행 모집글로 발행
+
+### 회원 및 마이페이지
+
+- 이메일, 비밀번호, 이름, 닉네임, 생년월일, 성별, 사진 회원가입
+- 로그인·로그아웃과 로그인 필요 기능 보호
+- 닉네임과 프로필 사진 수정
+- 비밀번호 변경과 회원탈퇴
+- 프로필 사진 정사각형 압축 저장
+
+### 동행 찾기
+
+- 지역·테마·모집 상태별 필터와 검색
+- 동행 모집글 상세 일정 확인
+- 모집 정원에 따른 참가·취소와 마감 처리
+- 작성자만 모집글 수정 가능
+- 참가자의 성별에 따라 프로필 테두리 색상 구분
+
+### 커뮤니티
+
+- 여행정보 공유·공지사항·관광 뉴스 게시판
+- 게시글 목록, 검색, 상세, 글쓰기
+- 작성자만 게시글 수정·삭제 가능
+- 댓글 작성 및 본인 댓글만 수정·삭제 가능
+- 사용자 닉네임·프로필 변경 사항을 작성 콘텐츠에 동기화
+
+## 팀원 소개 및 업무 분담
+
+| 팀원 | 담당 영역 | 주요 구현 내용 |
+| --- | --- | --- |
+| 김강민 | 지도·여행계획·외부 API·통합 | 카카오맵, TourAPI 주변 검색, 여행지 레이어, 기상청 예보, 충전소, 일정 편집, 카카오모빌리티 경로, 공통 상태 구조, 통합 테스트 |
+| 마예은 | 회원·동행·커뮤니티 | 회원가입·로그인, 프로필 관리, 동행 목록·상세·참가 권한, 게시글·댓글 CRUD와 소유자 권한, 서브페이지 반응형·접근성 |
+
+공통 파일은 변경 전 구조를 합의하고, 페이지 단위로 담당 파일을 나눠 충돌을 줄였습니다. 자세한 기준은 [업무 분담 문서](./docs/WORK_SPLIT.md)를 참고하세요.
+
+## 기술 구성
+
+| 구분 | 사용 기술 |
+| --- | --- |
+| 마크업·스타일 | HTML5, CSS3, 반응형 미디어 쿼리 |
+| 프론트엔드 | Vanilla JavaScript, ES Modules, Fetch API |
+| 지도·경로 | Kakao Maps JavaScript API, Kakao Mobility Directions API |
+| 관광 데이터 | 한국관광공사 국문관광정보 서비스 TourAPI |
+| 날씨 | 기상청 단기예보·중기예보 API |
+| 기타 데이터 | 한국환경공단 전기차 충전소 API, Sunrise-Sunset API |
+| 상태 저장 | Web Storage API (`localStorage`) |
+| 개발 서버 | Node.js 기본 `http` 모듈 |
 
 ## 실행 방법
 
-ES Module을 사용하므로 파일을 직접 더블클릭하지 말고 로컬 웹 서버로 실행해야 합니다.
+### 1. 저장소 실행
 
-VS Code의 Live Server 확장을 사용하거나, 별도 패키지 설치 없이 다음 명령을 실행합니다.
+별도 패키지 설치는 필요하지 않습니다. ES Module과 카카오모빌리티 프록시를 사용하므로 HTML 파일을 직접 열지 말고 로컬 서버로 실행합니다.
 
 ```bash
 node dev-server.js
 ```
 
-브라우저에서 `http://localhost:5500`을 엽니다.
+브라우저에서 [http://localhost:5500](http://localhost:5500)을 엽니다.
 
-## API 설정
+VS Code Live Server로 일반 화면을 확인할 수는 있지만, 차량 경로 프록시까지 테스트하려면 `dev-server.js` 사용을 권장합니다.
 
-1. `config.example.js`를 복사해 `config.js`를 생성합니다.
-2. 발급받은 키를 해당 항목에 입력합니다.
-3. `config.js`는 `.gitignore`에 포함되어 있으므로 저장소에 커밋되지 않습니다.
+### 2. API 설정
+
+`config.example.js`를 복사해 `config.js`를 만들고 발급받은 키를 입력합니다.
+
+```bash
+cp config.example.js config.js
+```
+
+Windows PowerShell:
+
+```powershell
+Copy-Item config.example.js config.js
+```
 
 ```js
 window.APP_CONFIG = {
@@ -46,67 +156,87 @@ window.APP_CONFIG = {
   EV_CHARGER_API_KEY: "",
   SGIS_CONSUMER_KEY: "",
   SGIS_CONSUMER_SECRET: "",
-  API_PROXY_URL: "",
+  API_PROXY_URL: "http://localhost:5500",
 };
 ```
 
-카카오 JavaScript 키에는 `http://localhost:5500` 도메인을 등록해야 합니다. REST 키와 SGIS Secret은 공개 저장소나 운영 웹 브라우저 코드에 직접 포함하지 말고 JavaScript 기반 프록시를 통해 호출하는 것을 권장합니다.
+`config.js`는 `.gitignore`에 포함되어 있으므로 Git에 커밋되지 않습니다.
+
+### 3. API 사용 시 확인사항
+
+- 카카오 JavaScript 키: 앱의 Web 플랫폼에 `http://localhost:5500` 등록
+- 카카오 REST API 키: 차량 길찾기 요청에 사용
+- 공공데이터포털 키: `URLSearchParams`가 인코딩하므로 일반적으로 Decoding 키 사용
+- 기상청 중기예보: 별도 활용 신청 및 승인 상태 확인
+- `API_PROXY_URL`: 기본 개발 서버를 사용할 때 `http://localhost:5500` 지정
 
 ## 데이터 출처
 
-- 한국관광공사 국문 관광정보 서비스_GW
-- SGIS 데이터 OpenAPI
-- Kakao Maps JavaScript API 및 Kakao Mobility
-- 기상청 단기예보 조회서비스
+- [한국관광공사 국문관광정보 서비스](https://www.data.go.kr/data/15101578/openapi.do)
+- [SGIS 오픈 API](https://sgis.kostat.go.kr/developer/html/main.html)
+- [카카오 지도 Web API](https://apis.map.kakao.com/web/)
+- [카카오모빌리티 길찾기 API](https://developers.kakaomobility.com/docs/navi-api/directions/)
+- [기상청 단기예보 조회서비스](https://www.data.go.kr/data/15084084/openapi.do)
+- [기상청 중기예보 조회서비스](https://www.data.go.kr/data/15059468/openapi.do)
 - 한국환경공단 전기자동차 충전소 정보
-- Sunrise-Sunset.org
+- [Sunrise-Sunset API](https://sunrise-sunset.org/api)
 
-## 저장 방식
-
-현재 과제용 프론트엔드 버전은 여행 일정, 찜, 동행 신청, 게시글, 핫플레이스, 프로필을 브라우저 `localStorage`에 저장합니다. 브라우저 저장소를 초기화하면 데이터가 기본 상태로 돌아갑니다.
-
-실제 서비스로 확장할 때는 Supabase 또는 별도 서버에서 회원 인증과 데이터베이스를 처리해야 합니다.
-
-## 업무 분담
-
-### 김강민
-
-- `index.html`, `planner.html`
-- `js/app.js`, `js/planner.js`, `js/api.js`, `dev-server.js`
-- 지도 탐색, TourAPI, 날씨·충전소, 일정, 경로 계산
-- 공통 상태 구조와 통합 테스트
-
-### 마예은
-
-- 회원가입·마이페이지 페이지와 스크립트
-- 동행 목록·상세 페이지와 스크립트
-- 커뮤니티 목록·상세·글쓰기와 댓글
-- 해당 서브페이지 반응형·접근성 테스트
-
-자세한 파일 소유권과 병합 규칙은 [`docs/WORK_SPLIT.md`](./docs/WORK_SPLIT.md)를 확인하세요.
-
-## 디렉터리
+## 프로젝트 구조
 
 ```text
 .
-├─ index.html
-├─ planner.html
-├─ companions.html
-├─ companion-detail.html
-├─ community.html
-├─ post-detail.html
-├─ post-write.html
-├─ signup.html
-├─ mypage.html
+├─ index.html                  # 지도 탐색
+├─ planner.html                # 여행계획
+├─ signup.html                 # 회원가입·로그인
+├─ mypage.html                 # 프로필·계정 관리
+├─ companions.html            # 동행 목록
+├─ companion-detail.html      # 동행 상세
+├─ community.html             # 커뮤니티 목록
+├─ post-detail.html           # 게시글·댓글
+├─ post-write.html            # 게시글 작성·수정
+├─ dev-server.js              # 정적 서버·카카오모빌리티 프록시
+├─ config.example.js          # API 설정 예시
+├─ assets/                    # 로고·이미지
 ├─ css/
-│  ├─ style.css
-│  └─ subpages.css
+│  ├─ style.css               # 지도·공통 UI
+│  └─ subpages.css            # 서브페이지 UI
 ├─ docs/
-│  └─ WORK_SPLIT.md
+│  ├─ WORK_SPLIT.md           # 업무 분담
+│  └─ TROUBLE_SHOOTING.md     # 문제 해결 기록
 └─ js/
-   ├─ api.js
-   ├─ app.js
-   ├─ data.js
-   ├─ shared.js
+   ├─ api.js                  # 외부 API 모듈
+   ├─ app.js                  # 지도 탐색
+   ├─ planner.js              # 여행계획
+   ├─ shared.js               # 공통 상태·UI 유틸리티
+   ├─ account.js              # 계정·프로필 유틸리티
+   ├─ companion-utils.js      # 동행 상태·권한 유틸리티
+   ├─ board.js                # 게시판 상태·권한 유틸리티
    └─ 페이지별 스크립트
 ```
+
+## 상태 저장 방식
+
+프론트엔드 프로젝트 범위에 맞춰 다음 데이터를 `neorang-galjido-v1` 키의 `localStorage`에 저장합니다.
+
+- 회원·프로필 정보와 로그인 상태
+- 찜한 장소와 여행 일정
+- 동행 모집글과 참가 상태
+- 게시글과 댓글
+- 핫플레이스와 지도 설정
+
+브라우저 저장소를 삭제하면 데모 초기 상태로 돌아갑니다. 실제 서비스로 확장할 때는 비밀번호를 브라우저에 저장하지 않고 서버 인증, 데이터베이스, 이미지 스토리지를 사용해야 합니다.
+
+## 검증 방법
+
+```bash
+node --check js/app.js
+node --check js/planner.js
+node --check js/shared.js
+git diff --check
+```
+
+통합 시에는 지도 이동·레이어 토글·일정 저장·차량 경로·회원가입·동행 참가·게시글과 댓글 권한을 브라우저에서 함께 확인합니다.
+
+## 트러블슈팅
+
+지도 위치와 무관하게 제주 관광지만 표시되던 문제, 차량 경로 CORS, 날씨 예보 기간 결합, 프로필 이미지 저장 용량, Git 충돌 방지 과정은 [트러블슈팅 문서](./docs/TROUBLE_SHOOTING.md)에 정리했습니다.
