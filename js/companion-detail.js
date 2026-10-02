@@ -15,7 +15,7 @@ function scheduleMarkup(canSeeDetail) {
   const rows = [...item.schedule]
     .sort((a, b) => Number(a.day) - Number(b.day) || String(a.time).localeCompare(String(b.time)))
     .map((entry) => {
-      const place = places.find((candidate) => candidate.id === Number(entry.placeId));
+      const place = places.find((candidate) => candidate.id === Number(entry.placeId)) || state.itineraryPlaces?.[Number(entry.placeId)];
       return `<li><span class="schedule-day">${Number(entry.day) || 1}일차 ${escapeHtml(entry.time || "")}</span><strong>${escapeHtml(place?.title || "여행지")}</strong>${entry.memo ? `<p>${escapeHtml(entry.memo)}</p>` : ""}</li>`;
     });
   return `<h2>여행 일정</h2><ol class="companion-schedule">${rows.join("")}</ol>`;

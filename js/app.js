@@ -13,6 +13,8 @@ const defaultState = {
   search: "",
   favorites: [1, 2, 4, 5, 6, 8],
   itinerary: [2, 4, 1],
+  itineraryPlaces: {},
+  tripSchedule: [],
   companions: seedCompanions,
   joinedCompanions: [],
   posts: seedPosts,
@@ -53,7 +55,7 @@ let lastMapFetchKey = "";
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const persist = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-const placeById = (id) => places.find((place) => place.id === Number(id));
+const placeById = (id) => places.find((place) => place.id === Number(id)) || state.itineraryPlaces?.[Number(id)] || null;
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 
 function getCurrentLocation() {
@@ -230,7 +232,7 @@ function toggleFavorite(id) {
   state.favorites = state.favorites.includes(id) ? state.favorites.filter((item) => item !== id) : [...state.favorites, id];
   persist();
   renderPlaces();
-  $("#favorite-count").textContent = state.favorites.length;
+  if ($("#favorite-count")) $("#favorite-count").textContent = state.favorites.length;
   toast(state.favorites.includes(id) ? "찜한 장소에 저장했어요." : "찜 목록에서 삭제했어요.");
 }
 
@@ -239,7 +241,17 @@ function addToItinerary(id) {
     toast("이미 일정에 포함된 장소예요.");
     return;
   }
+  const place = placeById(id);
+  if (place) {
+    state.itineraryPlaces ||= {};
+    state.itineraryPlaces[id] = { ...place };
+  }
   state.itinerary.push(id);
+  state.tripSchedule ||= [];
+  const lastTime = state.tripSchedule.filter((item) => Number(item.day) === 1).sort((a, b) => String(b.time).localeCompare(String(a.time)))[0]?.time || "07:30";
+  const [hour, minute] = lastTime.split(":").map(Number);
+  const nextMinutes = Math.min(23 * 60 + 30, hour * 60 + minute + 120);
+  state.tripSchedule.push({ placeId: id, day: 1, time: `${String(Math.floor(nextMinutes / 60)).padStart(2, "0")}:${String(nextMinutes % 60).padStart(2, "0")}`, memo: "" });
   persist();
   renderItinerary();
   closeModal();
@@ -255,7 +267,8 @@ function moveItinerary(index, direction) {
 }
 
 function removeFromItinerary(index) {
-  state.itinerary.splice(index, 1);
+  const [removedId] = state.itinerary.splice(index, 1);
+  state.tripSchedule = (state.tripSchedule || []).filter((item) => Number(item.placeId) !== Number(removedId));
   persist();
   renderItinerary();
   toast("일정에서 장소를 제외했어요.");
@@ -263,11 +276,12 @@ function removeFromItinerary(index) {
 
 function renderItinerary() {
   const items = state.itinerary.map(placeById).filter(Boolean);
+  const scheduleById = new Map((state.tripSchedule || []).map((item) => [Number(item.placeId), item]));
   const html = items.length ? items.map((place, index) => `
     <article class="itinerary-item" draggable="true" data-itinerary-index="${index}">
       <span class="stop-number">${index + 1}</span>
       <img class="itinerary-thumb" src="${place.image}" alt="" />
-      <div class="itinerary-copy"><h3>${place.title}</h3><p>${index === 0 ? "09:30" : index === 1 ? "11:20" : "14:10"} · ${place.duration}분</p></div>
+      <div class="itinerary-copy"><h3>${place.title}</h3><p>${scheduleById.get(place.id)?.time || (index === 0 ? "09:30" : index === 1 ? "11:20" : "14:10")} · ${place.duration}분</p></div>
       <div class="itinerary-actions"><button type="button" data-move-up="${index}" aria-label="위로 이동">▲</button><button type="button" data-remove-stop="${index}" aria-label="일정에서 삭제">×</button><button type="button" data-move-down="${index}" aria-label="아래로 이동">▼</button></div>
     </article>`).join("") : `<div class="empty-state"><div><strong>아직 일정이 비어 있어요</strong><span>지도에서 장소를 추가해보세요.</span></div></div>`;
   $("#itinerary-list").innerHTML = html;

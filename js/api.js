@@ -75,6 +75,25 @@ export const api = {
     return data?.response?.body?.items?.item || [];
   },
 
+  async getMidWeather({ landRegId = "11G00000", temperatureRegId = "11G00201", tmFc }) {
+    const serviceKey = config.WEATHER_API_KEY || config.DATA_GO_KR_KEY;
+    if (!serviceKey || !tmFc) return null;
+    const common = { serviceKey, pageNo: 1, numOfRows: 10, dataType: "JSON", tmFc };
+    try {
+      const [landData, temperatureData] = await Promise.all([
+        requestJson(withQuery("https://apis.data.go.kr/1360000/MidFcstInfoService/getMidLandFcst", { ...common, regId: landRegId })),
+        requestJson(withQuery("https://apis.data.go.kr/1360000/MidFcstInfoService/getMidTa", { ...common, regId: temperatureRegId })),
+      ]);
+      const landItems = landData?.response?.body?.items?.item;
+      const temperatureItems = temperatureData?.response?.body?.items?.item;
+      const land = Array.isArray(landItems) ? landItems[0] : landItems;
+      const temperature = Array.isArray(temperatureItems) ? temperatureItems[0] : temperatureItems;
+      return land || temperature ? { land, temperature, tmFc } : null;
+    } catch {
+      return null;
+    }
+  },
+
   async getSunTimes({ lat = 33.45, lng = 126.57, date = "today" } = {}) {
     const url = withQuery("https://api.sunrise-sunset.org/v2", { lat, lng, date, timezone: "Asia/Seoul" });
     try {
