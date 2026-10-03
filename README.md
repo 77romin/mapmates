@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./assets/neorang-galjido-logo-square-v2.png" width="160" height="160" alt="MapMates · 너랑 갈.지도 logo">
+</p>
+
 # 너랑 갈.지도 · MapMates
 
 **한국어** | [English](./README-en.md)
