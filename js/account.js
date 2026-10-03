@@ -61,9 +61,9 @@ export function syncUserProfile(state) {
   const { nickname, photo, gender } = state.user;
   state.plans.filter(plan => plan.ownerId === state.user.id).forEach(plan => { plan.author = nickname; });
   state.posts.filter((post) => post.ownerId === state.user.id).forEach((post) => { post.author = nickname; });
-  Object.values(state.postComments).forEach((comments) => comments
-    .filter((comment) => comment.ownerId === state.user.id)
-    .forEach((comment) => Object.assign(comment, { nickname, photo, gender })));
+  [...Object.values(state.postComments), ...Object.values(state.companionComments || {})].forEach(comments => comments
+    .filter(comment => !comment.deleted && comment.ownerId === state.user.id)
+    .forEach(comment => Object.assign(comment, { nickname, photo, gender })));
   state.companions.forEach((item) => {
     if (item.ownerId === state.user.id) Object.assign(item, { author: nickname, avatar: nickname[0] });
     item.participants?.filter((person) => person.id === state.user.id).forEach((person) => Object.assign(person, { nickname, photo, gender }));
@@ -78,6 +78,8 @@ export function clearUserContent(state) {
   Object.keys(state.postComments).forEach((id) => {
     state.postComments[id] = state.postComments[id].filter((comment) => comment.ownerId !== state.user.id);
   });
+  state.companions.filter(item => item.ownerId === state.user.id).forEach(item => { delete state.companionComments?.[item.id]; });
+  Object.keys(state.companionComments || {}).forEach(id => { state.companionComments[id] = state.companionComments[id].filter(comment => comment.ownerId !== state.user.id); });
   state.companions = state.companions.filter((item) => item.ownerId !== state.user.id);
   state.companions.forEach((item) => {
     if (!Array.isArray(item.participants)) return;

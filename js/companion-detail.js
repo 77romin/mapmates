@@ -1,3 +1,4 @@
+import { initComments } from './comments.js';
 import { TripRoute, tripDays, dayDate, renderDayWeather, applyType, bindRoadview } from './trip-map.js';
 import { api } from "./api.js";
 import { places } from "./data.js";
@@ -137,6 +138,7 @@ function deleteCompanion() {
   if (!confirm("모집글을 삭제하면 참가자 목록도 함께 사라져요. 삭제할까요?")) return;
   state.companions = state.companions.filter((entry) => entry !== item);
   state.joinedCompanions = state.joinedCompanions.filter((value) => Number(value) !== Number(item.id));
+  delete state.companionComments?.[item.id];
   persist(state);
   location.href = "./companions.html";
 }
@@ -155,5 +157,6 @@ if (!item) {
   $("#owner-edit-form").addEventListener("submit", saveOwnerEdit);
   $("#owner-delete").addEventListener("click", deleteCompanion);
   render();
+  initComments({ state, collection: "companionComments", id: item.id, ownerId: item.ownerId, next: `companion-detail.html?id=${item.id}` });
   initCompanionRoute();
 }

@@ -60,6 +60,19 @@
             </div>
           </form>
         </section>
+        <section class="subpage-card comment-section" aria-labelledby="comment-title">
+          <h2 id="comment-title">동행 질문과 답변 <span id="comment-count">0</span></h2>
+          <form class="comment-form" id="comment-form">
+            <label class="field">
+              <span class="sr-only">댓글 내용</span>
+              <textarea id="comment-content" maxlength="500" required placeholder="참가 전에 궁금한 점을 물어보세요. 참여 여부와 관계없이 질문할 수 있어요." aria-describedby="comment-length"></textarea>
+              <small class="char-count" id="comment-length">0 / 500</small>
+            </label>
+            <button class="button button-primary comment-send" type="submit" aria-label="댓글 등록" title="댓글 등록"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z M22 2 11 13"/></svg></button>
+          </form>
+          <p class="login-hint" id="comment-login" hidden>댓글은 로그인한 회원만 작성할 수 있어요. <a href="./signup.html">로그인 / 회원가입</a></p>
+          <div class="comment-list" id="comment-list"></div>
+        </section>
       </div>
       <section class="subpage-card empty-state" id="companion-missing" hidden>
         <div><strong>모집글을 찾을 수 없어요.</strong><span>삭제되었거나 잘못된 주소예요. <a href="./companions.html">동행 목록으로 돌아가기</a></span></div>

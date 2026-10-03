@@ -12,6 +12,7 @@ const baseState = {
   posts: seedPosts,
   hotplaces: seedHotplaces,
   postComments: {},
+  companionComments: {},
   routeMode: "straight",
   tripSchedule: [],
   trip: { title: "제주, 우리 둘의 지도", startDate: "2026-10-12", endDate: "2026-10-14", people: 2 },
@@ -45,6 +46,7 @@ export function loadState() {
   state.companions = Array.isArray(saved.companions) ? saved.companions : clone(seedCompanions);
   state.posts = Array.isArray(saved.posts) ? saved.posts : clone(seedPosts);
   state.postComments = saved.postComments && typeof saved.postComments === "object" ? saved.postComments : {};
+  state.companionComments = saved.companionComments && typeof saved.companionComments === "object" && !Array.isArray(saved.companionComments) ? saved.companionComments : {};
   state.itineraryPlaces = saved.itineraryPlaces && typeof saved.itineraryPlaces === "object" ? saved.itineraryPlaces : {};
   state.itinerary = Array.isArray(saved.itinerary) ? saved.itinerary.map(Number).filter(Number.isFinite) : [...baseState.itinerary];
   if (!Array.isArray(saved.tripSchedule) || !saved.tripSchedule.length) {
