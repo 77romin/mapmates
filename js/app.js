@@ -2,7 +2,7 @@ import { mountWorkspace } from './map-workspace.js';
 import { bindRoadview } from './trip-map.js';
 import { places } from "./data.js";
 import { api } from "./api.js";
-import { readProfileImage } from "./account.js";
+import { popularPlaces } from './popular-places.js';
 
 import { loadState, saveState, initShell, ensureLoggedIn } from './shared.js';
 const NEARBY_RADIUS_METERS = 20000;
@@ -181,26 +181,18 @@ function syncKakaoMarkers(result = filteredPlaces()) {
 }
 
 function syncHotplaceLayer() {
-  if (!kakaoMap || !window.kakao?.maps) return;
-  hotplaceMarkers.forEach((marker) => marker.setMap(null));
-  hotplaceMarkers = state.hotplaces.filter(place => Number.isFinite(place.lat) && Number.isFinite(place.lng)).map((place) => {
-    const lat = place.lat || 33.18 + (70 - place.y) * .006;
-    const lng = place.lng || 126.2 + place.x * .0065;
-    const content = document.createElement("button");
-    content.className = "hotplace-map-marker";
-    content.type = "button";
-    content.title = `핫플 · ${place.title}`;
-    content.setAttribute("aria-label", `핫플 ${place.title}`);
-    content.innerHTML = "<span>♥</span>";
-    content.addEventListener("click", () => toast(`${place.title} · ${place.description || place.date || "나의 핫플레이스"}`));
-    const marker = new window.kakao.maps.CustomOverlay({
-      position: new window.kakao.maps.LatLng(lat, lng),
-      map: layerVisibility.hotplace ? kakaoMap : null,
-      content,
-      yAnchor: 1,
-      zIndex: 8,
-    });
-    return marker;
+  hotplaceMarkers.forEach(marker => marker.setMap(null)); hotplaceMarkers=[];
+  const panel=$('#hotplace-ranking'); panel.hidden=!layerVisibility.hotplace;
+  if(!layerVisibility.hotplace)return;
+  if(!kakaoMap || !window.kakao?.maps){panel.innerHTML='<h3>지금 지도에서 인기 있는 장소</h3><p>지도가 연결되면 저장된 여행계획의 인기 장소를 확인할 수 있어요.</p>';return;}
+  const bounds=kakaoMap.getBounds(),sw=bounds.getSouthWest(),ne=bounds.getNorthEast();
+  const items=popularPlaces(loadState().plans,{south:sw.getLat(),west:sw.getLng(),north:ne.getLat(),east:ne.getLng()});
+  panel.innerHTML='<h3>지금 지도에서 인기 있는 장소</h3><p class="hotplace-ranking-note">이 브라우저의 저장된 여행계획 기준 · 최대 10곳</p>'+ (items.length?'<ol>'+items.map((place,index)=>`<li><button type="button" data-popular-index="${index}"><b>${index+1}</b><span><strong>${escapeHtml(place.title)}</strong><small>${place.userCount}명의 여행계획 · ${place.planCount}개 일정</small></span></button></li>`).join('')+'</ol>':'<p>현재 지도 범위에 저장된 여행 장소가 없어요. 지도를 이동해 다른 지역을 확인해보세요.</p>');
+  items.forEach((place,index)=>{
+    const select=()=>{const detail={weather:'날씨 버튼에서 확인',sunrise:'조회 중',sunset:'조회 중',duration:60,x:50,y:50,image:'./assets/sunset-clouds.png',...place,categoryLabel:place.categoryLabel || '인기 여행지'};state.itineraryPlaces[detail.id]={...detail};showPlaceDetail(detail);};
+    panel.querySelector(`[data-popular-index="${index}"]`).onclick=select;
+    const content=document.createElement('button');content.type='button';content.className='hotplace-map-marker';content.innerHTML=`<span>${index+1}</span>`;content.setAttribute('aria-label',`인기 ${index+1}위 ${place.title} · ${place.userCount}명`);content.onclick=select;
+    hotplaceMarkers.push(new window.kakao.maps.CustomOverlay({position:new window.kakao.maps.LatLng(place.lat,place.lng),map:kakaoMap,content,yAnchor:1,zIndex:8}));
   });
 }
 
@@ -350,22 +342,6 @@ function showPlaceDetail(place) {
   });
 }
 
-function showHotplaceForm() {
-  if (!ensureLoggedIn(state, "핫플레이스를 등록하려면 로그인해주세요.")) return;
-  openModal(formModal("핫플레이스 등록", "나만 알고 싶은 장소와 기억을 지도에 남겨보세요.", `<div class="form-grid"><div class="form-field full"><label for="hotplace-title">장소 이름</label><input id="hotplace-title" placeholder="예: 월정리의 오후" /></div><div class="form-field"><label for="hotplace-type">장소 유형</label><select id="hotplace-type"><option>자연</option><option>카페</option><option>맛집</option><option>문화</option></select></div><div class="form-field"><label for="hotplace-date">방문 날짜</label><input id="hotplace-date" type="date" value="2026-10-02" /></div><div class="form-field full"><label for="hotplace-file">사진 파일</label><input id="hotplace-file" type="file" accept="image/png,image/jpeg,image/webp" /></div><div class="form-field full"><label for="hotplace-photo">또는 사진 URL</label><input id="hotplace-photo" placeholder="비워두면 기본 여행 사진을 사용합니다" /></div><div class="form-field full"><label for="hotplace-description">기억</label><textarea id="hotplace-description" placeholder="이 장소에서의 기억을 기록해보세요."></textarea></div></div>`, "핫플레이스 저장", "hotplace-form"));
-  $("#hotplace-form").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const title = $("#hotplace-title").value.trim();
-    if (!title) return toast("장소 이름을 입력해주세요.");
-    const file = $("#hotplace-file").files[0];
-    if (file && file.size > 1024 * 1024) return toast("사진은 1MB 이하로 등록해주세요.");
-    let fileData = "";
-    try { if (file) fileData = await readProfileImage(file); } catch (error) { return toast(error.message); }
-    state.hotplaces.unshift({ id: Date.now(), title, ownerId:state.user.id, lat:kakaoMap?.getCenter().getLat() || INITIAL_MAP_CENTER.lat, lng:kakaoMap?.getCenter().getLng() || INITIAL_MAP_CENTER.lng, type:$("#hotplace-type").value, date:$("#hotplace-date").value, description:$("#hotplace-description").value.trim(), image: fileData || $("#hotplace-photo").value.trim() || places[Math.floor(Math.random() * places.length)].image });
-    try { persist(); } catch { state.hotplaces.shift(); return toast("저장 공간이 부족해 사진을 저장하지 못했어요."); }
-    syncHotplaceLayer(); closeModal(); toast("핫플레이스를 등록했어요.");
-  });
-}
 
 function showProfileForm() { location.href = './mypage.html'; }
 function showAccountModal() { location.href = './signup.html?mode=login'; }
@@ -428,6 +404,7 @@ function bindGlobalEvents() {
     else if (state.placeCategories.includes(category)) updatePlaceCategories(state.placeCategories.filter((item) => item !== category));
     else updatePlaceCategories([...state.placeCategories, category]);
   }));
+
   $("#place-filter-off").addEventListener("click", () => updatePlaceCategories([]));
   $("#map-search-trigger").addEventListener("click", () => { $(".search-panel").classList.add("is-open"); $("#search-input").focus(); });
   $("#mobile-search-fab").addEventListener("click", () => $(".search-panel").classList.add("is-open"));
@@ -515,7 +492,7 @@ function bindGlobalEvents() {
 
   $$('[data-board]').forEach((button) => button.addEventListener("click", () => { state.currentBoard = button.dataset.board; persist();  }));
 
-  $("#add-hotplace-button")?.addEventListener("click", showHotplaceForm);
+
   $("#profile-edit-button")?.addEventListener("click", showProfileForm);
   $("#account-button")?.addEventListener("click", () => showAccountModal());
   document.addEventListener("keydown", (event) => {
@@ -554,6 +531,7 @@ async function initKakaoMap() {
     mapIdleTimer = setTimeout(() => {
       refreshNearbyFromMap();
       if (layerVisibility.charger) refreshChargerLayer();
+      if (layerVisibility.hotplace) syncHotplaceLayer();
     }, 350);
   });
   await refreshNearbyFromMap(true);
