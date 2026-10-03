@@ -7,6 +7,8 @@
   <link rel="icon" type="image/png" href="./assets/neorang-galjido-logo-square-v2.png">
   <link rel="stylesheet" href="./css/style.css">
   <link rel="stylesheet" href="./css/subpages.css">
+  <link rel="stylesheet" href="./css/sunset.css">
+  <script src="./js/first-visit.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">본문 바로가기</a>
@@ -67,8 +69,10 @@
           <label class="field"><span>비밀번호</span><input id="login-password" type="password" autocomplete="current-password" required></label>
           <p class="form-error" id="login-error" role="alert"></p>
           <button class="button button-primary" type="submit">로그인</button>
-          <p class="helper-text">이 브라우저에 가입한 계정으로 로그인할 수 있어요.</p>
+          <p class="helper-text">체험 계정을 선택하거나 이 브라우저에 가입한 계정으로 로그인하세요.</p>
         </form>
+        <details class="subpage-card recovery-card"><summary>비밀번호 재설정</summary><p class="helper-text">이 브라우저의 체험용 복구입니다. 실제 이메일 인증은 백엔드 연결 후 제공됩니다.</p><form id="recover-form" class="form-stack"><label class="field">이메일<input id="recover-email" type="email" required></label><label class="field">이름<input id="recover-name" required></label><label class="field">생년월일<input id="recover-birth" type="date" required></label><label class="field">새 비밀번호<input id="recover-password" type="password" required minlength="8"></label><p id="recover-error" role="status"></p><button class="button button-secondary">비밀번호 변경</button></form></details>
+        <section class="subpage-card demo-card"><p class="eyebrow">MEET YOUR TRAVELERS</p><h2>여행자 10명으로 미리 체험하기</h2><p class="helper-text">계정을 누르면 로그인 정보가 채워집니다. 공통 비밀번호: Trip2026!<br>게시물과 여행계획은 이 브라우저에만 저장됩니다.</p><div id="demo-accounts" class="demo-accounts"></div></section>
       </div>
     </div>
   </main>
