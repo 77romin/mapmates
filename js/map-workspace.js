@@ -1,40 +1,98 @@
-import { api } from './api.js';
 import { places } from './data.js';
-import { escapeHtml, saveState, ensureLoggedIn, showToast } from './shared.js';
-import { TripRoute, REGIONS, tripDays, dayDate, renderDayWeather } from './trip-map.js';
-export function mountWorkspace(state,getMap,onChange) {
-  const panel=document.querySelector('#map-workspace'),explore=document.querySelector('#explore-panel-content');
-  const status=document.createElement('p');status.id='workspace-route-status';status.className='workspace-map-status';status.hidden=true;document.querySelector('#map-stage').append(status);
-  const route=new TripRoute(getMap,document.querySelector('#route-layer'),status);
-  let tab='explore',selected=null,day=1,mode='straight',editing=false,searchRevision=0;
-  const findPlace=(id,record)=>record.places?.[id] || record.itineraryPlaces?.[id] || state.itineraryPlaces?.[id] || places.find(p=>p.id===Number(id));
-  const normalize=plan=>({...plan.trip,region:plan.trip.region || state.companions.find(c=>c.tripId===plan.id)?.region || '기타',id:plan.id,ownerId:plan.ownerId,schedule:plan.tripSchedule || [],places:plan.itineraryPlaces || {}});
-  function entries(){return (selected?.schedule || []).filter(e=>Number(e.day || 1)===day).sort((a,b)=>String(a.time).localeCompare(String(b.time))).map(e=>({...e,place:findPlace(e.placeId,selected)}));}
-  function draw(){if(tab==='explore'){route.clear();status.hidden=true;return;}status.hidden=!selected;route.draw(entries(),mode);const weather=panel.querySelector('#workspace-weather');if(weather&&selected)renderDayWeather(weather,entries()[0]?.place || (selected.schedule?.[0] && findPlace(selected.schedule[0].placeId,selected)),dayDate(selected,day),selected.region);}
-  function pick(record,newMode='straight',edit=false){if(editing&&!readForm())return;selected=record;day=1;mode=newMode;editing=edit;render();draw();}
-  function persistDraft(){if(!editing)return;state.trip={...state.trip,...selected};delete state.trip.schedule;delete state.trip.places;state.tripSchedule=structuredClone(selected.schedule);state.itinerary=selected.schedule.map(e=>e.placeId);state.itineraryPlaces=structuredClone(selected.places);saveState(state);onChange();}
-  function render(){
-    panel.innerHTML=`<p class="eyebrow">${tab==='browse'?'TRAVEL TOGETHER':'MY JOURNEYS'}</p><div class="section-title-row"><h2>${tab==='browse'?'둘러보기':'내 여행'}</h2><button type="button" class="icon-button mobile-panel-close" id="workspace-close" aria-label="목록 접고 지도 보기">×</button></div>${tab==='mine'?'<button type="button" class="button button-primary" id="workspace-new">＋ 새 여행 작성</button><button type="button" class="text-button" id="workspace-resume">작성 중인 여행 이어쓰기</button>':''}<div id="workspace-selected"></div><div id="workspace-cards"></div>`;
-    panel.querySelector('#workspace-close').onclick=()=>document.querySelector('.search-panel').classList.remove('is-open');
-    const records=tab==='browse'?state.companions:state.loggedIn?state.plans.filter(p=>p.ownerId===state.user.id).map(normalize):[];
-    panel.querySelector('#workspace-cards').innerHTML=records.map(r=>`<article class="workspace-trip-card ${selected?.id===r.id?'is-selected':''}"><button type="button" data-select-trip="${escapeHtml(r.id)}"><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(r.region || '')} · ${escapeHtml(r.startDate || '')} — ${escapeHtml(r.endDate || '')}</span></button><div class="trip-card-actions"><label>경로<select data-card-mode="${escapeHtml(r.id)}"><option value="straight">직선</option><option value="car" ${selected?.id===r.id&&mode==='car'?'selected':''}>차량경로</option></select></label>${tab==='browse'?`<a href="./companion-detail.html?id=${r.id}">상세·참가</a>`:`<button type="button" data-edit-trip="${escapeHtml(r.id)}">편집</button>`}</div></article>`).join('') || `<p class="helper-text">${tab==='mine'&&!state.loggedIn?'로그인하면 내 여행을 저장하고 공유할 수 있어요.':'등록된 여행이 없어요.'}</p>`;
-    panel.querySelectorAll('[data-select-trip]').forEach(b=>b.onclick=()=>pick(records.find(r=>String(r.id)===b.dataset.selectTrip),panel.querySelector(`[data-card-mode="${CSS.escape(b.dataset.selectTrip)}"]`).value));
-    panel.querySelectorAll('[data-card-mode]').forEach(b=>b.onchange=()=>{if(String(selected?.id)===b.dataset.cardMode){mode=b.value;render();draw();}else pick(records.find(r=>String(r.id)===b.dataset.cardMode),b.value);});
-    panel.querySelectorAll('[data-edit-trip]').forEach(b=>b.onclick=()=>pick(structuredClone(records.find(r=>String(r.id)===b.dataset.editTrip)),'straight',true));
-    panel.querySelector('#workspace-new')?.addEventListener('click',()=>{if(editing&&!readForm())return;const date=new Date().toLocaleDateString('en-CA');pick({id:crypto.randomUUID(),title:'나의 새로운 여행',startDate:date,endDate:date,people:4,budget:0,region:'서울',description:'',schedule:[],places:{}},'straight',true);persistDraft();});
-    panel.querySelector('#workspace-resume')?.addEventListener('click',()=>pick({...structuredClone(state.trip),id:state.trip.id || crypto.randomUUID(),schedule:structuredClone(state.tripSchedule || []),places:structuredClone(state.itineraryPlaces || {})},'straight',true));
-    if(!selected)return;
-    panel.querySelector('#workspace-selected').innerHTML=`<h3>${escapeHtml(selected.title)}</h3>${editing?`<form id="workspace-form" class="workspace-form"><label>여행 제목<input name="title" required maxlength="60" value="${escapeHtml(selected.title)}"></label><label>출발일<input name="startDate" type="date" required value="${escapeHtml(selected.startDate)}"></label><label>종료일<input name="endDate" type="date" required value="${escapeHtml(selected.endDate)}"></label><label>지역<select name="region">${REGIONS.map(r=>`<option ${r===selected.region?'selected':''}>${r}</option>`).join('')}</select></label><label>정원 (나 포함)<input name="people" type="number" min="2" max="10" value="${selected.people || 4}" required></label><label>예산 (원)<input name="budget" type="number" min="0" value="${selected.budget || 0}" required></label><label>여행 소개<textarea name="description" maxlength="1000">${escapeHtml(selected.description || '')}</textarea></label><button class="button button-primary" type="submit">여행 저장</button><button class="button button-secondary" id="workspace-publish" type="button">동행 모집·공유</button></form>`:''}<div class="trip-day-buttons">${tripDays(selected).map(d=>`<button type="button" data-workspace-day="${d}" aria-pressed="${d===day}">DAY ${d}</button>`).join('')}</div><p id="workspace-weather" class="trip-day-weather" role="status"></p>${editing?'<form id="workspace-place-search" class="search-form"><input aria-label="일정에 추가할 장소 검색" placeholder="여행지 검색" required><button>검색</button></form><div id="workspace-place-results"></div>':''}<ol class="workspace-stops">${entries().map(e=>`<li><strong>${escapeHtml(e.place?.title || '장소')}</strong>${editing?`<input aria-label="방문 시각" type="time" value="${escapeHtml(e.time || '09:00')}" data-stop-time="${e.placeId}"><button type="button" data-remove-stop="${e.placeId}">삭제</button>`:`<span>${escapeHtml(e.time || '')}</span>`}</li>`).join('') || '<li>이 날짜의 장소가 없어요.</li>'}</ol>`;
-    panel.querySelectorAll('[data-workspace-day]').forEach(b=>b.onclick=()=>{if(editing&&!readForm())return;day=Number(b.dataset.workspaceDay);render();draw();});
-    panel.querySelectorAll('[data-stop-time]').forEach(b=>b.onchange=()=>{selected.schedule.find(e=>Number(e.placeId)===Number(b.dataset.stopTime)&&Number(e.day)===day).time=b.value;persistDraft();draw();});
-    panel.querySelectorAll('[data-remove-stop]').forEach(b=>b.onclick=()=>{if(!readForm())return;selected.schedule=selected.schedule.filter(e=>!(Number(e.placeId)===Number(b.dataset.removeStop)&&Number(e.day)===day));persistDraft();render();draw();});
-    panel.querySelector('#workspace-form')?.addEventListener('submit',e=>{e.preventDefault();save();});
-    panel.querySelector('#workspace-publish')?.addEventListener('click',()=>{if(!save())return;if(!selected.schedule.length)return showToast('여행지를 먼저 추가해주세요.');let existing=state.companions.find(c=>c.ownerId===state.user.id&&c.tripId===selected.id);if(existing?.participants.length>Number(selected.people))return showToast('현재 참가자보다 정원을 줄일 수 없어요.');const payload={...structuredClone(selected),id:existing?.id || Date.now(),tripId:selected.id,ownerId:state.user.id,author:state.user.nickname,dates:`${selected.startDate} - ${selected.endDate}`,people:`${existing?.participants.length || 1}/${selected.people}명`,participants:existing?.participants || [{id:state.user.id,nickname:state.user.nickname,photo:state.user.photo,gender:state.user.gender}],closed:existing?.closed || false,tags:[selected.region,'동행'],image:Object.values(selected.places)[0]?.image || './assets/sunset-clouds.png'};if(existing)Object.assign(existing,payload);else state.companions.unshift(payload);saveState(state);showToast('동행 모집글을 공유했어요. 둘러보기에서 확인하세요.');});
-    panel.querySelector('#workspace-place-search')?.addEventListener('submit',async e=>{e.preventDefault();if(!readForm())return;const revision=++searchRevision,keyword=e.target.querySelector('input').value.trim(),result=panel.querySelector('#workspace-place-results');result.textContent='장소 검색 중…';let found;try{found=await api.searchTour({keyword,areaCode:''});}catch{found=null;}if(revision!==searchRevision||!result.isConnected)return;const list=(Array.isArray(found)?found:found?[found]:[]).map(raw=>({id:Number(raw.contentid),title:raw.title,lat:Number(raw.mapy),lng:Number(raw.mapx),region:raw.addr1,image:raw.firstimage})).filter(p=>p.lat&&p.lng);if(!list.length)list.push(...places.filter(p=>p.title.includes(keyword)||p.region?.includes(keyword)));result.innerHTML=list.slice(0,15).map((p,i)=>`<button type="button" data-found="${i}">${escapeHtml(p.title)} ＋</button>`).join('') || '검색 결과가 없어요.';result.querySelectorAll('button').forEach(b=>b.onclick=()=>{if(!readForm())return;const place=list[Number(b.dataset.found)];if(selected.schedule.some(e=>e.day===day&&Number(e.placeId)===place.id))return showToast('이미 해당 날짜에 추가한 장소예요.');selected.places[place.id]=place;selected.schedule.push({placeId:place.id,day,time:'09:00',memo:''});persistDraft();render();draw();});});
+import { escapeHtml, saveState } from './shared.js';
+import { TripRoute, tripDays, dayDate, renderDayWeather } from './trip-map.js';
+
+export function mountWorkspace(state, getMap, onChange) {
+  const panel = document.querySelector('#map-workspace');
+  const explore = document.querySelector('#explore-panel-content');
+  const status = document.createElement('p');
+  status.id = 'workspace-route-status';
+  status.className = 'workspace-map-status';
+  status.hidden = true;
+  document.querySelector('#map-stage').append(status);
+  const route = new TripRoute(getMap, document.querySelector('#route-layer'), status);
+  let tab = 'explore', selected = null, day = 1, mode = 'straight';
+
+  const companionFor = plan => state.companions.find(item => item.tripId === plan.id);
+  const normalize = plan => ({
+    ...plan.trip, id: plan.id, ownerId: plan.ownerId,
+    region: plan.trip.region || companionFor(plan)?.region || '기타',
+    description: plan.trip.description || companionFor(plan)?.description || '',
+    image: companionFor(plan)?.image || Object.values(plan.itineraryPlaces || {})[0]?.image,
+    schedule: plan.tripSchedule || [], places: plan.itineraryPlaces || {},
+  });
+  const findPlace = (id, record) => record.places?.[id] || state.itineraryPlaces?.[id] || places.find(place => place.id === Number(id));
+  const entries = () => (selected?.schedule || [])
+    .filter(entry => Number(entry.day || 1) === day)
+    .sort((a, b) => String(a.time).localeCompare(String(b.time)))
+    .map(entry => ({ ...entry, place: findPlace(entry.placeId, selected) }));
+
+  function draw() {
+    if (tab === 'explore' || !selected) { route.clear(); status.hidden = true; return; }
+    status.hidden = false;
+    const stops = entries();
+    route.draw(stops, mode);
+    const weather = panel.querySelector('#workspace-weather');
+    if (weather) renderDayWeather(weather, stops[0]?.place || (selected.schedule[0] && findPlace(selected.schedule[0].placeId, selected)), dayDate(selected, day), selected.region);
   }
-  function readForm(){const form=panel.querySelector('#workspace-form');if(!form)return true;if(!form.reportValidity())return false;const fields=Object.fromEntries(new FormData(form));if(fields.endDate<fields.startDate || (new Date(fields.endDate)-new Date(fields.startDate))/86400000>=14){showToast('여행 기간을 1~14일로 선택해주세요.');return false;}const days=Math.round((new Date(fields.endDate)-new Date(fields.startDate))/86400000)+1;if(selected.schedule.some(e=>e.day>days)){showToast('마지막 날짜의 장소를 옮기거나 삭제한 뒤 기간을 줄여주세요.');return false;}Object.assign(selected,fields,{people:Number(fields.people),budget:Number(fields.budget)});persistDraft();return true;}
-  function save(){if(!readForm())return false;if(!state.loggedIn)sessionStorage.setItem('neorang-workspace-return','mine');if(!ensureLoggedIn(state))return false;selected.ownerId=state.user.id;persistDraft();const plan={id:selected.id,ownerId:state.user.id,trip:structuredClone(state.trip),tripSchedule:structuredClone(selected.schedule),itinerary:selected.schedule.map(e=>e.placeId),itineraryPlaces:structuredClone(selected.places)};const index=state.plans.findIndex(p=>p.id===plan.id&&p.ownerId===state.user.id);if(index>=0)state.plans[index]=plan;else state.plans.unshift(plan);saveState(state);render();draw();showToast('여행계획을 저장했어요.');return true;}
-  function switchTab(next){if(editing&&!readForm())return;tab=next;selected=null;editing=false;searchRevision++;explore.hidden=tab!=='explore';panel.hidden=tab==='explore';document.querySelectorAll('[data-workspace]').forEach(b=>b.classList.toggle('is-active',b.dataset.workspace===tab));document.querySelector('.search-panel').classList.add('is-open');render();draw();onChange();getMap()?.relayout();}
-  document.querySelectorAll('[data-workspace]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();switchTab(b.dataset.workspace);}));
-  return {refresh:draw,show:switchTab,resume:()=>{switchTab('mine');panel.querySelector('#workspace-resume').click();},get tab(){return tab;}};
+
+  function openPlanner(record) {
+    if (record) {
+      state.trip = { ...record };
+      delete state.trip.schedule; delete state.trip.places;
+      state.tripSchedule = structuredClone(record.schedule || []);
+      state.itinerary = state.tripSchedule.map(entry => entry.placeId);
+      state.itineraryPlaces = structuredClone(record.places || {});
+      saveState(state);
+    }
+    location.href = './planner.html';
+  }
+
+  function render() {
+    const heading = tab === 'browse' ? '둘러보기' : '내 여행';
+    panel.innerHTML = `<p class="eyebrow">${tab === 'browse' ? 'TRAVEL TOGETHER' : 'MY JOURNEYS'}</p>
+      <div class="section-title-row"><h2>${heading}</h2><button type="button" class="icon-button mobile-panel-close" id="workspace-close" aria-label="목록 접고 지도 보기">×</button></div>
+      <div id="workspace-content"></div>`;
+    panel.querySelector('#workspace-close').onclick = () => document.querySelector('.search-panel').classList.remove('is-open');
+    const content = panel.querySelector('#workspace-content');
+    if (!selected) {
+      const records = tab === 'browse' ? state.companions : state.loggedIn ? state.plans.filter(plan => plan.ownerId === state.user.id).map(normalize) : [];
+      content.innerHTML = `${tab === 'mine' ? '<a class="button button-primary full-width" id="workspace-new" href="./planner.html?new=1">＋ 새 여행 작성</a><button type="button" class="text-button" id="workspace-resume">작성 중인 여행 이어쓰기</button>' : ''}
+        <div id="workspace-cards" class="workspace-card-grid">${records.map(record => `
+          <button type="button" class="workspace-trip-card" data-select-trip="${escapeHtml(record.id)}">
+            <img src="${escapeHtml(record.image || './assets/sunset-clouds.png')}" alt="" loading="lazy">
+            <span class="workspace-card-body"><span class="workspace-card-region">${escapeHtml(record.region || '여행')}</span><strong>${escapeHtml(record.title)}</strong><span class="workspace-card-dates">${escapeHtml(record.startDate || '')} — ${escapeHtml(record.endDate || '')}</span><span class="workspace-card-meta">${tab === 'browse' ? escapeHtml(`${record.author || '여행자'} · ${record.people || ''}`) : `${tripDays(record).length}일 여행 · ${(record.schedule || []).length}개 장소`}</span></span>
+          </button>`).join('') || `<p class="helper-text">${tab === 'mine' && !state.loggedIn ? '로그인하면 내 여행을 저장하고 공유할 수 있어요.' : '등록된 여행이 없어요.'}</p>`}</div>`;
+      content.querySelectorAll('[data-select-trip]').forEach(button => button.onclick = () => {
+        selected = records.find(record => String(record.id) === button.dataset.selectTrip);
+        day = 1; mode = 'straight'; render(); panel.scrollTop = 0; draw();
+      });
+      content.querySelector('#workspace-resume')?.addEventListener('click', () => openPlanner());
+      content.querySelectorAll('img').forEach(img => img.addEventListener('error', () => { if (!img.dataset.fallback) { img.dataset.fallback = '1'; img.src = './assets/sunset-clouds.png'; } }));
+      return;
+    }
+    content.innerHTML = `<button class="text-button workspace-back" id="workspace-back" type="button">← ${heading} 목록</button>
+      <article class="workspace-selected-trip"><img class="workspace-selected-photo" src="${escapeHtml(selected.image || './assets/sunset-clouds.png')}" alt=""><p class="workspace-card-region">${escapeHtml(selected.region || '여행')}</p><h3>${escapeHtml(selected.title)}</h3><p class="helper-text">${escapeHtml(selected.startDate)} — ${escapeHtml(selected.endDate)}${tab === 'browse' ? ` · ${escapeHtml(selected.people || '')}` : ''}</p>${selected.description ? `<p class="workspace-trip-description">${escapeHtml(selected.description)}</p>` : ''}</article>
+      <div class="workspace-route-toggle" role="group" aria-label="여행 경로 선택"><button type="button" data-workspace-mode="straight" aria-pressed="${mode === 'straight'}">직선</button><button type="button" data-workspace-mode="car" aria-pressed="${mode === 'car'}">차량경로</button></div>
+      <div class="trip-day-buttons">${tripDays(selected).map(value => `<button type="button" data-workspace-day="${value}" aria-pressed="${value === day}">DAY ${value}</button>`).join('')}</div>
+      <p id="workspace-weather" class="trip-day-weather" role="status"></p>
+      <ol class="workspace-stops">${entries().map(entry => `<li><strong>${escapeHtml(entry.place?.title || '장소')}</strong><span>${escapeHtml(entry.time || '')}</span></li>`).join('') || '<li>이 날짜의 장소가 없어요.</li>'}</ol>
+      ${tab === 'browse' ? `<a class="button button-primary full-width workspace-detail-button" href="./companion-detail.html?id=${encodeURIComponent(selected.id)}">세부내용 보기</a>` : '<button type="button" class="button button-primary full-width workspace-detail-button" id="workspace-plan-detail">세부내용 보기</button>'}`;
+    content.querySelector('#workspace-back').onclick = () => { selected = null; render(); panel.scrollTop = 0; draw(); };
+    content.querySelectorAll('[data-workspace-mode]').forEach(button => button.onclick = () => { mode = button.dataset.workspaceMode; render(); draw(); });
+    content.querySelectorAll('[data-workspace-day]').forEach(button => button.onclick = () => { day = Number(button.dataset.workspaceDay); render(); draw(); });
+    content.querySelector('#workspace-plan-detail')?.addEventListener('click', () => openPlanner(selected));
+    const photo = content.querySelector('.workspace-selected-photo');
+    photo.addEventListener('error', () => { if (!photo.dataset.fallback) { photo.dataset.fallback = '1'; photo.src = './assets/sunset-clouds.png'; } });
+  }
+
+  function switchTab(next) {
+    tab = next; selected = null;
+    explore.hidden = tab !== 'explore'; panel.hidden = tab === 'explore';
+    document.querySelectorAll('[data-workspace]').forEach(button => button.classList.toggle('is-active', button.dataset.workspace === tab));
+    document.querySelector('.search-panel').classList.add('is-open');
+    render(); panel.scrollTop = 0; draw(); onChange(); getMap()?.relayout();
+  }
+  document.querySelectorAll('[data-workspace]').forEach(button => button.addEventListener('click', event => { event.preventDefault(); switchTab(button.dataset.workspace); }));
+  return { refresh: draw, show: switchTab, resume: () => openPlanner(), get tab() { return tab; } };
 }
