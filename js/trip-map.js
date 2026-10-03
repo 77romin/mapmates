@@ -62,8 +62,8 @@ export class TripRoute {
           const leg=result?.sections?.flatMap(s=>s.roads?.flatMap(r=>r.vertexes || []) || []) || [];
           if(!leg.length)throw new Error('no route');vertices.push(...leg);
         }
-        path=[];for(let i=0;i<vertices.length;i+=2)path.push(new maps.LatLng(vertices[i+1],vertices[i]));color='#0872ef';
-        this.status.textContent=`${points.length}곳의 방문 동선 · 파란 실선: 실제 차량 경로`;
+        path=[];for(let i=0;i<vertices.length;i+=2)path.push(new maps.LatLng(vertices[i+1],vertices[i]));color='#dc3545';
+        this.status.textContent=`${points.length}곳의 방문 동선 · 빨간 실선: 실제 차량 경로`;
       }catch{if(revision!==this.revision)return;this.status.textContent='차량 경로 조회 실패 · 빨간 직선 경로로 표시합니다.';}
     }
     if(revision!==this.revision)return;
