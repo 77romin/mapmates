@@ -82,7 +82,7 @@ function renderPlaceFilterControls() {
   layerVisibility.place = state.placeCategories.length > 0;
   $("#place-filter-toggle").classList.toggle("is-active", layerVisibility.place);
   $("#place-filter-toggle").setAttribute("aria-pressed", String(layerVisibility.place));
-  $("#place-filter-off").classList.toggle("is-active", !layerVisibility.place);
+
 }
 
 function updatePlaceCategories(categories) {
@@ -400,12 +400,11 @@ function bindGlobalEvents() {
   });
   $$('[data-place-category]').forEach((button) => button.addEventListener("click", () => {
     const category = button.dataset.placeCategory;
-    if (category === "all") updatePlaceCategories(PLACE_CATEGORY_IDS);
+    if (category === "all") updatePlaceCategories(PLACE_CATEGORY_IDS.every(id=>state.placeCategories.includes(id)) ? [] : PLACE_CATEGORY_IDS);
     else if (state.placeCategories.includes(category)) updatePlaceCategories(state.placeCategories.filter((item) => item !== category));
     else updatePlaceCategories([...state.placeCategories, category]);
   }));
 
-  $("#place-filter-off").addEventListener("click", () => updatePlaceCategories([]));
   $("#map-search-trigger").addEventListener("click", () => { $(".search-panel").classList.add("is-open"); $("#search-input").focus(); });
   $("#mobile-search-fab").addEventListener("click", () => $(".search-panel").classList.add("is-open"));
   $("#mobile-panel-close").addEventListener("click", () => $(".search-panel").classList.remove("is-open"));
