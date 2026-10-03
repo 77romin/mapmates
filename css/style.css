@@ -132,7 +132,8 @@ h1, h2, h3, p { margin-top: 0; }
 
 .map-stage { position: relative; overflow: hidden; background: #e8ebeb; }
 .search-panel-toggle { position: absolute; z-index: 16; left: 0; top: 50%; display: grid; place-items: center; width: 28px; height: 48px; border: 1px solid var(--gray-200); border-left: 0; border-radius: 0 10px 10px 0; background: rgb(255 255 255 / 96%); box-shadow: var(--shadow-sm); color: var(--navy-900); font-size: 23px; transform: translateY(-50%); transition: transform .25s ease; }
-.search-collapsed .search-panel-toggle { transform: translateY(-50%) rotate(180deg); }
+.search-panel-toggle > span { display: block; transition: transform .25s ease; }
+.search-collapsed .search-panel-toggle > span { transform: rotate(180deg); }
 .map-stage.has-live-map .map-pattern,
 .map-stage.has-live-map #map-markers,
 .map-stage.has-live-map .route-layer,
