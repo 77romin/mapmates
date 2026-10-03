@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/neorang-galjido-logo-square-v2.png" width="160" height="160" alt="MapMates · 너랑 갈.지도 logo">
+  <img src="./assets/mapMates-logo-v1.png" width="160" height="160" alt="MapMates · 너랑 갈.지도 logo">
 </p>
 
 # MapMates · 너랑 갈.지도
