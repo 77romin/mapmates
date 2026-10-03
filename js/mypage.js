@@ -1,4 +1,4 @@
-import { CURRENT_USER_ID, escapeHtml, initShell, loadState, showToast } from "./shared.js";
+import { escapeHtml, initShell, loadState, showToast, logoutAccount } from "./shared.js";
 import { GENDER_LABELS, clearUserContent, emptyUser, persist, readProfileImage, syncUserProfile } from "./account.js";
 import { STATUS_LABELS, syncCompanion } from "./companion-utils.js";
 
@@ -20,9 +20,9 @@ function activityItems(items, empty) {
 
 function renderActivity() {
   state.companions.forEach(syncCompanion);
-  const owned = state.companions.filter((item) => item.ownerId === CURRENT_USER_ID);
-  const joined = state.companions.filter((item) => item.ownerId !== CURRENT_USER_ID && item.participants.some((person) => person.id === CURRENT_USER_ID));
-  const posts = state.posts.filter((post) => post.ownerId === CURRENT_USER_ID);
+  const owned = state.companions.filter((item) => item.ownerId === state.user.id);
+  const joined = state.companions.filter((item) => item.ownerId !== state.user.id && item.participants.some((person) => person.id === state.user.id));
+  const posts = state.posts.filter((post) => post.ownerId === state.user.id);
   const companionLink = (item) => `<li><a href="./companion-detail.html?id=${item.id}"><span class="status-badge ${item.status}">${STATUS_LABELS[item.status]}</span>${escapeHtml(item.title)}</a></li>`;
   $("#owned-count").textContent = owned.length;
   $("#joined-count").textContent = joined.length;
@@ -89,8 +89,7 @@ $("#settings-toggle").addEventListener("click", () => {
 });
 
 $("#logout-button").addEventListener("click", () => {
-  state.loggedIn = false;
-  persist(state);
+  logoutAccount(state);
   location.href = "./index.html";
 });
 
@@ -118,6 +117,8 @@ $("#withdraw-form").addEventListener("submit", (event) => {
   if (!confirm("회원탈퇴 시 작성한 게시글·댓글·모집글과 동행 참가 기록이 모두 삭제되며 복구할 수 없습니다. 탈퇴할까요?")) return;
   clearUserContent(state);
   state.loggedIn = false;
+  state.members = state.members.filter(member => member.id !== state.user.id);
+  state.plans = state.plans.filter(plan => plan.ownerId !== state.user.id);
   state.user = emptyUser();
   persist(state);
   alert("회원탈퇴가 완료됐어요. 그동안 이용해주셔서 감사합니다.");

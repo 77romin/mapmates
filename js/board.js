@@ -1,4 +1,4 @@
-import { CURRENT_USER_ID } from "./shared.js";
+
 
 // 공지사항·관광 뉴스는 운영자가 관리하는 게시판이라 일반 회원은 여행정보 공유에만 글을 쓸 수 있다.
 export const BOARDS = {
@@ -12,7 +12,7 @@ export function isBoard(value) {
 }
 
 export function isPostOwner(state, post) {
-  return state.loggedIn && post.ownerId === CURRENT_USER_ID;
+  return state.loggedIn && post.ownerId === state.user.id;
 }
 
 export function commentsOf(state, post) {
@@ -29,3 +29,5 @@ export function formatDateTime(timestamp) {
   if (Number.isNaN(date.getTime())) return "";
   return `${formatDate(date)} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
+
+export function canWriteBoard(state, board) { return state.loggedIn && (board === 'travel' || state.user.role === 'admin'); }

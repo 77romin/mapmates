@@ -1,12 +1,15 @@
-import { CURRENT_USER_ID, ensureLoggedIn, initShell, loadState, showToast } from "./shared.js";
+import { ensureLoggedIn, initShell, loadState, showToast } from "./shared.js";
 import { persist } from "./account.js";
-import { BOARDS, formatDate, isPostOwner } from "./board.js";
+import { BOARDS, formatDate, isPostOwner, canWriteBoard } from "./board.js";
 
 const state = initShell("community", loadState());
 const $ = (selector) => document.querySelector(selector);
 const editParam = new URLSearchParams(location.search).get("edit");
 const editing = editParam ? state.posts.find((post) => String(post.id) === editParam) : null;
 const MAX_CONTENT = 5000;
+if (state.user.role === 'admin') $('#post-board').querySelectorAll('option').forEach(option => option.disabled = false);
+const boardParam = new URLSearchParams(location.search).get('board');
+if (canWriteBoard(state, boardParam)) $('#post-board').value = boardParam;
 let dirty = false;
 
 function updateLength() {
@@ -27,7 +30,7 @@ function setupForm() {
 }
 
 function formError() {
-  if (!BOARDS[$("#post-board").value]?.writable) return [$("#post-board"), "이 게시판에는 글을 쓸 수 없어요."];
+  if (!canWriteBoard(state, $("#post-board").value)) return [$("#post-board"), "이 게시판에는 글을 쓸 수 없어요."];
   if (!$("#post-category").value.trim()) return [$("#post-category"), "분류를 입력해주세요."];
   if (!$("#post-title").value.trim()) return [$("#post-title"), "제목을 입력해주세요."];
   if ($("#post-content").value.trim().length < 5) return [$("#post-content"), "내용을 5자 이상 입력해주세요."];
@@ -67,7 +70,7 @@ $("#post-form").addEventListener("submit", (event) => {
     title: $("#post-title").value.trim(),
     content: $("#post-content").value.trim().slice(0, MAX_CONTENT),
   };
-  const post = editing || { id: Date.now(), ownerId: CURRENT_USER_ID, author: state.user.nickname, date: formatDate(), views: 0 };
+  const post = editing || { id: Date.now(), ownerId: state.user.id, author: state.user.nickname, date: formatDate(), views: 0 };
   Object.assign(post, values, editing ? { updatedAt: Date.now() } : {});
   if (!editing) state.posts.unshift(post);
   if (!persist(state)) return;

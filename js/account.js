@@ -1,4 +1,4 @@
-import { CURRENT_USER_ID, saveState, showToast } from "./shared.js";
+import { saveState, showToast } from "./shared.js";
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const PROFILE_IMAGE_SIZE = 320;
@@ -59,30 +59,32 @@ export function ageOf(birthDate) {
 // 닉네임·사진을 바꾸면 내가 작성한 글, 댓글, 모집글, 참가자 목록에 함께 반영한다.
 export function syncUserProfile(state) {
   const { nickname, photo, gender } = state.user;
-  state.posts.filter((post) => post.ownerId === CURRENT_USER_ID).forEach((post) => { post.author = nickname; });
+  state.plans.filter(plan => plan.ownerId === state.user.id).forEach(plan => { plan.author = nickname; });
+  state.posts.filter((post) => post.ownerId === state.user.id).forEach((post) => { post.author = nickname; });
   Object.values(state.postComments).forEach((comments) => comments
-    .filter((comment) => comment.ownerId === CURRENT_USER_ID)
+    .filter((comment) => comment.ownerId === state.user.id)
     .forEach((comment) => Object.assign(comment, { nickname, photo, gender })));
   state.companions.forEach((item) => {
-    if (item.ownerId === CURRENT_USER_ID) Object.assign(item, { author: nickname, avatar: nickname[0] });
-    item.participants?.filter((person) => person.id === CURRENT_USER_ID).forEach((person) => Object.assign(person, { nickname, photo, gender }));
+    if (item.ownerId === state.user.id) Object.assign(item, { author: nickname, avatar: nickname[0] });
+    item.participants?.filter((person) => person.id === state.user.id).forEach((person) => Object.assign(person, { nickname, photo, gender }));
   });
 }
 
 // 회원탈퇴 또는 다른 계정으로 교체할 때 현재 계정이 남긴 데이터를 정리한다.
 export function clearUserContent(state) {
-  const removedPostIds = state.posts.filter((post) => post.ownerId === CURRENT_USER_ID).map((post) => String(post.id));
-  state.posts = state.posts.filter((post) => post.ownerId !== CURRENT_USER_ID);
+  const removedPostIds = state.posts.filter((post) => post.ownerId === state.user.id).map((post) => String(post.id));
+  state.posts = state.posts.filter((post) => post.ownerId !== state.user.id);
   removedPostIds.forEach((id) => { delete state.postComments[id]; });
   Object.keys(state.postComments).forEach((id) => {
-    state.postComments[id] = state.postComments[id].filter((comment) => comment.ownerId !== CURRENT_USER_ID);
+    state.postComments[id] = state.postComments[id].filter((comment) => comment.ownerId !== state.user.id);
   });
-  state.companions = state.companions.filter((item) => item.ownerId !== CURRENT_USER_ID);
+  state.companions = state.companions.filter((item) => item.ownerId !== state.user.id);
   state.companions.forEach((item) => {
     if (!Array.isArray(item.participants)) return;
     const before = item.participants.length;
-    item.participants = item.participants.filter((person) => person.id !== CURRENT_USER_ID);
+    item.participants = item.participants.filter((person) => person.id !== state.user.id);
     if (item.participants.length !== before) item.people = item.people.replace(/^\d+/, String(item.participants.length));
   });
   state.joinedCompanions = [];
+  delete state.drafts?.[state.user.id];
 }

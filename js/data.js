@@ -195,3 +195,29 @@ export const hotplaces = [
   { id: 2, title: "비 온 뒤 비자림", image: places[3].image },
   { id: 3, title: "성산의 아침", image: places[0].image },
 ];
+
+// Fictional local-only demo accounts; the same people own posts, trips and comments.
+const demoNames = ['김하늘', '이서연', '박도윤', '최지우', '정민준', '윤수빈', '한지호', '오예린', '장시우', '송다은'];
+const demoNicknames = ['노을수집가', '바다산책', '필름로그', '주말기차', '숲의속도', '커피한모금', '길위의도윤', '달빛산책', '지도밖으로', '여행지기'];
+export const members = demoNames.map((name, index) => ({
+  id: `demo-${index + 1}`, email: `traveler${index + 1}@example.com`, password: 'Trip2026!', name,
+  nickname: demoNicknames[index], birthDate: `199${index}-05-15`, gender: index % 2 ? 'female' : 'male',
+  photo: `./assets/profiles/traveler-${index + 1}.svg`, bio: ['풍경을 느리게 기록해요.', '맛있는 한 끼와 산책을 좋아해요.', '처음 만나는 여행도 함께라면 편안해요.'][index % 3],
+  demo: true, role: index === 9 ? 'admin' : 'member',
+}));
+const demoTitles = ['제주 바다와 카페를 천천히', '부산 골목의 맛을 찾아서', '강릉 바다 옆에서 쉬는 주말', '서울, 전시와 저녁 산책', '제주 숲길을 걷는 하루', '부산 노을 사진 여행', '서울 한강 피크닉', '강원 가을 숲 여행', '제주 동쪽 작은 마을 여행', '부산 바다와 책방'];
+const demoRegions = ['제주', '부산', '강원', '서울', '제주', '부산', '서울', '강원', '제주', '부산'];
+const demoCoordinates = { 부산: [35.1595,129.1604], 서울: [37.5665,126.978], 강원: [37.7519,128.876] };
+const demoPlaces = { 부산: ['광안리 해변','흰여울문화마을','영도 책방'], 서울: ['경복궁','서울숲','한강공원'], 강원: ['경포해변','안목 커피거리','오죽헌'] };
+companions.splice(0, companions.length, ...members.map((member, index) => {
+  const region = demoRegions[index];
+  const tripPlaces = region === '제주' ? [places[1], places[3], places[0]] : demoPlaces[region].map((title, n) => ({ ...places[n], id: 10000 + index * 10 + n, title, region, lat: demoCoordinates[region][0] + n * .015, lng: demoCoordinates[region][1] + n * .01 }));
+  const participants = [member, ...(index % 3 === 1 ? [members[(index + 1) % 10], members[(index + 2) % 10]] : [])].map(({id,nickname,photo,gender}) => ({id,nickname,photo,gender}));
+  const startDate = `2026-10-${String(12 + index).padStart(2,'0')}`;
+  return { id: index + 1, ownerId: member.id, title: demoTitles[index], sourceTrip: demoTitles[index], tripId: `seed-plan-${index + 1}`, region, theme: ['사진','맛집','자연','문화'][index % 4], description: `${region}에서 서두르지 않고 함께 여행해요. 오전에는 산책하고 오후에는 맛있는 식사와 풍경을 즐길 계획입니다. 첫 동행도 환영해요!`, dates: `10.${12+index} - 10.${14+index}`, startDate, endDate: `2026-10-${14+index}`, people: `${participants.length}/4명`, participants, author: member.nickname, avatar: member.nickname[0], tags: [region,'여유로운 여행','동행'], image: tripPlaces[0].image, schedule: tripPlaces.map((place,n) => ({placeId: place.id, day: 1, time: ['09:30','11:30','15:00'][n], memo: ['풍경을 감상하며 만나기','함께 점심 먹기','노을 전에 느긋하게 산책'][n]})), places: Object.fromEntries(tripPlaces.map(place => [place.id,place])), closed: index === 8, status: index === 8 ? 'closed' : participants.length === 3 ? 'soon' : 'open' };
+}));
+const extraPostTitles = ['함께 여행할 때 처음 정해두면 좋은 것들','비 오는 날의 제주 실내 코스','강릉에서 가장 좋았던 아침 산책','노을 사진을 담는 나만의 방법','혼자 가도 편안한 작은 책방','전기차로 여행할 때 충전 계획 세우기','서울 숲과 카페 사이 느린 하루','가을 바다 여행 준비물','첫 동행 여행 후기를 남겨요','일정에 빈 시간을 남겨두는 이유','우리 동네 숨은 산책길'];
+posts.push(...extraPostTitles.map((title,index) => ({id: 10 + index, board:'travel', category:['여행 팁','후기','추천'][index%3], title, content: '체험용 여행 기록입니다.\n\n여행에서는 목적지를 많이 방문하기보다 함께 걷고 쉬는 시간을 충분히 남겨두었어요. 지도에서 장소를 담아 시간을 정리하고, 동행 모집글에서 서로 일정을 확인하니 준비가 훨씬 수월했습니다.\n\n여러분은 어떤 여행을 좋아하나요? 댓글로 이야기를 나눠주세요.', date:`2026.09.${String(28-index).padStart(2,'0')}`, views: 30+index*17})));
+posts.forEach((post,index) => { const member = post.board === 'travel' ? members[index%9] : members[9]; post.ownerId = member.id; post.author = member.nickname; post.demo = true; post.comments = 0; });
+
+hotplaces.forEach((item,index) => Object.assign(item,{lat:places[index].lat,lng:places[index].lng,date:'2026-10-01',type:'자연',description:'체험용 핫플레이스'}));

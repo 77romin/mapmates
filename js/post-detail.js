@@ -1,4 +1,4 @@
-import { CURRENT_USER_ID, ensureLoggedIn, escapeHtml, initShell, loadState, showToast, userAvatar } from "./shared.js";
+import { ensureLoggedIn, escapeHtml, initShell, loadState, showToast, userAvatar } from "./shared.js";
 import { persist } from "./account.js";
 import { BOARDS, formatDateTime, isPostOwner } from "./board.js";
 
@@ -9,7 +9,7 @@ const $ = (selector) => document.querySelector(selector);
 const MAX_COMMENT = 500;
 let editingId = null;
 
-const isMine = (comment) => state.loggedIn && comment.ownerId === CURRENT_USER_ID;
+const isMine = (comment) => state.loggedIn && comment.ownerId === state.user.id;
 // 댓글 수정은 작성자만, 삭제는 작성자와 게시글 작성자가 할 수 있다.
 const canDelete = (comment) => isMine(comment) || isPostOwner(state, post);
 const comments = () => state.postComments[post.id];
@@ -90,7 +90,7 @@ $("#comment-form").addEventListener("submit", (event) => {
   const content = $("#comment-content").value.trim();
   if (!content) return showToast("댓글 내용을 입력해주세요.");
   const now = Date.now();
-  comments().push({ id: now, ownerId: CURRENT_USER_ID, nickname: state.user.nickname, photo: state.user.photo, gender: state.user.gender, content: content.slice(0, MAX_COMMENT), createdAt: now });
+  comments().push({ id: now, ownerId: state.user.id, nickname: state.user.nickname, photo: state.user.photo, gender: state.user.gender, content: content.slice(0, MAX_COMMENT), createdAt: now });
   persist(state);
   event.target.reset();
   $("#comment-length").textContent = `0 / ${MAX_COMMENT}`;

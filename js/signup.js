@@ -1,5 +1,5 @@
-import { CURRENT_USER_ID, escapeHtml, initShell, loadState, showToast } from "./shared.js";
-import { MIN_SIGNUP_AGE, ageOf, clearUserContent, persist, readProfileImage, safeNextUrl } from "./account.js";
+import { escapeHtml, initShell, loadState, showToast, logoutAccount, switchAccount } from "./shared.js";
+import { MIN_SIGNUP_AGE, ageOf, persist, readProfileImage, safeNextUrl } from "./account.js";
 
 const state = initShell("signup", loadState());
 const $ = (selector) => document.querySelector(selector);
@@ -51,8 +51,7 @@ function signupError() {
 document.querySelectorAll("[data-account-tab]").forEach((tab) => tab.addEventListener("click", () => showMode(tab.dataset.accountTab)));
 
 $("#logout-button").addEventListener("click", () => {
-  state.loggedIn = false;
-  persist(state);
+  logoutAccount(state);
   initShell("signup", state);
   renderAccountState();
   showMode("login");
@@ -81,18 +80,16 @@ $("#signup-form").addEventListener("submit", (event) => {
   if (problem) { problem[0].focus(); return; }
 
   const email = $("#signup-email").value.trim().toLowerCase();
-  if (state.user.email && state.user.email === email) {
-    $("#signup-error").textContent = "이미 가입된 이메일이에요. 로그인 탭에서 로그인해주세요.";
+  if (state.members.some(member => member.email.toLowerCase() === email)) {
+    $("#signup-error").textContent = "이미 가입된 이메일이에요. 로그인해주세요.";
     return;
   }
-  // 이 브라우저에는 계정 하나만 저장되므로, 다른 계정이 남아 있으면 교체 여부를 묻는다.
-  if (state.user.email) {
-    if (!confirm(`이 브라우저에 저장된 기존 계정(${state.user.email})과 그 계정의 글·댓글·모집글이 삭제됩니다. 새 계정으로 가입할까요?`)) return;
-    clearUserContent(state);
+  if (state.members.some(member => member.nickname === $("#signup-nickname").value.trim())) {
+    $("#signup-error").textContent = "이미 사용 중인 닉네임이에요.";
+    return;
   }
-
   state.user = {
-    id: CURRENT_USER_ID,
+    id: crypto.randomUUID(),
     email,
     password: $("#signup-password").value,
     name: $("#signup-name").value.trim(),
@@ -101,7 +98,8 @@ $("#signup-form").addEventListener("submit", (event) => {
     gender: $("#signup-gender").value,
     photo,
   };
-  state.loggedIn = true;
+  state.members.push({ ...state.user });
+  switchAccount(state, state.user);
   if (!persist(state, "사진 용량이 커서 저장하지 못했어요. 다른 사진을 선택해주세요.")) return;
   showToast("가입을 환영해요!");
   location.href = nextUrl;
@@ -111,18 +109,35 @@ $("#login-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const email = $("#login-email").value.trim().toLowerCase();
   const password = $("#login-password").value;
+  const member = state.members.find(entry => entry.email.toLowerCase() === email);
   let message = "";
   if (!email || !password) message = "이메일과 비밀번호를 입력해주세요.";
-  else if (!state.user.email) message = "가입된 계정이 없어요. 먼저 회원가입해주세요.";
-  // 비밀번호가 없는 계정은 시연용 기본 계정이므로 이메일만 확인한다.
-  else if (state.user.email.toLowerCase() !== email || (state.user.password && state.user.password !== password)) message = "이메일 또는 비밀번호가 맞지 않아요.";
+  else if (!member || member.password !== password) message = "이메일 또는 비밀번호가 맞지 않아요.";
   $("#login-error").textContent = message;
   if (message) return;
-  state.loggedIn = true;
+  switchAccount(state, member);
   persist(state);
   location.href = nextUrl;
 });
 
 renderAccountState();
 renderPhoto();
-showMode(params.get("mode") === "login" || (!state.loggedIn && state.user.email) ? "login" : "signup");
+showMode(params.get("mode") === "signup" ? "signup" : "login");
+
+// Frontend demo recovery: identity fields are only a local simulation, not email verification.
+$("#recover-form").addEventListener("submit", event => {
+  event.preventDefault();
+  const member = state.members.find(user => user.email.toLowerCase() === $("#recover-email").value.trim().toLowerCase() && user.name === $("#recover-name").value.trim() && user.birthDate === $("#recover-birth").value);
+  const password = $("#recover-password").value;
+  if (!member) return $("#recover-error").textContent = "입력한 회원정보를 확인해주세요.";
+  if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) return $("#recover-error").textContent = "비밀번호는 영문과 숫자를 포함해 8자 이상 입력해주세요.";
+  member.password = password;
+  if (!persist(state)) return;
+  $("#recover-error").textContent = "비밀번호를 변경했어요. 새 비밀번호로 로그인해주세요.";
+});
+$("#demo-accounts").innerHTML = state.members.filter(member => member.demo).map(member => `<button type="button" class="demo-account" data-demo-id="${member.id}">${escapeHtml(member.nickname)}<small>${escapeHtml(member.email)}${member.role === 'admin' ? ' · 운영자' : ''}</small></button>`).join('');
+$("#demo-accounts").addEventListener('click', event => {
+  const member = state.members.find(member => member.id === event.target.closest('[data-demo-id]')?.dataset.demoId);
+  if (!member) return;
+  $("#login-email").value = member.email; $("#login-password").value = member.password; showMode('login'); $("#login-email").focus();
+});

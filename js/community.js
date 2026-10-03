@@ -1,5 +1,5 @@
 import { ensureLoggedIn, escapeHtml, initShell, loadState } from "./shared.js";
-import { BOARDS, commentsOf, isBoard, isPostOwner } from "./board.js";
+import { BOARDS, commentsOf, isBoard, isPostOwner, canWriteBoard } from "./board.js";
 
 const state = initShell("community", loadState());
 const $ = (selector) => document.querySelector(selector);
@@ -41,6 +41,8 @@ function render() {
   });
   $("#board-summary").textContent = `${BOARDS[board].label} ${items.length}개${BOARDS[board].writable ? "" : " · 운영자만 작성할 수 있는 게시판이에요."}`;
   $("#post-list").innerHTML = items.map(postRow).join("") || `<div class="empty-state"><div><strong>${keyword ? "검색 결과가 없어요." : "게시글이 없어요."}</strong><span>${BOARDS[board].writable ? "첫 글을 작성해보세요." : "새 소식이 올라오면 알려드릴게요."}</span></div></div>`;
+  $("#write-post").href = `./post-write.html?board=${board}`;
+  $("#write-post").hidden = state.loggedIn && !canWriteBoard(state, board);
   syncUrl();
 }
 
@@ -48,6 +50,6 @@ document.querySelectorAll("[data-board]").forEach((tab) => tab.addEventListener(
 $("#post-search").addEventListener("submit", (event) => { event.preventDefault(); render(); });
 $("#post-sort").addEventListener("change", render);
 $("#write-post").addEventListener("click", (event) => {
-  if (!ensureLoggedIn(state, "글을 쓰려면 로그인이 필요해요.")) event.preventDefault();
+  if (!state.loggedIn) { event.preventDefault(); location.href = `./signup.html?next=${encodeURIComponent(`post-write.html?board=${board}`)}`; }
 });
 render();
