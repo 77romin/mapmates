@@ -135,7 +135,7 @@ export function showToast(message) {
 export function ensureLoggedIn(state, message = "로그인이 필요한 기능이에요.") {
   if (state.loggedIn) return true;
   showToast(message);
-  if ((location.pathname.endsWith('planner.html') && state.tripSchedule.length) || (location.pathname.endsWith('index.html') && sessionStorage.getItem('neorang-workspace-return')==='mine')) {
+  if (location.pathname.endsWith('planner.html') || (location.pathname.endsWith('index.html') && sessionStorage.getItem('neorang-workspace-return')==='mine')) {
     state.pendingGuestTrip = clone({trip:{...state.trip,id:crypto.randomUUID()},tripSchedule:state.tripSchedule,itinerary:state.itinerary,itineraryPlaces:state.itineraryPlaces,favorites:state.favorites});
     saveState(state);
   }

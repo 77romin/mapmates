@@ -305,14 +305,14 @@ $('#plan-library').addEventListener('click', event => {
   Object.assign(state,structuredClone({trip:plan.trip,tripSchedule:plan.tripSchedule,itinerary:plan.itinerary,itineraryPlaces:plan.itineraryPlaces})); activeDay = 1;
   saveState(state); renderPlanHeader(); renderTabs(); renderSchedule(); renderWeather(); drawRoute();
 });
-$('#new-plan').addEventListener('click', () => {
-  if (!ensureLoggedIn(state)) return;
-  if (state.tripSchedule.length && !savePlan(false)) return;
+function startNewPlan() {
+  if (state.loggedIn && state.tripSchedule.length && !savePlan(false)) return;
   const startDate = new Date().toLocaleDateString('en-CA');
   state.trip = {id:crypto.randomUUID(),title:'새로운 여행',startDate,endDate:startDate,people:4,budget:0};
   state.itinerary = []; state.tripSchedule = []; state.itineraryPlaces = {}; activeDay = 1;
   $('#plan-description').value = ''; saveState(state); renderPlanHeader(); renderTabs(); renderSchedule(); drawRoute(); renderWeather();
-});
+}
+$('#new-plan').addEventListener('click', startNewPlan);
 
 syncSchedule();
 renderPlanHeader();
@@ -330,4 +330,8 @@ document.querySelectorAll("[data-route-mode]").forEach((button) => button.addEve
 document.querySelectorAll("[data-route-mode]").forEach((button) => button.classList.toggle("is-active", button.dataset.routeMode === state.routeMode));
 $("#save-plan").addEventListener("click", () => savePlan());
 $("#publish-companion").addEventListener("click", publishCompanion);
+if (new URLSearchParams(location.search).get('new') === '1') {
+  startNewPlan();
+  history.replaceState(null, '', './planner.html');
+}
 initMap();
