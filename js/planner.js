@@ -255,7 +255,7 @@ function readTripForm() {
   const people = Number($('#plan-people').value);
   const budget = Number($('#plan-budget').value);
   if (!Number.isInteger(people) || people < 2 || people > 10 || !Number.isFinite(budget) || budget < 0) { showToast('정원은 2~10명, 예산은 0원 이상으로 입력해주세요.'); return false; }
-  Object.assign(state.trip, {title,startDate,endDate,people,budget});
+  Object.assign(state.trip, {title,startDate,endDate,people,budget,region:$('#plan-region').value,theme:$('#plan-theme').value,description:$('#plan-description').value.trim()});
   return true;
 }
 function savePlan(notify = true) {
@@ -295,7 +295,7 @@ function renderPlanHeader() {
   $('#plan-title').value = state.trip.title; $('#plan-start').value = state.trip.startDate; $('#plan-end').value = state.trip.endDate;
   $('#plan-people').value = state.trip.people; $('#plan-budget').value = state.trip.budget || 0;
   const existing = state.companions.find(item => item.tripId === state.trip.id && item.ownerId === state.user.id);
-  if (existing) { $('#plan-region').value = existing.region; $('#plan-theme').value = existing.theme; $('#plan-description').value = existing.description; }
+  $('#plan-region').value = state.trip.region || existing?.region || '서울'; if (!$('#plan-region').value) $('#plan-region').value='기타'; $('#plan-theme').value=state.trip.theme || existing?.theme || '자연'; $('#plan-description').value=state.trip.description || existing?.description || '';
   $('#publish-companion').textContent = existing ? '공유한 일정 업데이트' : '동행 구하기';
   $('#plan-library').innerHTML = state.plans.filter(plan => state.loggedIn && plan.ownerId === state.user.id).map(plan => `<button type="button" data-plan-id="${escapeHtml(plan.id)}" class="${plan.id === state.trip.id ? 'is-active' : ''}">${escapeHtml(plan.trip.title)}</button>`).join('');
 }
