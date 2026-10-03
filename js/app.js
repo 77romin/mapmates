@@ -1,50 +1,26 @@
-import { places, companions as seedCompanions, posts as seedPosts, hotplaces as seedHotplaces } from "./data.js";
+import { places } from "./data.js";
 import { api } from "./api.js";
+import { readProfileImage } from "./account.js";
 
-const STORAGE_KEY = "neorang-galjido-v1";
+import { loadState, saveState, initShell, ensureLoggedIn } from './shared.js';
 const NEARBY_RADIUS_METERS = 20000;
-const CHARGER_VISIBLE_MAX_MAP_LEVEL = 4;
+const CHARGER_VISIBLE_MAX_MAP_LEVEL = 7;
 const INITIAL_MAP_CENTER = { lat: 37.50079, lng: 127.03689 };
-const PLACE_CATEGORY_IDS = ["attraction", "food", "stay", "culture", "course"];
-const defaultState = {
-  activeView: "explore",
-  selectedPlaceId: 1,
-  placeCategories: [...PLACE_CATEGORY_IDS],
-  search: "",
-  favorites: [1, 2, 4, 5, 6, 8],
-  itinerary: [2, 4, 1],
-  itineraryPlaces: {},
-  tripSchedule: [],
-  companions: seedCompanions,
-  joinedCompanions: [],
-  posts: seedPosts,
-  hotplaces: seedHotplaces,
-  currentBoard: "travel",
-  loggedIn: true,
-  user: { name: "김강민", nickname: "강민", email: "gangmin@example.com" },
-};
-
-const loadState = () => {
-  try {
-    return { ...defaultState, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") };
-  } catch {
-    return structuredClone(defaultState);
-  }
-};
-
+const PLACE_CATEGORY_IDS = ['attraction', 'food', 'stay', 'culture', 'course', 'festival', 'shopping'];
 const state = loadState();
+state.search = new URLSearchParams(location.search).get('q') || '';
+initShell('explore', state);
 state.placeCategories = Array.isArray(state.placeCategories)
   ? state.placeCategories.filter((category) => PLACE_CATEGORY_IDS.includes(category))
   : state.category && state.category !== "all" ? [state.category] : [...PLACE_CATEGORY_IDS];
 const fallbackPlaces = places.map((place) => ({ ...place }));
 const liveData = { tour: false, weather: null, chargerCount: null };
-const layerVisibility = { place: state.placeCategories.length > 0, weather: true, charger: false, hotplace: false };
+const layerVisibility = { place: state.placeCategories.length > 0, weather: state.weatherVisible === true, charger: false, hotplace: false };
 let kakaoMap = null;
 let kakaoMarkers = [];
 let kakaoRoute = null;
 let chargerMarkers = [];
-let allChargers = null;
-let chargerDataPromise = null;
+let chargerRevision = 0;
 let currentUserLocation = null;
 let currentLocationPromise = null;
 let hotplaceMarkers = [];
@@ -52,9 +28,10 @@ let selectedMapType = "roadmap";
 let terrainEnabled = false;
 let mapIdleTimer = null;
 let lastMapFetchKey = "";
+let latestWeatherKey = "";
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const persist = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+const persist = () => saveState(state);
 const placeById = (id) => places.find((place) => place.id === Number(id)) || state.itineraryPlaces?.[Number(id)] || null;
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 
@@ -134,7 +111,7 @@ function filteredPlaces() {
     return categoryMatch && textMatch;
   });
   const sort = $("#sort-select")?.value || "recommended";
-  if (sort === "rating") result = [...result].sort((a, b) => b.rating - a.rating);
+  if (sort === "rating") result = [...result].sort((a, b) => String(a.title).localeCompare(String(b.title), "ko"));
   if (sort === "distance") result = [...result].sort((a, b) => a.distance - b.distance);
   return result;
 }
@@ -150,10 +127,10 @@ function renderPlaces() {
           <button class="favorite-button ${state.favorites.includes(place.id) ? "is-active" : ""}" type="button" data-favorite-id="${place.id}" aria-label="${escapeHtml(place.title)} 찜하기">♡</button>
         </div>
         <div class="place-card-content">
-          <span>${place.categoryLabel}</span>
-          <h3>${place.title}</h3>
-          <p>${place.region} · ${place.distance}km</p>
-          <div class="place-card-meta"><strong>★ ${place.rating}</strong><span>리뷰 ${place.reviews.toLocaleString()}</span><span>${place.weather}</span></div>
+          <span>${escapeHtml(place.categoryLabel)}</span>
+          <h3>${escapeHtml(place.title)}</h3>
+          <p>${escapeHtml(place.region)}</p>
+          <div class="place-card-meta">${place.contentId ? `<span>관광공사 제공 · ${place.distance}km</span>` : `<span>체험용 여행지</span>`}</div>
         </div>
       </article>`).join("")
     : `<div class="empty-state"><div><strong>검색 결과가 없어요</strong><span>다른 지역이나 카테고리로 검색해보세요.</span></div></div>`;
@@ -200,7 +177,7 @@ function syncKakaoMarkers(result = filteredPlaces()) {
 function syncHotplaceLayer() {
   if (!kakaoMap || !window.kakao?.maps) return;
   hotplaceMarkers.forEach((marker) => marker.setMap(null));
-  hotplaceMarkers = places.filter((place) => state.favorites.includes(place.id)).map((place) => {
+  hotplaceMarkers = state.hotplaces.filter(place => Number.isFinite(place.lat) && Number.isFinite(place.lng)).map((place) => {
     const lat = place.lat || 33.18 + (70 - place.y) * .006;
     const lng = place.lng || 126.2 + place.x * .0065;
     const content = document.createElement("button");
@@ -209,7 +186,7 @@ function syncHotplaceLayer() {
     content.title = `핫플 · ${place.title}`;
     content.setAttribute("aria-label", `핫플 ${place.title}`);
     content.innerHTML = "<span>♥</span>";
-    content.addEventListener("click", () => selectPlace(place.id));
+    content.addEventListener("click", () => toast(`${place.title} · ${place.description || place.date || "나의 핫플레이스"}`));
     const marker = new window.kakao.maps.CustomOverlay({
       position: new window.kakao.maps.LatLng(lat, lng),
       map: layerVisibility.hotplace ? kakaoMap : null,
@@ -255,13 +232,19 @@ function addToItinerary(id) {
   persist();
   renderItinerary();
   closeModal();
+  $("#trip-panel").classList.add("is-open");
   toast("여행 일정에 장소를 추가했어요.");
 }
 
+function syncItineraryOrder() {
+  const slots = [...state.tripSchedule].sort((a,b) => Number(a.day)-Number(b.day) || String(a.time).localeCompare(String(b.time))).map(entry => ({day:entry.day,time:entry.time}));
+  state.itinerary.forEach((id,index) => { const entry=state.tripSchedule.find(entry=>Number(entry.placeId)===Number(id)); if (entry && slots[index]) Object.assign(entry,slots[index]); });
+}
 function moveItinerary(index, direction) {
   const next = index + direction;
   if (next < 0 || next >= state.itinerary.length) return;
   [state.itinerary[index], state.itinerary[next]] = [state.itinerary[next], state.itinerary[index]];
+  syncItineraryOrder();
   persist();
   renderItinerary();
 }
@@ -281,7 +264,7 @@ function renderItinerary() {
     <article class="itinerary-item" draggable="true" data-itinerary-index="${index}">
       <span class="stop-number">${index + 1}</span>
       <img class="itinerary-thumb" src="${place.image}" alt="" />
-      <div class="itinerary-copy"><h3>${place.title}</h3><p>${scheduleById.get(place.id)?.time || (index === 0 ? "09:30" : index === 1 ? "11:20" : "14:10")} · ${place.duration}분</p></div>
+      <div class="itinerary-copy"><h3>${escapeHtml(place.title)}</h3><p>${scheduleById.get(place.id)?.time || (index === 0 ? "09:30" : index === 1 ? "11:20" : "14:10")} · ${place.duration}분</p></div>
       <div class="itinerary-actions"><button type="button" data-move-up="${index}" aria-label="위로 이동">▲</button><button type="button" data-remove-stop="${index}" aria-label="일정에서 삭제">×</button><button type="button" data-move-down="${index}" aria-label="아래로 이동">▼</button></div>
     </article>`).join("") : `<div class="empty-state"><div><strong>아직 일정이 비어 있어요</strong><span>지도에서 장소를 추가해보세요.</span></div></div>`;
   $("#itinerary-list").innerHTML = html;
@@ -290,10 +273,10 @@ function renderItinerary() {
     <article class="planner-row">
       <div class="planner-row-number"><span>${index === 0 ? "09:30" : index === 1 ? "11:20" : "14:10"}</span><strong>${index + 1}</strong></div>
       <img src="${place.image}" alt="${escapeHtml(place.title)}" />
-      <div><h3>${place.title}</h3><p>${place.categoryLabel} · ${place.region} · 약 ${place.duration}분</p></div>
+      <div><h3>${escapeHtml(place.title)}</h3><p>${place.categoryLabel} · ${place.region} · 약 ${place.duration}분</p></div>
       <div class="row-actions"><button type="button" data-move-up="${index}" aria-label="위로 이동">↑</button><button type="button" data-remove-stop="${index}" aria-label="삭제">×</button><button type="button" data-move-down="${index}" aria-label="아래로 이동">↓</button></div>
     </article>`).join("") : html;
-  const distance = items.reduce((sum, place) => sum + place.distance, 0);
+  const distance = items.slice(1).reduce((sum, place, index) => sum + distanceMeters(items[index].lat,items[index].lng,place.lat,place.lng)/1000,0);
   const minutes = Math.round(distance * 2.2);
   $("#trip-distance").textContent = `${distance.toFixed(1)} km`;
   $("#trip-duration").textContent = `${Math.floor(minutes / 60)}시간 ${minutes % 60}분`;
@@ -315,6 +298,7 @@ function bindDragAndDrop() {
       if (dragged === null || dragged === target) return;
       const [item] = state.itinerary.splice(dragged, 1);
       state.itinerary.splice(target, 0, item);
+      syncItineraryOrder();
       persist(); renderItinerary();
     });
   });
@@ -323,7 +307,7 @@ function bindDragAndDrop() {
 function renderRoute() {
   const items = state.itinerary.map(placeById).filter(Boolean);
   const points = items.map((place) => `${place.x * 10},${place.y * 7}`).join(" ");
-  $("#route-layer").innerHTML = points ? `<polyline points="${points}" fill="none" stroke="#172033" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="10 9" />` : "";
+  $("#route-layer").innerHTML = points ? `<polyline points="${points}" fill="none" stroke="#dc3545" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />` : "";
   syncKakaoRoute(items);
 }
 
@@ -334,9 +318,9 @@ function syncKakaoRoute(items = state.itinerary.map(placeById).filter(Boolean)) 
   kakaoRoute = new window.kakao.maps.Polyline({
     path: items.map((place) => new window.kakao.maps.LatLng(place.lat || 33.18 + (70 - place.y) * .006, place.lng || 126.2 + place.x * .0065)),
     strokeWeight: 5,
-    strokeColor: "#172033",
+    strokeColor: "#dc3545",
     strokeOpacity: .82,
-    strokeStyle: "shortdash",
+    strokeStyle: "solid",
   });
   kakaoRoute.setMap(kakaoMap);
 }
@@ -348,114 +332,34 @@ function showPlaceDetail(place) {
       <div class="detail-photo" style="background-image:linear-gradient(rgb(16 24 39 / 4%),rgb(16 24 39 / 18%)),url('${place.image}')"></div>
       <div class="detail-body">
         <div class="section-title-row"><span class="status-badge navy">${place.categoryLabel}</span><button class="modal-close" type="button" aria-label="닫기">×</button></div>
-        <h2 id="detail-title">${place.title}</h2><p>${place.region} · 평점 ${place.rating} · 리뷰 ${place.reviews.toLocaleString()}</p>
-        <p>${place.description}</p>
+        <h2 id="detail-title">${escapeHtml(place.title)}</h2><p>${escapeHtml(place.region)}</p>
+        <p class="detail-description">${escapeHtml(place.description)}</p>
         <div class="detail-metrics"><div><span>오늘 날씨</span><strong>${place.weather}</strong></div><div><span>일출</span><strong>${place.sunrise}</strong></div><div><span>일몰</span><strong>${place.sunset}</strong></div></div>
-        <section class="detail-section"><h3>여행 팁</h3><p>${place.tip}</p></section>
-        <section class="detail-section"><h3>주변 전기차 충전소</h3><p>${liveData.chargerCount === null ? "충전소 정보를 확인하고 있어요." : `제주 지역 충전기 ${liveData.chargerCount.toLocaleString()}건을 실시간 데이터에서 확인했어요.`}</p></section>
-        <section class="detail-section"><h3>데이터 안내</h3><p>${liveData.tour ? "한국관광공사 TourAPI 실데이터" : "내장 데모 데이터"} · ${liveData.weather ? "기상청 단기예보 실데이터" : "날씨 데모 데이터"} · 한국환경공단 충전소 데이터</p></section>
+        ${!place.contentId ? `<section class="detail-section"><h3>체험용 여행 팁</h3><p>${escapeHtml(place.tip)}</p></section>` : ""}
+        <section class="detail-section"><h3>주변 전기차 충전소</h3><p>${liveData.chargerCount === null ? "지도에서 충전소 버튼을 켜면 주변 충전 상태를 확인할 수 있어요." : `지도 주변 충전소 ${liveData.chargerCount.toLocaleString()}건을 실시간 데이터에서 확인했어요.`}</p></section>
+        <p class="helper-text">일출·일몰: <a href="https://sunrise-sunset.org/" target="_blank" rel="noopener">Sunrise-Sunset.org</a> · 한국 표준시</p><section class="detail-section"><h3>데이터 안내</h3><p>${liveData.tour ? "한국관광공사 TourAPI 실데이터" : "내장 데모 데이터"} · ${liveData.weather ? "기상청 단기예보 실데이터" : "날씨 버튼에서 예보 확인"} · 한국환경공단 충전소 데이터</p></section>
         <div class="detail-actions"><button class="button button-secondary" type="button" data-modal-favorite="${place.id}">${state.favorites.includes(place.id) ? "찜 해제" : "♡ 찜하기"}</button><button class="button button-primary" type="button" data-add-itinerary="${place.id}">＋ 일정에 추가</button></div>
       </div>
     </div>`);
   $('[data-add-itinerary]').addEventListener("click", () => addToItinerary(place.id));
   $('[data-modal-favorite]').addEventListener("click", () => { toggleFavorite(place.id); showPlaceDetail(place); });
-  api.getSunTimes().then((result) => {
-    if (!result?.results) return;
-    const metrics = $$(".detail-metrics strong");
-    if (result.results.sunrise && metrics[1]) metrics[1].textContent = result.results.sunrise;
-    if (result.results.sunset && metrics[2]) metrics[2].textContent = result.results.sunset;
+  if (place.contentId) api.getTourDetail(place.contentId).then(detail => {
+    if (!detail?.overview || !document.querySelector('[data-add-itinerary]') || Number(document.querySelector('[data-add-itinerary]').dataset.addItinerary) !== place.id) return;
+    const description = document.querySelector('.detail-description');
+    if (description) description.textContent = detail.overview.replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]*>/g,'');
+  }).catch(() => {});
+  api.getSunTimes({lat:place.lat,lng:place.lng}).then((result) => {
+    if (Number(document.querySelector('[data-add-itinerary]')?.dataset.addItinerary) !== place.id) return;
+    const metrics = $$('.detail-metrics strong');
+    const times = result?.results || result;
+    const formatTime = value => value ? new Date(value).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Seoul'}) : '확인 불가';
+    if (metrics[1]) metrics[1].textContent = formatTime(times?.sunrise);
+    if (metrics[2]) metrics[2].textContent = formatTime(times?.sunset);
   });
-}
-
-function renderCompanions() {
-  if (!$("#companion-list")) return;
-  const region = $("#companion-region")?.value || "all";
-  const theme = $("#companion-theme")?.value || "all";
-  const status = $("#companion-status")?.value || "all";
-  const result = state.companions.filter((item) => (region === "all" || item.region === region) && (theme === "all" || item.theme === theme) && (status === "all" || item.status === status));
-  $("#companion-count").textContent = result.length;
-  $("#companion-list").innerHTML = result.length ? result.map((item) => `
-    <article class="companion-card">
-      <div class="companion-cover" style="background-image:url('${item.image}')"><span class="status-badge ${item.status}">${item.status === "soon" ? "마감 임박" : "모집 중"}</span></div>
-      <div class="companion-card-body"><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description)}</p><div class="tag-row">${item.tags.map((tag) => `<span class="tag"># ${escapeHtml(tag)}</span>`).join("")}</div>
-      <div class="companion-meta"><div class="author"><span>${escapeHtml(item.avatar)}</span>${escapeHtml(item.author)}</div><span>${item.dates} · ${item.people}</span></div>
-      <button class="companion-join ${state.joinedCompanions.includes(item.id) ? "is-joined" : ""}" type="button" data-join-companion="${item.id}">${state.joinedCompanions.includes(item.id) ? "신청 완료" : "동행 신청"}</button></div>
-    </article>`).join("") : `<div class="empty-state"><div><strong>조건에 맞는 동행이 없어요</strong><span>새로운 동행을 직접 모집해보세요.</span></div></div>`;
-  $$('[data-join-companion]').forEach((button) => button.addEventListener("click", () => {
-    const id = Number(button.dataset.joinCompanion);
-    state.joinedCompanions = state.joinedCompanions.includes(id) ? state.joinedCompanions.filter((item) => item !== id) : [...state.joinedCompanions, id];
-    persist(); renderCompanions(); toast(state.joinedCompanions.includes(id) ? "동행 신청을 보냈어요." : "동행 신청을 취소했어요.");
-  }));
-}
-
-function showCompanionForm() {
-  openModal(formModal("동행 모집하기", "함께하고 싶은 여행의 정보를 알려주세요.", `
-    <div class="form-grid">
-      <div class="form-field full"><label for="companion-title-input">모집 제목</label><input id="companion-title-input" required placeholder="어떤 여행을 함께하고 싶나요?" /></div>
-      <div class="form-field"><label for="companion-region-input">지역</label><select id="companion-region-input"><option>제주</option><option>서울</option><option>부산</option><option>강원</option></select></div>
-      <div class="form-field"><label for="companion-theme-input">테마</label><select id="companion-theme-input"><option>자연</option><option>맛집</option><option>사진</option><option>문화</option></select></div>
-      <div class="form-field"><label for="companion-date-input">여행 날짜</label><input id="companion-date-input" type="date" value="2026-10-12" /></div>
-      <div class="form-field"><label for="companion-people-input">모집 인원</label><select id="companion-people-input"><option>2명</option><option>3명</option><option>4명</option><option>5명</option></select></div>
-      <div class="form-field full"><label for="companion-description-input">소개</label><textarea id="companion-description-input" placeholder="여행 스타일과 바라는 동행을 소개해주세요."></textarea></div>
-    </div>`, "모집글 등록", "companion-form"));
-  $("#companion-form").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const title = $("#companion-title-input").value.trim();
-    if (!title) return toast("모집 제목을 입력해주세요.");
-    const region = $("#companion-region-input").value;
-    const theme = $("#companion-theme-input").value;
-    state.companions.unshift({ id: Date.now(), region, theme, status: "open", title, description: $("#companion-description-input").value || "함께 즐거운 여행을 만들 동행을 기다리고 있어요.", dates: $("#companion-date-input").value.replaceAll("-", "."), people: `1/${$("#companion-people-input").value}`, author: state.user.nickname, avatar: state.user.name[0], tags: [theme, region, "새로운 동행"], image: places.find((place) => place.region.includes(region))?.image || places[0].image });
-    persist(); renderCompanions(); closeModal(); toast("동행 모집글을 등록했어요.");
-  });
-}
-
-function renderPosts() {
-  if (!$("#post-list")) return;
-  const query = ($("#board-search")?.value || "").trim().toLowerCase();
-  const result = state.posts.filter((post) => post.board === state.currentBoard && (!query || `${post.title} ${post.author} ${post.category}`.toLowerCase().includes(query)));
-  $("#post-list").innerHTML = result.length ? result.map((post) => `
-    <article class="post-row" data-post-id="${post.id}" tabindex="0"><span class="post-category">${post.category}</span><div><h3>${escapeHtml(post.title)}</h3><p>${post.author} · ${post.date}</p></div><div class="post-stats"><span>조회 ${post.views}</span><span>댓글 ${post.comments}</span></div></article>`).join("") : `<div class="empty-state"><div><strong>게시글이 없어요</strong><span>첫 번째 이야기를 남겨보세요.</span></div></div>`;
-  $$('[data-post-id]').forEach((row) => {
-    const open = () => showPost(Number(row.dataset.postId));
-    row.addEventListener("click", open); row.addEventListener("keydown", (event) => { if (event.key === "Enter") open(); });
-  });
-}
-
-function showPost(id) {
-  const post = state.posts.find((item) => item.id === id);
-  if (!post) return;
-  post.views += 1; persist(); renderPosts();
-  openModal(`<div class="modal post-detail" role="dialog" aria-modal="true"><div class="modal-header"><div><span class="status-badge navy">${post.category}</span><h2>${escapeHtml(post.title)}</h2></div><button class="modal-close" type="button">×</button></div><div class="modal-body"><div class="post-detail-meta"><span>${post.author}</span><span>${post.date}</span><span>조회 ${post.views}</span></div><div class="post-detail-content">${escapeHtml(post.content)}</div><div class="modal-actions"><button class="button button-secondary" type="button" data-delete-post="${post.id}">삭제</button><button class="button button-primary" type="button" data-edit-post="${post.id}">수정</button></div></div></div>`);
-  $('[data-delete-post]').addEventListener("click", () => { state.posts = state.posts.filter((item) => item.id !== id); persist(); renderPosts(); closeModal(); toast("게시글을 삭제했어요."); });
-  $('[data-edit-post]').addEventListener("click", () => showPostForm(post));
-}
-
-function showPostForm(existing = null) {
-  openModal(formModal(existing ? "게시글 수정" : "새 글 작성", "여행자들과 유용한 정보와 경험을 나눠보세요.", `
-    <div class="form-grid"><div class="form-field full"><label for="post-title-input">제목</label><input id="post-title-input" value="${existing ? escapeHtml(existing.title) : ""}" placeholder="제목을 입력하세요" /></div>
-    <div class="form-field"><label for="post-board-input">게시판</label><select id="post-board-input"><option value="travel" ${state.currentBoard === "travel" ? "selected" : ""}>여행정보 공유</option><option value="notice" ${state.currentBoard === "notice" ? "selected" : ""}>공지사항</option></select></div>
-    <div class="form-field"><label for="post-category-input">분류</label><input id="post-category-input" value="${existing ? escapeHtml(existing.category) : "여행팁"}" /></div>
-    <div class="form-field full"><label for="post-content-input">내용</label><textarea id="post-content-input" placeholder="내용을 입력하세요">${existing ? escapeHtml(existing.content) : ""}</textarea></div></div>`, existing ? "수정 완료" : "등록", "post-form"));
-  $("#post-form").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const title = $("#post-title-input").value.trim(); const content = $("#post-content-input").value.trim();
-    if (!title || !content) return toast("제목과 내용을 모두 입력해주세요.");
-    if (existing) Object.assign(existing, { title, content, board: $("#post-board-input").value, category: $("#post-category-input").value });
-    else state.posts.unshift({ id: Date.now(), board: $("#post-board-input").value, category: $("#post-category-input").value || "여행팁", title, author: state.user.nickname, date: new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()).replaceAll(". ", ".").replace(".", ""), views: 0, comments: 0, content });
-    state.currentBoard = $("#post-board-input").value; persist(); renderBoardTabs(); renderPosts(); closeModal(); toast(existing ? "게시글을 수정했어요." : "게시글을 등록했어요.");
-  });
-}
-
-function renderBoardTabs() {
-  $$('[data-board]').forEach((button) => button.classList.toggle("is-active", button.dataset.board === state.currentBoard));
-}
-
-function renderHotplaces() {
-  if (!$("#hotplace-list")) return;
-  $("#hotplace-list").innerHTML = state.hotplaces.map((item) => `<article class="hotplace" style="background-image:url('${item.image}')"><span>${escapeHtml(item.title)}</span></article>`).join("");
 }
 
 function showHotplaceForm() {
+  if (!ensureLoggedIn(state, "핫플레이스를 등록하려면 로그인해주세요.")) return;
   openModal(formModal("핫플레이스 등록", "나만 알고 싶은 장소와 기억을 지도에 남겨보세요.", `<div class="form-grid"><div class="form-field full"><label for="hotplace-title">장소 이름</label><input id="hotplace-title" placeholder="예: 월정리의 오후" /></div><div class="form-field"><label for="hotplace-type">장소 유형</label><select id="hotplace-type"><option>자연</option><option>카페</option><option>맛집</option><option>문화</option></select></div><div class="form-field"><label for="hotplace-date">방문 날짜</label><input id="hotplace-date" type="date" value="2026-10-02" /></div><div class="form-field full"><label for="hotplace-file">사진 파일</label><input id="hotplace-file" type="file" accept="image/png,image/jpeg,image/webp" /></div><div class="form-field full"><label for="hotplace-photo">또는 사진 URL</label><input id="hotplace-photo" placeholder="비워두면 기본 여행 사진을 사용합니다" /></div><div class="form-field full"><label for="hotplace-description">기억</label><textarea id="hotplace-description" placeholder="이 장소에서의 기억을 기록해보세요."></textarea></div></div>`, "핫플레이스 저장", "hotplace-form"));
   $("#hotplace-form").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -463,42 +367,22 @@ function showHotplaceForm() {
     if (!title) return toast("장소 이름을 입력해주세요.");
     const file = $("#hotplace-file").files[0];
     if (file && file.size > 1024 * 1024) return toast("사진은 1MB 이하로 등록해주세요.");
-    const fileData = file ? await new Promise((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.readAsDataURL(file); }) : "";
-    state.hotplaces.unshift({ id: Date.now(), title, image: fileData || $("#hotplace-photo").value.trim() || places[Math.floor(Math.random() * places.length)].image });
-    persist(); renderHotplaces(); closeModal(); toast("핫플레이스를 등록했어요.");
+    let fileData = "";
+    try { if (file) fileData = await readProfileImage(file); } catch (error) { return toast(error.message); }
+    state.hotplaces.unshift({ id: Date.now(), title, ownerId:state.user.id, lat:kakaoMap?.getCenter().getLat() || INITIAL_MAP_CENTER.lat, lng:kakaoMap?.getCenter().getLng() || INITIAL_MAP_CENTER.lng, type:$("#hotplace-type").value, date:$("#hotplace-date").value, description:$("#hotplace-description").value.trim(), image: fileData || $("#hotplace-photo").value.trim() || places[Math.floor(Math.random() * places.length)].image });
+    try { persist(); } catch { state.hotplaces.shift(); return toast("저장 공간이 부족해 사진을 저장하지 못했어요."); }
+    syncHotplaceLayer(); closeModal(); toast("핫플레이스를 등록했어요.");
   });
 }
 
-function showProfileForm() {
-  openModal(formModal("프로필 수정", "다른 여행자에게 보여줄 정보를 관리하세요.", `<div class="form-grid"><div class="form-field full"><label for="profile-name">이름</label><input id="profile-name" value="${escapeHtml(state.user.name)}" /></div><div class="form-field full"><label for="profile-nickname">닉네임</label><input id="profile-nickname" value="${escapeHtml(state.user.nickname)}" /></div><div class="form-field full"><label for="profile-email">이메일</label><input id="profile-email" type="email" value="${escapeHtml(state.user.email)}" /></div></div>`, "저장", "profile-form"));
-  $("#profile-form").addEventListener("submit", (event) => { event.preventDefault(); state.user = { name: $("#profile-name").value.trim() || state.user.name, nickname: $("#profile-nickname").value.trim() || state.user.nickname, email: $("#profile-email").value.trim() || state.user.email }; persist(); renderUser(); closeModal(); toast("프로필을 수정했어요."); });
-}
-
-function showAccountModal(mode = state.loggedIn ? "manage" : "login") {
-  const title = mode === "signup" ? "회원가입" : mode === "reset" ? "비밀번호 찾기" : mode === "manage" ? "계정 관리" : "로그인";
-  const description = mode === "manage" ? "로그인 상태와 계정 정보를 관리하세요." : "여행 일정과 동행 기록을 안전하게 이어가세요.";
-  let fields = "";
-  if (mode === "manage") {
-    fields = `<div class="form-grid"><div class="form-field full"><label>로그인 계정</label><input value="${escapeHtml(state.user.email)}" disabled /></div></div><div class="modal-actions"><button class="button button-secondary" type="button" data-account-mode="reset">비밀번호 찾기</button><button class="button button-secondary" type="button" id="logout-button">로그아웃</button></div><button class="text-button danger-link" id="withdraw-button" type="button">회원 탈퇴</button>`;
-    openModal(`<div class="modal" role="dialog" aria-modal="true"><div class="modal-header"><div><h2>${title}</h2><p>${description}</p></div><button class="modal-close" type="button">×</button></div><div class="modal-body">${fields}</div></div>`);
-    $("#logout-button").addEventListener("click", () => { state.loggedIn = false; persist(); renderUser(); closeModal(); toast("로그아웃했어요."); });
-    $("#withdraw-button").addEventListener("click", showWithdrawConfirm);
-  } else {
-    fields = `<div class="form-grid"><div class="form-field full"><label for="account-email">이메일</label><input id="account-email" type="email" value="${escapeHtml(state.user.email)}" required /></div>${mode !== "reset" ? `<div class="form-field full"><label for="account-password">비밀번호</label><input id="account-password" type="password" minlength="6" placeholder="6자 이상 입력" required /></div>` : ""}${mode === "signup" ? `<div class="form-field full"><label for="account-name">이름</label><input id="account-name" value="${escapeHtml(state.user.name)}" required /></div>` : ""}</div><div class="account-links">${mode === "login" ? `<button type="button" data-account-mode="signup">회원가입</button><button type="button" data-account-mode="reset">비밀번호 찾기</button>` : `<button type="button" data-account-mode="login">로그인으로 돌아가기</button>`}</div>`;
-    openModal(formModal(title, description, fields, mode === "reset" ? "재설정 메일 요청" : mode === "signup" ? "가입 완료" : "로그인", "account-form"));
-    $("#account-form").addEventListener("submit", (event) => { event.preventDefault(); if (mode === "reset") { closeModal(); return toast("비밀번호 재설정 안내를 준비했어요."); } state.loggedIn = true; state.user.email = $("#account-email").value; if (mode === "signup") { state.user.name = $("#account-name").value; state.user.nickname = state.user.name; } persist(); renderUser(); closeModal(); toast(mode === "signup" ? "회원가입을 완료했어요." : "로그인했어요."); });
-  }
-  $$('[data-account-mode]').forEach((button) => button.addEventListener("click", () => showAccountModal(button.dataset.accountMode)));
-}
-
-function showWithdrawConfirm() {
-  openModal(`<div class="modal" role="dialog" aria-modal="true"><div class="modal-header"><div><h2>회원 탈퇴</h2><p>탈퇴하면 이 브라우저에 저장된 여행 기록과 계정 정보가 삭제됩니다.</p></div><button class="modal-close" type="button">×</button></div><div class="modal-body"><p>정말 탈퇴하시겠어요? 이 작업은 되돌릴 수 없습니다.</p><div class="modal-actions"><button class="button button-secondary modal-close-button" type="button">취소</button><button class="button button-primary" id="withdraw-confirm-button" type="button">탈퇴하기</button></div></div></div>`);
-  $("#withdraw-confirm-button").addEventListener("click", () => { Object.assign(state, structuredClone(defaultState), { loggedIn: false }); persist(); renderAll(); closeModal(); toast("회원 탈퇴 처리를 완료했어요."); });
-}
-
+function showProfileForm() { location.href = './mypage.html'; }
+function showAccountModal() { location.href = './signup.html?mode=login'; }
 function renderUser() {
+  $(".trip-panel-header h2").textContent = state.trip.title;
+  $("#trip-date-label").textContent = `${state.trip.startDate} — ${state.trip.endDate}`;
+  $(".trip-meta button:last-child span").textContent = state.trip.people;
   $(".profile-name").textContent = state.loggedIn ? state.user.name : "로그인";
-  $$(".avatar, .large-avatar").forEach((item) => { item.textContent = state.loggedIn ? state.user.name[0] : "?"; });
+
   if ($("#mypage-title")) $("#mypage-title").textContent = state.loggedIn ? `${state.user.name} 님의 여행 지도` : "로그인이 필요해요";
 }
 
@@ -510,7 +394,9 @@ function formModal(title, description, fields, submitLabel, formId) {
   return `<div class="modal" role="dialog" aria-modal="true"><div class="modal-header"><div><h2>${title}</h2><p>${description}</p></div><button class="modal-close" type="button">×</button></div><form class="modal-body" id="${formId}">${fields}<div class="modal-actions"><button class="button button-secondary modal-close-button" type="button">취소</button><button class="button button-primary" type="submit">${submitLabel}</button></div></form></div>`;
 }
 
+let modalPreviousFocus = null;
 function openModal(content) {
+  modalPreviousFocus = document.activeElement;
   $("#modal-root").innerHTML = `<div class="modal-backdrop">${content}</div>`;
   document.body.style.overflow = "hidden";
   $$(".modal-close, .modal-close-button").forEach((button) => button.addEventListener("click", closeModal));
@@ -521,6 +407,7 @@ function openModal(content) {
 function closeModal() {
   $("#modal-root").innerHTML = "";
   document.body.style.overflow = "";
+  modalPreviousFocus?.focus();
 }
 
 function bindGlobalEvents() {
@@ -561,13 +448,14 @@ function bindGlobalEvents() {
     $("#search-panel-toggle").setAttribute("aria-label", collapsed ? "여행지 정보 펼치기" : "여행지 정보 접기");
     setTimeout(() => kakaoMap?.relayout(), 260);
   });
+  $$(".trip-meta button").forEach(button=>button.addEventListener("click",()=>location.href="./planner.html"));
   $("#trip-collapse-button").addEventListener("click", () => $("#trip-panel").classList.remove("is-open"));
-  $("#rail-start-trip").addEventListener("click", () => $("#trip-panel").classList.toggle("is-open"));
+  $("#rail-start-trip").addEventListener("click", () => location.href = "./planner.html");
   $("#refresh-nearby-button").addEventListener("click", () => refreshNearbyFromMap(true));
   $("#add-stop-button").addEventListener("click", () => { $(".search-panel").classList.add("is-open"); toast("지도에서 추가할 장소를 선택하세요."); });
   $("#save-trip-button")?.addEventListener("click", () => { persist(); toast("여행 일정을 저장했어요."); });
   $("#planner-save-button")?.addEventListener("click", () => { persist(); toast("변경사항을 저장했어요."); });
-  $("#share-trip-button").addEventListener("click", async () => { const text = "너랑 갈.지도 - 제주, 우리 둘의 지도"; try { await navigator.clipboard.writeText(`${text}\n${location.href}`); toast("공유 링크를 복사했어요."); } catch { toast("공유할 여행 링크를 준비했어요."); } });
+  $("#share-trip-button").addEventListener("click", async () => { location.href = "./planner.html?publish=1"; });
   $("#locate-button").addEventListener("click", async () => {
     const location = await getCurrentLocation();
     if (!location) return toast("위치 권한을 허용하면 현재 위치를 표시할 수 있어요.");
@@ -622,20 +510,27 @@ function bindGlobalEvents() {
     button.setAttribute("aria-pressed", String(layerVisibility[layer]));
     await updateMapLayer(layer);
     if (layer === "charger" && layerVisibility.charger && kakaoMap?.getLevel() > CHARGER_VISIBLE_MAX_MAP_LEVEL) {
-      toast("충전소는 지도를 250m 축척까지 확대하면 표시돼요.");
+      toast("충전소는 지도를 확대된 지도까지 확대하면 표시돼요.");
     } else {
       toast(`${button.textContent.trim()} 표시를 ${layerVisibility[layer] ? "켰어요" : "껐어요"}.`);
     }
   }));
-  $("#companion-filter-button")?.addEventListener("click", renderCompanions);
-  $("#create-companion-button")?.addEventListener("click", showCompanionForm);
-  $("#write-post-button")?.addEventListener("click", () => showPostForm());
-  $$('[data-board]').forEach((button) => button.addEventListener("click", () => { state.currentBoard = button.dataset.board; persist(); renderBoardTabs(); renderPosts(); }));
-  $("#board-search-form")?.addEventListener("submit", (event) => { event.preventDefault(); renderPosts(); });
+
+
+
+  $$('[data-board]').forEach((button) => button.addEventListener("click", () => { state.currentBoard = button.dataset.board; persist();  }));
+
   $("#add-hotplace-button")?.addEventListener("click", showHotplaceForm);
   $("#profile-edit-button")?.addEventListener("click", showProfileForm);
   $("#account-button")?.addEventListener("click", () => showAccountModal());
-  document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeModal(); if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setView("explore"); $(".search-panel").classList.add("is-open"); $("#search-input").focus(); } });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === 'Tab' && $('.modal')) {
+      const nodes = [...$('.modal').querySelectorAll('a[href],button,input,select,textarea')].filter(node=>!node.disabled && !node.hidden);
+      const first=nodes[0],last=nodes.at(-1);
+      if (event.shiftKey && document.activeElement===first) {event.preventDefault();last?.focus();}
+      else if (!event.shiftKey && document.activeElement===last) {event.preventDefault();first?.focus();}
+    }
+    if (event.key === "Escape") closeModal(); if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setView("explore"); $(".search-panel").classList.add("is-open"); $("#search-input").focus(); } });
 }
 
 async function initKakaoMap() {
@@ -702,6 +597,7 @@ async function refreshNearbyFromMap(force = false) {
     const items = await api.searchNearby({ lng: center.getLng(), lat: center.getLat(), radius });
     if (fetchKey !== lastMapFetchKey) return;
     if (!items?.length) {
+      if (items === null) { renderPlaces(); status.textContent = "데모 데이터"; return; }
       places.splice(0, places.length);
       renderPlaces();
       status.textContent = "이 위치에 결과 없음";
@@ -745,15 +641,18 @@ function latLngToGrid(lat, lon) {
 }
 
 async function refreshWeatherLayer() {
-  if (!kakaoMap) return;
-  const center = kakaoMap.getCenter();
+  if (!layerVisibility.weather) return;
+  const center = kakaoMap ? kakaoMap.getCenter() : { getLat: () => INITIAL_MAP_CENTER.lat, getLng: () => INITIAL_MAP_CENTER.lng };
   const grid = latLngToGrid(center.getLat(), center.getLng());
   $("#weather-map-badge").innerHTML = `<p class="weather-loading">5일 날씨를 불러오는 중이에요.</p>`;
+  const weatherKey = `${grid.nx}:${grid.ny}`;
+  latestWeatherKey = weatherKey;
   const weather = await api.getWeather({ ...grid, ...weatherBase() }).catch(() => null);
+  if (!layerVisibility.weather || latestWeatherKey !== weatherKey) return;
   const dailyForecast = summarizeDailyWeather(weather);
-  liveData.weather = summarizeWeather(weather) || "예보 없음";
+  liveData.weather = summarizeWeather(weather);
   renderWeatherForecast(dailyForecast);
-  places.forEach((place) => { place.weather = liveData.weather; });
+  places.forEach((place) => { place.weather = liveData.weather || "예보 확인 불가"; });
   renderPlaces();
 }
 
@@ -764,7 +663,7 @@ function renderWeatherForecast(days) {
     return;
   }
   root.innerHTML = `
-    <div class="weather-forecast-heading"><strong>지도 중심 5일 예보</strong><span>기상청 단기예보</span></div>
+    <div class="weather-forecast-heading"><strong>지도 중심 ${days.length}일 예보</strong><span>기상청 단기예보</span></div>
     <div class="weather-table-scroll">
       <table class="weather-forecast-table">
         <thead><tr>${days.map((day, index) => `<th class="${index === 0 ? "is-today" : ""}" scope="col">${index === 0 ? "오늘 " : ""}${day.dateLabel}</th>`).join("")}</tr></thead>
@@ -773,54 +672,54 @@ function renderWeatherForecast(days) {
     </div>`;
 }
 
-function regionToZcode(regionName = "") {
-  const match = Object.entries({ 서울: 11, 부산: 26, 대구: 27, 인천: 28, 광주: 29, 대전: 30, 울산: 31, 세종: 36, 경기: 41, 강원: 42, 충북: 43, 충남: 44, 전북: 45, 전남: 46, 경북: 47, 경남: 48, 제주: 50 }).find(([name]) => regionName.includes(name));
-  return match?.[1] || 11;
-}
-
-function currentRegionZcode() {
-  return new Promise((resolve) => {
-    const center = kakaoMap.getCenter();
-    const geocoder = new window.kakao.maps.services.Geocoder();
-    geocoder.coord2RegionCode(center.getLng(), center.getLat(), (result, status) => resolve(status === window.kakao.maps.services.Status.OK ? regionToZcode(result[0]?.region_1depth_name) : 11));
-  });
-}
-
 async function refreshChargerLayer() {
-  if (!kakaoMap || !layerVisibility.charger) return;
+  if (!kakaoMap || !layerVisibility.charger) {
+    if (!kakaoMap && layerVisibility.charger) { $("#charger-status").hidden = false; $("#charger-status").textContent = "충전소는 카카오 지도가 연결되면 사용할 수 있어요."; }
+    return;
+  }
   if (kakaoMap.getLevel() > CHARGER_VISIBLE_MAX_MAP_LEVEL) {
     chargerMarkers.forEach(({ marker, info }) => { marker.setMap(null); info.setMap(null); });
     chargerMarkers = [];
+    $("#charger-status").hidden = false;
+    $("#charger-status").textContent = "충전소를 보려면 지도를 조금 더 확대하세요.";
     return;
   }
-  const currentLocation = await getCurrentLocation();
-  if (!currentLocation) {
-    layerVisibility.charger = false;
-    const chargerButton = $('[data-layer="charger"]');
-    chargerButton?.classList.remove("is-active");
-    chargerButton?.setAttribute("aria-pressed", "false");
-    toast("충전소를 보려면 위치 권한을 허용해주세요.");
-    return;
-  }
-  if (!chargerDataPromise) {
-    chargerDataPromise = api.getAllEvChargers().then((items) => {
-      allChargers = items || [];
-      return allChargers;
-    }).catch(() => {
-      chargerDataPromise = null;
-      return [];
+  const revision = ++chargerRevision;
+  const center = kakaoMap.getCenter();
+  const currentLocation = { lat: center.getLat(), lng: center.getLng() };
+  const status = $('#charger-status');
+  status.hidden = false; status.textContent = '현재 지도 지역 충전소를 불러오는 중…';
+  const zcode = await new Promise(resolve => {
+    new window.kakao.maps.services.Geocoder().coord2RegionCode(currentLocation.lng, currentLocation.lat, (result, code) => {
+      resolve(code === window.kakao.maps.services.Status.OK ? result.find(region => region.region_type === 'B')?.code.slice(0, 2) : null);
     });
+  });
+  if (revision !== chargerRevision || !layerVisibility.charger) return;
+  if (!zcode) { status.textContent = '지역을 확인하지 못했어요. 지도를 이동해 다시 시도하세요.'; return; }
+  try {
+    const result = await api.getRegionalEvChargers({ zcode, onProgress: progress => {
+      if (revision !== chargerRevision || !layerVisibility.charger) return;
+      renderChargerStations(progress.items,currentLocation);
+      status.textContent = `현재 지도 주변 ${chargerMarkers.length}곳 · 지역 데이터 조회 중…`;
+    } });
+    if (revision !== chargerRevision || !layerVisibility.charger) return;
+    renderChargerStations(result.items, currentLocation);
+    status.textContent = `현재 지도 주변 충전소 ${chargerMarkers.length}곳 · ${result.partial ? '지역 일부 조회 · ' : ''}최대 80곳 표시 · 조회 ${new Date(result.updatedAt).toLocaleTimeString('ko-KR')}`;
+  } catch {
+    if (revision === chargerRevision && layerVisibility.charger) status.textContent = '충전소 조회 실패 · 버튼을 껐다 켜서 다시 시도하세요.';
   }
-  const chargers = allChargers || await chargerDataPromise;
-  if (!kakaoMap || !layerVisibility.charger) return;
+}
+
+function renderChargerStations(chargers, currentLocation) {
   chargerMarkers.forEach(({ marker, info }) => { marker.setMap(null); info.setMap(null); });
-  const nearby = chargersWithinRadius(chargers, currentLocation, NEARBY_RADIUS_METERS);
+  const bounds = kakaoMap.getBounds();
+  const nearby = chargersWithinRadius(chargers, currentLocation, NEARBY_RADIUS_METERS).filter(charger => bounds.contain(new window.kakao.maps.LatLng(Number(charger.lat), Number(charger.lng))));
   const stations = [...nearby.reduce((groups, charger) => {
     const key = charger.statId || `${charger.statNm}:${charger.lat}:${charger.lng}`;
-    if (!groups.has(key)) groups.set(key, { name: charger.statNm || "전기차 충전소", address: charger.addr || "", lat: Number(charger.lat), lng: Number(charger.lng), chargers: [] });
+    if (!groups.has(key)) groups.set(key, { name: charger.statNm || '전기차 충전소', address: charger.addr || '', lat: Number(charger.lat), lng: Number(charger.lng), chargers: [] });
     groups.get(key).chargers.push(charger);
     return groups;
-  }, new Map()).values()];
+  }, new Map()).values()].sort((a,b) => distanceMeters(currentLocation.lat,currentLocation.lng,a.lat,a.lng) - distanceMeters(currentLocation.lat,currentLocation.lng,b.lat,b.lng)).slice(0,80);
 
   chargerMarkers = stations.map((station) => {
     const position = new window.kakao.maps.LatLng(station.lat, station.lng);
@@ -871,7 +770,14 @@ async function refreshChargerLayer() {
 async function updateMapLayer(layer) {
   if (layer === "place") kakaoMarkers.forEach((marker) => marker.setMap(layerVisibility.place ? kakaoMap : null));
   if (layer === "hotplace") syncHotplaceLayer();
+  if (layer === 'weather') {
+    state.weatherVisible = layerVisibility.weather; persist();
+    $('#weather-map-badge').hidden = !layerVisibility.weather;
+    if (layerVisibility.weather) await refreshWeatherLayer();
+  }
   if (layer === "charger") {
+    ++chargerRevision;
+    $('#charger-status').hidden = !layerVisibility.charger;
     if (layerVisibility.charger) await refreshChargerLayer();
     else chargerMarkers.forEach(({ marker, info }) => { marker.setMap(null); info.setMap(null); });
   }
@@ -923,7 +829,7 @@ function summarizeWeather(items) {
 }
 
 function mapTourPlace(item, index) {
-  const type = { 12: ["attraction", "관광지"], 14: ["culture", "문화시설"], 28: ["course", "레포츠"], 32: ["stay", "숙소"], 39: ["food", "음식점"] }[item.contenttypeid] || ["attraction", "여행지"];
+  const type = { 15: ["festival", "공연·행사"], 38: ["shopping", "쇼핑"], 25: ["course", "여행코스"], 12: ["attraction", "관광지"], 14: ["culture", "문화시설"], 28: ["course", "레포츠"], 32: ["stay", "숙소"], 39: ["food", "음식점"] }[item.contenttypeid] || ["attraction", "여행지"];
   const lng = Number(item.mapx) || 126.2 + (index % 8) * .08;
   const lat = Number(item.mapy) || 33.2 + (index % 5) * .06;
   const fallback = fallbackPlaces[index % fallbackPlaces.length];
@@ -936,12 +842,13 @@ function mapTourPlace(item, index) {
     category: type[0],
     categoryLabel: type[1],
     description: `${item.title || "제주 여행지"}의 관광 정보입니다. 일정에 추가해 나만의 여행 동선을 만들어보세요.`,
-    image: item.firstimage || item.firstimage2 || fallback.image,
+    image: item.firstimage || item.firstimage2 || "./assets/sunset-clouds.png",
     lng,
     lat,
     x: Math.max(8, Math.min(92, ((lng - 126.1) / .85) * 84 + 8)),
     y: Math.max(8, Math.min(85, 85 - ((lat - 33.1) / .5) * 77)),
-    distance: Number((2.1 + index * 1.37).toFixed(1)),
+    rating: 0, reviews: 0, weather: '날씨 버튼에서 확인', sunrise: '조회 중', sunset: '조회 중',
+    distance: Number((Number(item.dist) / 1000 || distanceMeters(kakaoMap?.getCenter().getLat() || INITIAL_MAP_CENTER.lat,kakaoMap?.getCenter().getLng() || INITIAL_MAP_CENTER.lng,lat,lng)/1000).toFixed(1)),
   };
 }
 
@@ -952,8 +859,9 @@ async function refreshTourData(keyword = "") {
   try {
     const items = await api.searchTour({ keyword, areaCode: keyword ? "" : 39 });
     if (!items?.length) {
+      if (Array.isArray(items)) places.splice(0, places.length);
       renderPlaces();
-      status.textContent = "검색 결과 없음";
+      status.textContent = items === null ? "데모 데이터" : "검색 결과 없음";
       status.classList.add("is-fallback");
       return;
     }
@@ -973,15 +881,17 @@ async function refreshTourData(keyword = "") {
 }
 
 async function hydrateLiveData() {
-  if (!api.hasKakaoMap) await refreshTourData();
+  if (!api.hasKakaoMap) await refreshTourData(state.search);
+  if (layerVisibility.weather && !kakaoMap) refreshWeatherLayer();
 }
 
 function init() {
+  $("#weather-map-badge").hidden = !layerVisibility.weather;
   renderAll();
   renderPlaceFilterControls();
   if ($("#favorite-count")) $("#favorite-count").textContent = state.favorites.length;
   $("#search-input").value = state.search;
-  $$('[data-layer]').forEach((item) => item.setAttribute("aria-pressed", String(layerVisibility[item.dataset.layer])));
+  $$('[data-layer]').forEach(item => {item.setAttribute('aria-pressed', String(layerVisibility[item.dataset.layer]));item.classList.toggle('is-active',layerVisibility[item.dataset.layer]);});
   bindGlobalEvents();
   setView("explore");
   initKakaoMap();

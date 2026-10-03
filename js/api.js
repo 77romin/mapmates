@@ -1,4 +1,7 @@
 const config = window.APP_CONFIG || {};
+const chargerCache = new Map();
+const chargerRequests = new Map();
+const weatherCache = new Map();
 
 function withQuery(base, params) {
   const url = new URL(base);
@@ -9,9 +12,12 @@ function withQuery(base, params) {
 }
 
 async function requestJson(url, options = {}) {
-  const response = await fetch(url, { ...options, headers: { Accept: "application/json", ...(options.headers || {}) } });
+  const response = await fetch(url, { signal: AbortSignal.timeout(12000), ...options, headers: { Accept: "application/json", ...(options.headers || {}) } });
   if (!response.ok) throw new Error(`API 요청 실패 (${response.status})`);
-  return response.json();
+  const data = await response.json();
+  const code = data?.response?.header?.resultCode ?? data?.resultCode;
+  if (code != null && !["00", "0000", "0"].includes(String(code))) throw new Error(`API 응답 오류 (${code})`);
+  return data;
 }
 
 export const api = {
@@ -58,7 +64,16 @@ export const api = {
     return data?.response?.body?.items?.item || [];
   },
 
+  async getTourDetail(contentId) {
+    if (!config.TOUR_API_KEY || !contentId) return null;
+    const data = await requestJson(withQuery('https://apis.data.go.kr/B551011/KorService2/detailCommon2', {serviceKey:config.TOUR_API_KEY, MobileOS:'ETC', MobileApp:'NeorangGaljido', _type:'json', contentId}));
+    const items = data?.response?.body?.items?.item;
+    return Array.isArray(items) ? items[0] : items;
+  },
+
   async getWeather({ nx, ny, baseDate, baseTime }) {
+    const cacheKey = `${nx}:${ny}:${baseDate}:${baseTime}`;
+    if (weatherCache.has(cacheKey)) return weatherCache.get(cacheKey);
     const serviceKey = config.WEATHER_API_KEY || config.DATA_GO_KR_KEY;
     if (!serviceKey) return null;
     const url = withQuery("https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst", {
@@ -72,7 +87,9 @@ export const api = {
       ny,
     });
     const data = await requestJson(url);
-    return data?.response?.body?.items?.item || [];
+    const items = data?.response?.body?.items?.item || [];
+    if (items.length) weatherCache.set(cacheKey, items);
+    return items;
   },
 
   async getMidWeather({ landRegId = "11G00000", temperatureRegId = "11G00201", tmFc }) {
@@ -95,7 +112,7 @@ export const api = {
   },
 
   async getSunTimes({ lat = 33.45, lng = 126.57, date = "today" } = {}) {
-    const url = withQuery("https://api.sunrise-sunset.org/v2", { lat, lng, date, timezone: "Asia/Seoul" });
+    const url = withQuery("https://api.sunrise-sunset.org/v2", { lat, lng, date, tz: "Asia/Seoul" });
     try {
       return await requestJson(url);
     } catch {
@@ -121,28 +138,40 @@ export const api = {
     }
   },
 
-  async getAllEvChargers({ pageSize = 9999 } = {}) {
+  // Region-scoped, bounded and coalesced. No nationwide download on a map toggle.
+  async getRegionalEvChargers({ zcode, pageSize = 500, maxPages = 8, onProgress } = {}) {
+    if (!/^\d{2}$/.test(String(zcode))) throw new Error('지역 코드가 필요합니다.');
     const serviceKey = config.EV_CHARGER_API_KEY || config.DATA_GO_KR_KEY;
-    if (!serviceKey) return null;
-    const allChargers = [];
-    let pageNo = 1;
-    let totalCount = Infinity;
-    while (allChargers.length < totalCount && pageNo <= 20) {
-      const url = withQuery("https://apis.data.go.kr/B552584/EvCharger/getChargerInfo", {
-        serviceKey,
-        pageNo,
-        numOfRows: pageSize,
-        dataType: "JSON",
-      });
-      const data = await requestJson(url);
-      const body = data?.response?.body || data;
-      const items = body?.items?.item || data?.items?.item || [];
-      totalCount = Number(body?.totalCount ?? data?.totalCount ?? items.length);
-      allChargers.push(...items);
-      if (!items.length || allChargers.length >= totalCount) break;
-      pageNo += 1;
-    }
-    return allChargers;
+    if (!serviceKey) throw new Error('충전소 API 키가 없습니다.');
+    const key = `${zcode}:${pageSize}:${maxPages}`;
+    const cached = chargerCache.get(key);
+    if (cached && Date.now() - cached.updatedAt < 120000) return cached;
+    if (chargerRequests.has(key)) return chargerRequests.get(key);
+    const promise = (async () => {
+      const items = [];
+      const getPage = async pageNo => {
+        const data = await requestJson(withQuery('https://apis.data.go.kr/B552584/EvCharger/getChargerInfo', {serviceKey, zcode, pageNo, numOfRows: pageSize, dataType: 'JSON'}));
+        const body = data?.response?.body || data;
+        const code = data?.response?.header?.resultCode ?? data?.resultCode;
+        if (code && !['00','0000'].includes(String(code))) throw new Error('충전소 API 오류');
+        const rows = body?.items?.item || [];
+        return { items: Array.isArray(rows) ? rows : [rows], total: Number(body?.totalCount || rows.length) };
+      };
+      const first = await getPage(1); items.push(...first.items);
+      onProgress?.({items:[...items], partial:items.length < first.total, updatedAt:Date.now()});
+      const pages = Math.min(maxPages, Math.ceil(first.total / pageSize));
+      // At most two simultaneous requests, bounded to prevent a burst on public APIs.
+      for (let page = 2; page <= pages; page += 2) {
+        const batch = await Promise.all([getPage(page), ...(page + 1 <= pages ? [getPage(page + 1)] : [])]);
+        batch.forEach(result => items.push(...result.items));
+        onProgress?.({items:[...items], partial:items.length < first.total, updatedAt:Date.now()});
+      }
+      const result = {items, partial: first.total > items.length, updatedAt: Date.now()};
+      chargerCache.set(key, result);
+      return result;
+    })().finally(() => chargerRequests.delete(key));
+    chargerRequests.set(key, promise);
+    return promise;
   },
 
   async getCarDirections({ origin, destination, waypoints = [] }) {

@@ -10,7 +10,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./css/style.css" />
-  </head>
+    <link rel="stylesheet" href="./css/sunset.css">
+  <script src="./js/first-visit.js"></script>
+</head>
   <body>
     <a class="skip-link" href="#main-content">본문 바로가기</a>
     <header class="topbar">
@@ -33,11 +35,8 @@
       </nav>
 
       <div class="topbar-actions">
-        <button class="icon-button notification-button" type="button" aria-label="알림">
-          <span class="icon icon-bell" aria-hidden="true"></span><span class="notification-dot"></span>
-        </button>
         <a class="profile-button" id="profile-button" href="./mypage.html">
-          <span class="avatar">강</span><span class="profile-name">김강민</span>
+          <span class="avatar" data-user-avatar>○</span><span class="profile-name" data-user-name>로그인</span>
         </a>
       </div>
     </header>
@@ -77,7 +76,7 @@
             <div><strong id="result-count">8</strong>개의 여행지 <span class="live-data-status" id="live-data-status">데이터 연결 중</span></div>
             <select id="sort-select" aria-label="정렬 방식">
               <option value="recommended">추천순</option>
-              <option value="rating">평점순</option>
+              <option value="rating">이름순</option>
               <option value="distance">거리순</option>
             </select>
           </div>
@@ -101,8 +100,10 @@
 
           <div class="map-categories" aria-label="지도 레이어">
             <button class="map-category is-active" id="place-filter-toggle" type="button" aria-expanded="false" aria-controls="place-filter-panel"><span>⌖</span>여행지</button>
+            <button class="map-category" type="button" data-layer="weather" aria-pressed="false"><span>☀</span>날씨</button>
             <button class="map-category" type="button" data-layer="charger"><span>ϟ</span>충전소</button>
             <button class="map-category" type="button" data-layer="hotplace"><span>♡</span>핫플</button>
+            <button class="map-category" id="add-hotplace-button" type="button" aria-label="핫플레이스 등록">＋ 핫플 등록</button>
           </div>
 
           <div class="place-filter-panel" id="place-filter-panel" hidden>
@@ -114,16 +115,19 @@
                 <button class="is-active" type="button" data-place-category="food" aria-pressed="true">맛집</button>
                 <button class="is-active" type="button" data-place-category="stay" aria-pressed="true">숙소</button>
                 <button class="is-active" type="button" data-place-category="culture" aria-pressed="true">문화</button>
+                <button class="is-active" type="button" data-place-category="festival" aria-pressed="true">공연·행사</button>
+                <button class="is-active" type="button" data-place-category="shopping" aria-pressed="true">쇼핑</button>
                 <button class="is-active" type="button" data-place-category="course" aria-pressed="true">코스</button>
               </div>
             </div>
             <button class="place-filter-off" id="place-filter-off" type="button">OFF <span>표시하지 않기</span></button>
           </div>
 
-          <section class="weather-forecast-card" id="weather-map-badge" aria-label="지도 중심 5일 날씨" aria-live="polite">
-            <p class="weather-loading">5일 날씨를 불러오는 중이에요.</p>
+          <section class="weather-forecast-card" id="weather-map-badge" hidden aria-label="지도 중심 날씨" aria-live="polite">
+            <p class="weather-loading">날씨를 불러오는 중이에요.</p>
           </section>
 
+          <p id="charger-status" class="layer-status" role="status" hidden></p>
           <div class="map-controls" aria-label="지도 제어">
             <button type="button" id="locate-button" aria-label="현재 위치">◎</button>
             <div><button type="button" id="zoom-in" aria-label="확대">+</button><button type="button" id="zoom-out" aria-label="축소">−</button></div>
