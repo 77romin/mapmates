@@ -1,5 +1,6 @@
+import { syncCompanion, hasJoined, isCompanionOwner } from './companion-utils.js';
 import { places } from './data.js';
-import { escapeHtml, saveState } from './shared.js';
+import { escapeHtml, saveState, loadState, ensureLoggedIn, showToast } from './shared.js';
 import { TripRoute, tripDays, dayDate, renderDayWeather } from './trip-map.js';
 
 export function mountWorkspace(state, getMap, onChange) {
@@ -48,6 +49,34 @@ export function mountWorkspace(state, getMap, onChange) {
     location.href = './planner.html';
   }
 
+  function joinButton() {
+    if (tab !== 'browse') return '';
+    syncCompanion(selected);
+    const owner = isCompanionOwner(state, selected), joined = hasJoined(state, selected), closed = selected.status === 'closed';
+    return `<button type="button" class="button button-primary workspace-join" id="workspace-join" ${owner || joined || closed ? 'disabled' : ''}>${owner ? '내 모집글' : joined ? '참가 중' : closed ? '모집 마감' : '동행하기'}</button>`;
+  }
+
+  function joinSelected() {
+    // Re-read storage so another tab's participation or closure is respected.
+    const id = selected.id;
+    Object.assign(state, loadState());
+    selected = state.companions.find(item => String(item.id) === String(id));
+    if (!selected) { render(); draw(); showToast('삭제된 모집글이에요.'); return; }
+    syncCompanion(selected);
+    if (isCompanionOwner(state, selected) || hasJoined(state, selected) || selected.status === 'closed') { render(); draw(); return; }
+    if (!state.loggedIn) sessionStorage.setItem('neorang-browse-return', String(id));
+    if (!ensureLoggedIn(state, '동행에 참가하려면 로그인해주세요.')) return;
+    const previousParticipants = [...selected.participants], previousJoined = [...state.joinedCompanions];
+    selected.participants.push({ id: state.user.id, nickname: state.user.nickname, photo: state.user.photo, gender: state.user.gender });
+    state.joinedCompanions = [...new Set([...state.joinedCompanions, selected.id])];
+    syncCompanion(selected);
+    try { saveState(state); } catch {
+      selected.participants = previousParticipants; state.joinedCompanions = previousJoined; syncCompanion(selected);
+      render(); showToast('참가 정보를 저장하지 못했어요. 저장 공간을 확인해주세요.'); return;
+    }
+    render(); draw(); showToast('동행 참가가 완료됐어요.');
+  }
+
   function render() {
     const heading = tab === 'browse' ? '둘러보기' : '내 여행';
     panel.innerHTML = `<p class="eyebrow">${tab === 'browse' ? 'TRAVEL TOGETHER' : 'MY JOURNEYS'}</p>
@@ -72,12 +101,13 @@ export function mountWorkspace(state, getMap, onChange) {
       return;
     }
     content.innerHTML = `<button class="text-button workspace-back" id="workspace-back" type="button">← ${heading} 목록</button>
-      <article class="workspace-selected-trip"><img class="workspace-selected-photo" src="${escapeHtml(selected.image || './assets/sunset-clouds.png')}" alt=""><p class="workspace-card-region">${escapeHtml(selected.region || '여행')}</p><h3>${escapeHtml(selected.title)}</h3><p class="helper-text">${escapeHtml(selected.startDate)} — ${escapeHtml(selected.endDate)}${tab === 'browse' ? ` · ${escapeHtml(selected.people || '')}` : ''}</p>${selected.description ? `<p class="workspace-trip-description">${escapeHtml(selected.description)}</p>` : ''}</article>
+      <article class="workspace-selected-trip"><img class="workspace-selected-photo" src="${escapeHtml(selected.image || './assets/sunset-clouds.png')}" alt=""><p class="workspace-card-region">${escapeHtml(selected.region || '여행')}</p><div class="workspace-trip-title"><h3>${escapeHtml(selected.title)}</h3>${joinButton()}</div><p class="helper-text">${escapeHtml(selected.startDate)} — ${escapeHtml(selected.endDate)}${tab === 'browse' ? ` · ${escapeHtml(selected.people || '')}` : ''}</p>${selected.description ? `<p class="workspace-trip-description">${escapeHtml(selected.description)}</p>` : ''}</article>
       <div class="workspace-route-toggle" role="group" aria-label="여행 경로 선택"><button type="button" data-workspace-mode="straight" aria-pressed="${mode === 'straight'}">직선</button><button type="button" data-workspace-mode="car" aria-pressed="${mode === 'car'}">차량경로</button></div>
       <div class="trip-day-buttons">${tripDays(selected).map(value => `<button type="button" data-workspace-day="${value}" aria-pressed="${value === day}">DAY ${value}</button>`).join('')}</div>
       <p id="workspace-weather" class="trip-day-weather" role="status"></p>
       <ol class="workspace-stops">${entries().map(entry => `<li><strong>${escapeHtml(entry.place?.title || '장소')}</strong><span>${escapeHtml(entry.time || '')}</span></li>`).join('') || '<li>이 날짜의 장소가 없어요.</li>'}</ol>
       ${tab === 'browse' ? `<a class="button button-primary full-width workspace-detail-button" href="./companion-detail.html?id=${encodeURIComponent(selected.id)}">세부내용 보기</a>` : '<button type="button" class="button button-primary full-width workspace-detail-button" id="workspace-plan-detail">세부내용 보기</button>'}`;
+    content.querySelector('#workspace-join')?.addEventListener('click', joinSelected);
     content.querySelector('#workspace-back').onclick = () => { selected = null; render(); panel.scrollTop = 0; draw(); };
     content.querySelectorAll('[data-workspace-mode]').forEach(button => button.onclick = () => { mode = button.dataset.workspaceMode; render(); draw(); });
     content.querySelectorAll('[data-workspace-day]').forEach(button => button.onclick = () => { day = Number(button.dataset.workspaceDay); render(); draw(); });
@@ -94,5 +124,5 @@ export function mountWorkspace(state, getMap, onChange) {
     render(); panel.scrollTop = 0; draw(); onChange(); getMap()?.relayout();
   }
   document.querySelectorAll('[data-workspace]').forEach(button => button.addEventListener('click', event => { event.preventDefault(); switchTab(button.dataset.workspace); }));
-  return { refresh: draw, show: switchTab, resume: () => openPlanner(), get tab() { return tab; } };
+  return { openCompanion: id => { switchTab('browse'); selected = state.companions.find(item => String(item.id) === String(id)) || null; render(); draw(); }, refresh: draw, show: switchTab, resume: () => openPlanner(), get tab() { return tab; } };
 }

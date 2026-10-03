@@ -894,6 +894,8 @@ function init() {
   bindGlobalEvents();
   setView("explore");
   if(sessionStorage.getItem("neorang-workspace-return")==="mine"){sessionStorage.removeItem("neorang-workspace-return");workspace.resume();}
+  const browseReturn = sessionStorage.getItem('neorang-browse-return');
+  if(browseReturn){sessionStorage.removeItem('neorang-browse-return');workspace.openCompanion(browseReturn);}
   initKakaoMap();
   hydrateLiveData();
 }

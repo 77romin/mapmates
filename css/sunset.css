@@ -73,3 +73,5 @@ body { background:radial-gradient(ellipse at 90% 0,#edd3cf70,transparent 50%),li
 
 .intro-logo{width:48px;height:48px;object-fit:contain;flex-shrink:0;border-radius:50%;background:#fffaf4}.intro-footer-brand{display:flex;align-items:center;gap:12px}
 @media(max-width:760px){.intro-nav .brand{gap:8px}.intro-nav .intro-logo{width:36px;height:36px}}
+
+.workspace-trip-title{display:flex;align-items:center;gap:12px;margin:8px 0}.workspace-trip-title h3{flex:1;min-width:0}.workspace-trip-title .workspace-join{flex-shrink:0;padding:10px 14px;font-size:12px;white-space:nowrap}.workspace-join:disabled{opacity:.65;cursor:default;box-shadow:none}
