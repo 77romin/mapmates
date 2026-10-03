@@ -75,3 +75,7 @@ body { background:radial-gradient(ellipse at 90% 0,#edd3cf70,transparent 50%),li
 @media(max-width:760px){.intro-nav .brand{gap:8px}.intro-nav .intro-logo{width:36px;height:36px}}
 
 .workspace-trip-title{display:flex;align-items:center;gap:12px;margin:8px 0}.workspace-trip-title h3{flex:1;min-width:0}.workspace-trip-title .workspace-join{flex-shrink:0;padding:10px 14px;font-size:12px;white-space:nowrap}.workspace-join:disabled{opacity:.65;cursor:default;box-shadow:none}
+
+/* Anchors and native buttons share the same centered button box. */
+.button{display:inline-flex;align-items:center;justify-content:center;gap:8px;line-height:1.4;text-align:center;vertical-align:middle;text-decoration:none}
+a.button:hover,a.button:focus{text-decoration:none}
