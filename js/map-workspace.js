@@ -57,7 +57,7 @@ export function mountWorkspace(state, getMap, onChange) {
     if (tab !== 'browse') return '';
     syncCompanion(selected);
     const owner = isCompanionOwner(state, selected), joined = hasJoined(state, selected), closed = selected.status === 'closed';
-    return `<button type="button" class="button button-primary workspace-join" id="workspace-join" ${owner || joined || closed ? 'disabled' : ''}>${owner ? '내 모집글' : joined ? '참가 중' : closed ? '모집 마감' : '동행하기'}</button>`;
+    return `<button type="button" class="button button-primary workspace-join" id="workspace-join" aria-label="${joined && !owner ? '참가 중 · 다시 누르면 참가 취소' : owner ? '내 모집글' : closed ? '모집 마감' : '동행하기'}" title="${joined && !owner ? '다시 누르면 참가를 취소합니다' : ''}" ${owner || (closed && !joined) ? 'disabled' : ''}>${owner ? '내 모집글' : joined ? '참가 중' : closed ? '모집 마감' : '동행하기'}</button>`;
   }
 
   function joinSelected() {
@@ -67,18 +67,24 @@ export function mountWorkspace(state, getMap, onChange) {
     selected = state.companions.find(item => String(item.id) === String(id));
     if (!selected) { render(); draw(); showToast('삭제된 모집글이에요.'); return; }
     syncCompanion(selected);
-    if (isCompanionOwner(state, selected) || hasJoined(state, selected) || selected.status === 'closed') { render(); draw(); return; }
+    const joined = hasJoined(state, selected);
+    if (isCompanionOwner(state, selected) || (selected.status === 'closed' && !joined)) { render(); draw(); return; }
     if (!state.loggedIn) sessionStorage.setItem('neorang-browse-return', String(id));
     if (!ensureLoggedIn(state, '동행에 참가하려면 로그인해주세요.')) return;
     const previousParticipants = [...selected.participants], previousJoined = [...state.joinedCompanions];
-    selected.participants.push({ id: state.user.id, nickname: state.user.nickname, photo: state.user.photo, gender: state.user.gender });
-    state.joinedCompanions = [...new Set([...state.joinedCompanions, selected.id])];
+    if (joined) {
+      selected.participants = selected.participants.filter(person => person.id !== state.user.id);
+      state.joinedCompanions = state.joinedCompanions.filter(value => String(value) !== String(selected.id));
+    } else {
+      selected.participants.push({ id: state.user.id, nickname: state.user.nickname, photo: state.user.photo, gender: state.user.gender });
+      state.joinedCompanions = [...new Set([...state.joinedCompanions, selected.id])];
+    }
     syncCompanion(selected);
     try { saveState(state); } catch {
       selected.participants = previousParticipants; state.joinedCompanions = previousJoined; syncCompanion(selected);
       render(); showToast('참가 정보를 저장하지 못했어요. 저장 공간을 확인해주세요.'); return;
     }
-    render(); draw(); showToast('동행 참가가 완료됐어요.');
+    render(); draw(); showToast(joined ? '동행 참가를 취소했어요.' : '동행 참가가 완료됐어요.');
   }
 
   function render() {
