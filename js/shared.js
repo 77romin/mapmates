@@ -1,4 +1,4 @@
-import { companions as seedCompanions, posts as seedPosts, hotplaces as seedHotplaces, members as seedMembers } from "./data.js";
+import { companions as seedCompanions, posts as seedPosts, hotplaces as seedHotplaces, members as seedMembers, demoPlaceCorrections } from "./data.js";
 
 export const STORAGE_KEY = "neorang-galjido-v1";
 export const CURRENT_USER_ID = "user-me";
@@ -71,6 +71,15 @@ export function loadState() {
     });
     state.demoDataVersion = 1;
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* The demo remains readable if browser storage is unavailable. */ }
+  }
+  if (!state.demoCoordinateVersion) {
+    const collections=[state.itineraryPlaces,...state.companions.map(item=>item.places),...state.plans.map(plan=>plan.itineraryPlaces),...Object.values(state.drafts).map(draft=>draft.itineraryPlaces),state.pendingGuestTrip?.itineraryPlaces];
+    collections.filter(Boolean).forEach(collection=>demoPlaceCorrections.forEach(correction=>{
+      const place=collection[correction.id];
+      if(place?.title===correction.title && Math.abs(Number(place.lat)-correction.oldLat)<.000001 && Math.abs(Number(place.lng)-correction.oldLng)<.000001) Object.assign(place,{lat:correction.lat,lng:correction.lng});
+    }));
+    state.demoCoordinateVersion=1;
+    try { localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); } catch { /* Keep corrections available for this session. */ }
   }
   state.user = state.loggedIn ? state.members.find(member => member.id === state.user.id) || state.user : state.user;
   state.joinedCompanions = state.companions.filter(item => item.participants?.some(person => person.id === state.user.id)).map(item => item.id);

@@ -209,9 +209,16 @@ const demoTitles = ['제주 바다와 카페를 천천히', '부산 골목의 �
 const demoRegions = ['제주', '부산', '강원', '서울', '제주', '부산', '서울', '강원', '제주', '부산'];
 const demoCoordinates = { 부산: [35.1595,129.1604], 서울: [37.5665,126.978], 강원: [37.7519,128.876] };
 const demoPlaces = { 부산: ['광안리 해변','흰여울문화마을','영도 책방'], 서울: ['경복궁','서울숲','한강공원'], 강원: ['경포해변','안목 커피거리','오죽헌'] };
+// Coordinates verified with Kakao Places; the former arithmetic offsets could land in the sea.
+const demoPlacePoints = {
+  부산: [[35.1531932736837,129.118976093583],[35.07944374604049,129.0437540909888],[35.09193842355592,129.03293612035995]],
+  서울: [[37.577613288258206,126.97689786832184],[37.5443222301513,127.037617759165],[37.5292974433415,127.06892112991]],
+  강원: [[37.8034055083125,128.910210247605],[37.7710119794053,128.949002946696],[37.77924783956944,128.8775431442553]],
+};
+export const demoPlaceCorrections = demoRegions.flatMap((region,index)=>region==='제주'?[]:demoPlaces[region].map((title,n)=>({id:10000+index*10+n,title,oldLat:demoCoordinates[region][0]+n*.015,oldLng:demoCoordinates[region][1]+n*.01,lat:demoPlacePoints[region][n][0],lng:demoPlacePoints[region][n][1]})));
 companions.splice(0, companions.length, ...members.map((member, index) => {
   const region = demoRegions[index];
-  const tripPlaces = region === '제주' ? [places[1], places[3], places[0]] : demoPlaces[region].map((title, n) => ({ ...places[n], id: 10000 + index * 10 + n, title, region, lat: demoCoordinates[region][0] + n * .015, lng: demoCoordinates[region][1] + n * .01 }));
+  const tripPlaces = region === '제주' ? [places[1], places[3], places[0]] : demoPlaces[region].map((title, n) => ({ ...places[n], id: 10000 + index * 10 + n, title, region, lat: demoPlacePoints[region][n][0], lng: demoPlacePoints[region][n][1] }));
   const participants = [member, ...(index % 3 === 1 ? [members[(index + 1) % 10], members[(index + 2) % 10]] : [])].map(({id,nickname,photo,gender}) => ({id,nickname,photo,gender}));
   const startDate = `2026-10-${String(12 + index).padStart(2,'0')}`;
   return { id: index + 1, ownerId: member.id, title: demoTitles[index], sourceTrip: demoTitles[index], tripId: `seed-plan-${index + 1}`, region, theme: ['사진','맛집','자연','문화'][index % 4], description: `${region}에서 서두르지 않고 함께 여행해요. 오전에는 산책하고 오후에는 맛있는 식사와 풍경을 즐길 계획입니다. 첫 동행도 환영해요!`, dates: `10.${12+index} - 10.${14+index}`, startDate, endDate: `2026-10-${14+index}`, people: `${participants.length}/4명`, participants, author: member.nickname, avatar: member.nickname[0], tags: [region,'여유로운 여행','동행'], image: tripPlaces[0].image, schedule: tripPlaces.map((place,n) => ({placeId: place.id, day: 1, time: ['09:30','11:30','15:00'][n], memo: ['풍경을 감상하며 만나기','함께 점심 먹기','노을 전에 느긋하게 산책'][n]})), places: Object.fromEntries(tripPlaces.map(place => [place.id,place])), closed: index === 8, status: index === 8 ? 'closed' : participants.length === 3 ? 'soon' : 'open' };
