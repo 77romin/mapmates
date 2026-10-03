@@ -1,4 +1,4 @@
-import { companions as seedCompanions, posts as seedPosts, hotplaces as seedHotplaces, members as seedMembers, demoPlaceCorrections } from "./data.js";
+import { companions as seedCompanions, posts as seedPosts, hotplaces as seedHotplaces, members as seedMembers, demoPlaceCorrections, demoPhotoCorrections } from "./data.js";
 
 export const STORAGE_KEY = "neorang-galjido-v1";
 export const CURRENT_USER_ID = "user-me";
@@ -80,6 +80,15 @@ export function loadState() {
     }));
     state.demoCoordinateVersion=1;
     try { localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); } catch { /* Keep corrections available for this session. */ }
+  }
+  if (!state.demoPhotoVersion) {
+    const collections=[state.itineraryPlaces,...state.companions.map(item=>item.places),...state.plans.map(plan=>plan.itineraryPlaces),...Object.values(state.drafts).map(draft=>draft.itineraryPlaces),state.pendingGuestTrip?.itineraryPlaces];
+    collections.filter(Boolean).forEach(collection=>demoPhotoCorrections.forEach(correction=>{
+      const place=collection[correction.id];
+      if(place?.title===correction.title && place.image===correction.oldImage) place.image=correction.image;
+    }));
+    state.demoPhotoVersion=1;
+    try { localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); } catch { /* Keep corrected photographs visible for this session. */ }
   }
   state.user = state.loggedIn ? state.members.find(member => member.id === state.user.id) || state.user : state.user;
   state.joinedCompanions = state.companions.filter(item => item.participants?.some(person => person.id === state.user.id)).map(item => item.id);

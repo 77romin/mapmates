@@ -23,6 +23,10 @@ export function mountWorkspace(state, getMap, onChange) {
     schedule: plan.tripSchedule || [], places: plan.itineraryPlaces || {},
   });
   const findPlace = (id, record) => record.places?.[id] || state.itineraryPlaces?.[id] || places.find(place => place.id === Number(id));
+  function thumbnail(record) {
+    const first = [...(record.schedule || [])].sort((a,b) => Number(a.day || 1)-Number(b.day || 1) || String(a.time || '').localeCompare(String(b.time || '')))[0];
+    return (first && findPlace(first.placeId, record)?.image) || './assets/sunset-clouds.png';
+  }
   const entries = () => (selected?.schedule || [])
     .filter(entry => Number(entry.day || 1) === day)
     .sort((a, b) => String(a.time).localeCompare(String(b.time)))
@@ -89,7 +93,7 @@ export function mountWorkspace(state, getMap, onChange) {
       content.innerHTML = `${tab === 'mine' ? '<a class="button button-primary full-width" id="workspace-new" href="./planner.html?new=1">＋ 새 여행 작성</a><button type="button" class="text-button" id="workspace-resume">작성 중인 여행 이어쓰기</button>' : ''}
         <div id="workspace-cards" class="workspace-card-grid">${records.map(record => `
           <button type="button" class="workspace-trip-card" data-select-trip="${escapeHtml(record.id)}">
-            <img src="${escapeHtml(record.image || './assets/sunset-clouds.png')}" alt="" loading="lazy">
+            <img src="${escapeHtml(thumbnail(record))}" alt="" loading="lazy">
             <span class="workspace-card-body"><span class="workspace-card-region">${escapeHtml(record.region || '여행')}</span><strong>${escapeHtml(record.title)}</strong><span class="workspace-card-dates">${escapeHtml(record.startDate || '')} — ${escapeHtml(record.endDate || '')}</span><span class="workspace-card-meta">${tab === 'browse' ? escapeHtml(`${record.author || '여행자'} · ${record.people || ''}`) : `${tripDays(record).length}일 여행 · ${(record.schedule || []).length}개 장소`}</span></span>
           </button>`).join('') || `<p class="helper-text">${tab === 'mine' && !state.loggedIn ? '로그인하면 내 여행을 저장하고 공유할 수 있어요.' : '등록된 여행이 없어요.'}</p>`}</div>`;
       content.querySelectorAll('[data-select-trip]').forEach(button => button.onclick = () => {
@@ -101,7 +105,7 @@ export function mountWorkspace(state, getMap, onChange) {
       return;
     }
     content.innerHTML = `<button class="text-button workspace-back" id="workspace-back" type="button">← ${heading} 목록</button>
-      <article class="workspace-selected-trip"><img class="workspace-selected-photo" src="${escapeHtml(selected.image || './assets/sunset-clouds.png')}" alt=""><p class="workspace-card-region">${escapeHtml(selected.region || '여행')}</p><div class="workspace-trip-title"><h3>${escapeHtml(selected.title)}</h3>${joinButton()}</div><p class="helper-text">${escapeHtml(selected.startDate)} — ${escapeHtml(selected.endDate)}${tab === 'browse' ? ` · ${escapeHtml(selected.people || '')}` : ''}</p>${selected.description ? `<p class="workspace-trip-description">${escapeHtml(selected.description)}</p>` : ''}</article>
+      <article class="workspace-selected-trip"><img class="workspace-selected-photo" src="${escapeHtml(thumbnail(selected))}" alt=""><p class="workspace-card-region">${escapeHtml(selected.region || '여행')}</p><div class="workspace-trip-title"><h3>${escapeHtml(selected.title)}</h3>${joinButton()}</div><p class="helper-text">${escapeHtml(selected.startDate)} — ${escapeHtml(selected.endDate)}${tab === 'browse' ? ` · ${escapeHtml(selected.people || '')}` : ''}</p>${selected.description ? `<p class="workspace-trip-description">${escapeHtml(selected.description)}</p>` : ''}</article>
       <div class="workspace-route-toggle" role="group" aria-label="여행 경로 선택"><button type="button" data-workspace-mode="straight" aria-pressed="${mode === 'straight'}">직선</button><button type="button" data-workspace-mode="car" aria-pressed="${mode === 'car'}">차량경로</button></div>
       <div class="trip-day-buttons">${tripDays(selected).map(value => `<button type="button" data-workspace-day="${value}" aria-pressed="${value === day}">DAY ${value}</button>`).join('')}</div>
       <p id="workspace-weather" class="trip-day-weather" role="status"></p>
