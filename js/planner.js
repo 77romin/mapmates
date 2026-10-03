@@ -297,13 +297,23 @@ function renderPlanHeader() {
   const existing = state.companions.find(item => item.tripId === state.trip.id && item.ownerId === state.user.id);
   $('#plan-region').value = state.trip.region || existing?.region || '서울'; if (!$('#plan-region').value) $('#plan-region').value='기타'; $('#plan-theme').value=state.trip.theme || existing?.theme || '자연'; $('#plan-description').value=state.trip.description || existing?.description || '';
   $('#publish-companion').textContent = existing ? '공유한 일정 업데이트' : '동행 구하기';
-  $('#plan-library').innerHTML = state.plans.filter(plan => state.loggedIn && plan.ownerId === state.user.id).map(plan => `<button type="button" data-plan-id="${escapeHtml(plan.id)}" class="${plan.id === state.trip.id ? 'is-active' : ''}">${escapeHtml(plan.trip.title)}</button>`).join('');
+  const plans = state.plans.filter(plan => state.loggedIn && plan.ownerId === state.user.id);
+  $('#plan-library').innerHTML = plans.map(plan => {
+    const shared = state.companions.find(item => item.tripId === plan.id && item.ownerId === state.user.id);
+    const schedule = [...(plan.tripSchedule || [])].sort((a,b) => Number(a.day || 1)-Number(b.day || 1) || String(a.time || '').localeCompare(String(b.time || '')));
+    const first = schedule[0] && (plan.itineraryPlaces?.[schedule[0].placeId] || places.find(place => Number(place.id) === Number(schedule[0].placeId)));
+    const image = first?.image || './assets/sunset-clouds.png';
+    return `<button type="button" data-plan-id="${escapeHtml(plan.id)}" class="plan-card${plan.id === state.trip.id ? ' is-active' : ''}" aria-pressed="${plan.id === state.trip.id}" aria-controls="plan-detail"><img src="${escapeHtml(image)}" alt="" loading="lazy"><span class="plan-card-body"><span class="plan-card-region">${escapeHtml(plan.trip.region || shared?.region || '나만의 여행')} · ${shared ? '동행 공유 중' : '저장된 계획'}</span><strong>${escapeHtml(plan.trip.title)}</strong><span>${escapeHtml(plan.trip.startDate)} — ${escapeHtml(plan.trip.endDate)}</span><span>${schedule.length}개 장소 · ${escapeHtml(plan.trip.theme || shared?.theme || '자유 여행')}</span><span class="plan-card-open">세부 정보 보기 ↗</span></span></button>`;
+  }).join('') || `<p class="helper-text">${state.loggedIn ? '아직 저장한 여행이 없어요. 새 여행을 만들어보세요.' : '로그인하면 저장한 내 여행을 카드로 볼 수 있어요.'}</p>`;
+  $('#plan-library').querySelectorAll('img').forEach(image => image.addEventListener('error', () => { if (!image.dataset.fallback) { image.dataset.fallback = '1'; image.src = './assets/sunset-clouds.png'; } }));
 }
 $('#plan-library').addEventListener('click', event => {
   const plan = state.plans.find(plan => plan.id === event.target.closest('[data-plan-id]')?.dataset.planId && plan.ownerId === state.user.id);
   if (!plan) return;
   Object.assign(state,structuredClone({trip:plan.trip,tripSchedule:plan.tripSchedule,itinerary:plan.itinerary,itineraryPlaces:plan.itineraryPlaces})); activeDay = 1;
   saveState(state); renderPlanHeader(); renderTabs(); renderSchedule(); renderWeather(); drawRoute();
+  $("#plan-detail").focus({preventScroll:true});
+  $("#plan-detail").scrollIntoView({behavior:"smooth",block:"start"});
 });
 function startNewPlan() {
   if (state.loggedIn && state.tripSchedule.length && !savePlan(false)) return;
