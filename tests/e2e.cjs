@@ -1,0 +1,88 @@
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const base = process.env.TEST_URL || 'http://localhost:5500';
+(async () => {
+ const browser = await chromium.launch({channel:'chrome', headless:true});
+ const context = await browser.newContext({viewport:{width:1440,height:1000}});
+ const page = await context.newPage(); const errors = []; const checks = [];
+ page.on('pageerror', error => errors.push(error.message));
+ await context.route('**/config.js',route => route.fulfill({contentType:'application/javascript',body:'window.APP_CONFIG = {}'}));
+ const go = async url => {await page.goto(`${base}/${url}`); await page.waitForTimeout(200);};
+ const check = (name, condition = true) => {assert.ok(condition,name);checks.push(name);console.log('PASS',name);};
+ const storage = () => page.evaluate(()=>JSON.parse(localStorage.getItem('neorang-galjido-v1')));
+ const login = async n => {
+   await go('signup.html?next=companions.html');
+   if (await page.locator('#logout-button').isVisible()) await page.locator('#logout-button').click();
+   await page.locator(`[data-demo-id="demo-${n}"]`).click();
+   await page.locator('#login-form button[type=submit]').click(); await page.waitForURL('**/companions.html');
+ };
+ await go(''); await page.waitForURL('**/intro.html?next=index.html');
+ check('First visit opens introduction');
+ await page.screenshot({path:path.resolve('docs/screenshots/05-intro-desktop.png')});
+ await page.locator('.intro-nav [data-enter]').click(); await page.waitForURL('**/index.html');
+ await go('index.html'); check('Repeat visit opens map',page.url().endsWith('index.html'));
+ let state = await storage();check('10 demo members, 20 posts, 10 saved plans, 10 trips',state.members.length === 10 && state.posts.length === 20 && state.plans.length === 10 && state.companions.length === 10);
+ check('Visitor starts logged out',!state.loggedIn);
+ check('Weather initially hidden', !(await page.locator('#weather-map-badge').isVisible()));
+ await page.locator('[data-layer=weather]').click();check('Weather toggle on',await page.locator('#weather-map-badge').isVisible());
+ await page.locator('[data-layer=weather]').click();check('Weather toggle off',!(await page.locator('#weather-map-badge').isVisible()));
+ await page.locator('.intro-link').click();await page.waitForURL('**/intro.html');check('Introduction can reopen');
+ await login(1);check('Demo account login',(await storage()).user.id === 'demo-1');
+ await go('companion-detail.html?id=1');
+ check('Owner sees recruitment close control',await page.locator('#close-recruitment').isVisible());
+ await page.locator('#close-recruitment').click();check('Owner manually closes recruitment',(await storage()).companions.find(x=>x.id===1).closed);
+ await login(2);await go('companion-detail.html?id=1');check('Closed trip blocks new participation',await page.locator('#join-companion').isDisabled());
+ check('Other user cannot manage trip',!(await page.locator('#owner-edit').isVisible()));
+ await login(1);await go('companion-detail.html?id=1');await page.locator('#close-recruitment').click();
+ await login(2);await go('companion-detail.html?id=1');await page.locator('#join-companion').click();
+ check('Participation records actual member ID',(await storage()).companions[0].participants.some(x=>x.id==='demo-2'));
+ await page.reload();check('Participation survives refresh',(await page.locator('#join-companion').innerText())==='참가 취소');
+ page.once('dialog',d=>d.accept());await page.locator('#join-companion').click();check('Cancellation updates participants',!(await storage()).companions[0].participants.some(x=>x.id==='demo-2'));
+ await login(1);await go('companion-detail.html?id=2');await page.locator('#join-companion').click();check('Capacity auto-closes recruitment',(await storage()).companions.find(x=>x.id===2).status==='closed');await login(5);await go('companion-detail.html?id=2');check('Full trip blocks another participant',await page.locator('#join-companion').isDisabled());await login(1);await go('companion-detail.html?id=2');page.once('dialog',d=>d.accept());await page.locator('#join-companion').click();check('Cancellation reopens capacity-closed trip',(await storage()).companions.find(x=>x.id===2).status!=='closed');await login(2);
+ await go('post-write.html');await page.locator('#post-category').fill('후기');await page.locator('#post-title').fill('검증용 여행 이야기');await page.locator('#post-content').fill('새 계정에서 작성하고 수정하는 여행 기록입니다. <script>alert(1)</script>');
+ await page.locator('#post-submit').click();await page.waitForURL('**/post-detail.html?id=*');let postId = new URL(page.url()).searchParams.get('id');
+ check('Post created under correct owner',(await storage()).posts.find(x=>String(x.id)===postId).ownerId==='demo-2');
+ check('Post HTML escaped',(await page.locator('.post-article-body').innerText()).includes('<script>'));
+ await page.locator('#comment-content').fill('첫 댓글입니다.');await page.locator('#comment-form button[type=submit]').click();check('Comment creation',await page.locator('#comment-count').innerText()==='1');
+ await page.locator('[data-action=edit]').click();await page.locator('.comment-edit-form textarea').fill('수정한 댓글입니다.');await page.locator('.comment-edit-form button[type=submit]').click();check('Comment edit',(await page.locator('#comment-list').innerText()).includes('수정한 댓글'));
+ await page.locator('.post-owner-actions a').click();await page.waitForFunction(()=>document.querySelector('#post-submit')?.textContent==='수정 완료');await page.locator('#post-title').fill('수정된 여행 이야기');await page.locator('#post-submit').click();await page.waitForURL('**/post-detail.html?id=*');await page.waitForFunction(()=>document.querySelector('#post-article h1')?.textContent==='수정된 여행 이야기');check('Post edit',(await page.locator('#post-article h1').innerText())==='수정된 여행 이야기');
+ await login(3);await go(`post-detail.html?id=${postId}`);check('Other user cannot edit/delete post or comments',await page.locator('.post-owner-actions').count()===0 && await page.locator('[data-action=edit]').count()===0 && await page.locator('[data-action=delete]').count()===0);
+ await go(`post-write.html?edit=${postId}`);await page.waitForURL(`**/post-detail.html?id=${postId}`);check('Unauthorized direct edit rejected');
+ await login(2);await go(`post-detail.html?id=${postId}`);page.once('dialog',d=>d.accept());await page.locator('[data-action=delete]').click();check('Comment delete',await page.locator('#comment-count').innerText()==='0');
+ page.once('dialog',d=>d.accept());await page.locator('#delete-post').click();await page.waitForURL('**/community.html?board=travel');check('Post delete',!(await storage()).posts.some(x=>String(x.id)===postId));
+ await login(10);await go('post-write.html?board=notice');check('Administrator can create notice',!(await page.locator('#post-board option[value=notice]').isDisabled()));
+ await page.locator('#post-category').fill('공지');await page.locator('#post-title').fill('체험 공지');await page.locator('#post-content').fill('운영자 계정에서 공지사항을 작성합니다.');await page.locator('#post-submit').click();await page.waitForURL('**/post-detail.html?id=*');check('Notice CRUD enabled for administrator',(await storage()).posts[0].board==='notice');
+ await login(1);await go('planner.html');await page.locator('[data-plan-id="seed-plan-1"]').click();
+ check('Saved plan restores itinerary',await page.locator('.schedule-row').count()===3);
+ await page.locator('#plan-title').fill('수정한 제주 여행');await page.locator('#plan-people').fill('4');await page.locator('#plan-end').fill('2026-10-16');await page.locator('#save-plan').click();
+ check('Trip length derives day tabs',await page.locator('#day-tabs button').count()===5);
+ await page.locator('#publish-companion').click();await page.waitForURL('**/companion-detail.html?id=1');check('Re-share updates original trip',await page.locator('#companion-hero h1').innerText()==='수정한 제주 여행');
+ await page.locator('#close-recruitment').click();await go('planner.html');await page.locator('#publish-companion').click();await page.waitForURL('**/companion-detail.html?id=1');check('Republish preserves manual closure',(await storage()).companions.find(x=>x.id===1).closed);
+ await go('planner.html');await page.locator('#new-plan').click();check('New trip has empty independent itinerary',await page.locator('.schedule-row').count()===0);
+ await go('index.html');await page.locator('.place-card').first().click();await page.locator('[data-add-itinerary]').click();await go('planner.html');await page.locator('#plan-title').fill('새 동행 여행');await page.locator('#plan-people').fill('3');await page.locator('#save-plan').click();await page.locator('#publish-companion').click();await page.waitForURL('**/companion-detail.html?id=*');check('New plan publishes linked itinerary',await page.locator('.companion-schedule li').count()===1);
+ await page.screenshot({path:path.resolve('docs/screenshots/06-companion-detail.png')});
+ await go('mypage.html');await page.locator('#profile-nickname').fill('노을검증자');await page.locator('#profile-form button[type=submit]').click();check('Profile propagates to owned trips',(await storage()).companions.filter(x=>x.ownerId==='demo-1').every(x=>x.author==='노을검증자'));
+ await go('signup.html');await page.locator('#logout-button').click();await page.locator('[data-account-tab=signup]').click();
+ const fillSignup = async email=>{await page.locator('#signup-email').fill(email);await page.locator('#signup-password').fill('NewTrip123!');await page.locator('#signup-password-confirm').fill('NewTrip123!');await page.locator('#signup-name').fill('검증회원');await page.locator('#signup-nickname').fill('검증가입자');await page.locator('#signup-birth').fill('2000-01-01');await page.locator('#signup-gender').selectOption('female');};
+ await fillSignup('traveler2@example.com');await page.locator('#signup-form button[type=submit]').click();check('Duplicate email rejected',(await page.locator('#signup-error').innerText()).includes('이미 가입'));
+ await fillSignup('new@example.com');await page.locator('#signup-form button[type=submit]').click();await page.waitForURL('**/mypage.html');check('Registration adds unique member without deleting others',(await storage()).members.length===11);
+ const newId=(await storage()).user.id;await page.locator('#logout-button').click();await go('signup.html');await page.locator('.recovery-card summary').click();await page.locator('#recover-email').fill('new@example.com');await page.locator('#recover-name').fill('검증회원');await page.locator('#recover-birth').fill('2000-01-01');await page.locator('#recover-password').fill('Recovered123!');await page.locator('#recover-form button').click();
+ await page.locator('#login-email').fill('new@example.com');await page.locator('#login-password').fill('Recovered123!');await page.locator('#login-form button[type=submit]').click();await page.waitForURL('**/mypage.html');check('Local password recovery and login');
+ await page.locator('#settings-toggle').click();await page.locator('#withdraw-password').fill('Recovered123!');page.on('dialog',d=>d.accept());await page.locator('#withdraw-form button[type=submit]').click();await page.waitForURL('**/index.html');check('Withdrawal removes only active account',(await storage()).members.length===10 && !(await storage()).members.some(x=>x.id===newId));
+ for (const width of [1440,390]) {
+   await page.setViewportSize({width,height:900});
+   for (const url of ['intro.html','index.html','signup.html','companions.html','companion-detail.html?id=1','community.html','post-detail.html?id=1','planner.html']) {
+     await go(url);check(`${width}px ${url} no horizontal overflow`,await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth));
+     if(width===390) await page.screenshot({path:path.resolve(`docs/screenshots/mobile-${url.split('.')[0]}.png`),fullPage:url==='intro.html'});
+   }
+ }
+ // Guest planning must survive the login gate.
+ await page.setViewportSize({width:1440,height:1000});await go('index.html');await page.locator('.place-card').first().click();await page.locator('[data-add-itinerary]').click();await go('planner.html');await page.locator('#plan-title').fill('게스트가 준비한 여행');await page.locator('#save-plan').click();await page.waitForURL('**/signup.html?next=*');await page.locator('[data-demo-id="demo-4"]').click();await page.locator('#login-form button[type=submit]').click();await page.waitForURL('**/planner.html');await page.waitForTimeout(200);
+ check('Guest plan survives login',await page.locator('#plan-title').inputValue()==='게스트가 준비한 여행' && await page.locator('.schedule-row').count()>=1);
+ await go('index.html');await page.locator('#add-hotplace-button').click();await page.locator('#hotplace-title').fill('검증용 노을 산책길');await page.locator('#hotplace-description').fill('구름을 바라보며 걸은 산책길입니다.');await page.locator('#hotplace-form button[type=submit]').click();check('Hotplace stores location, photo, visit date, type and description',(await storage()).hotplaces.some(x=>x.title==='검증용 노을 산책길' && x.lat && x.lng && x.date && x.type && x.description && x.image));
+ await go('mypage.html');await page.locator('#profile-photo').setInputFiles(path.resolve('assets/neorang-galjido-logo-square-v2.png'));await page.waitForFunction(()=>document.querySelector('#profile-avatar img')?.src.startsWith('data:image'));await page.locator('#profile-form button[type=submit]').click();check('Profile image compresses and persists',(await storage()).user.photo.startsWith('data:image/jpeg'));
+ await go('planner.html');await page.screenshot({path:path.resolve('docs/screenshots/02-planner.png')});await go('companions.html');await page.screenshot({path:path.resolve('docs/screenshots/03-companions.png')});await go('community.html');await page.screenshot({path:path.resolve('docs/screenshots/04-community.png')});
+ check('No JavaScript page errors',errors.length===0);if(errors.length)console.log(errors);
+ console.log(`${checks.length} checks passed`);await browser.close();
+})().catch(error=>{console.error(error);process.exit(1)});
