@@ -6,7 +6,6 @@ import { popularPlaces } from './popular-places.js';
 
 import { loadState, saveState, initShell, ensureLoggedIn } from './shared.js';
 const NEARBY_RADIUS_METERS = 20000;
-const CHARGER_VISIBLE_MAX_MAP_LEVEL = 7;
 const INITIAL_MAP_CENTER = { lat: 37.50079, lng: 127.03689 };
 const PLACE_CATEGORY_IDS = ['attraction', 'food', 'stay', 'culture', 'course', 'festival', 'shopping'];
 const state = loadState();
@@ -480,11 +479,7 @@ function bindGlobalEvents() {
     button.classList.toggle("is-active", layerVisibility[layer]);
     button.setAttribute("aria-pressed", String(layerVisibility[layer]));
     await updateMapLayer(layer);
-    if (layer === "charger" && layerVisibility.charger && kakaoMap?.getLevel() > CHARGER_VISIBLE_MAX_MAP_LEVEL) {
-      toast("충전소는 지도를 확대된 지도까지 확대하면 표시돼요.");
-    } else {
-      toast(`${button.textContent.trim()} 표시를 ${layerVisibility[layer] ? "켰어요" : "껐어요"}.`);
-    }
+    toast(`${button.textContent.trim()} 표시를 ${layerVisibility[layer] ? "켰어요" : "껐어요"}.`);
   }));
 
 
@@ -650,13 +645,6 @@ function renderWeatherForecast(days) {
 async function refreshChargerLayer() {
   if (!kakaoMap || !layerVisibility.charger) {
     if (!kakaoMap && layerVisibility.charger) { $("#charger-status").hidden = false; $("#charger-status").textContent = "충전소는 카카오 지도가 연결되면 사용할 수 있어요."; }
-    return;
-  }
-  if (kakaoMap.getLevel() > CHARGER_VISIBLE_MAX_MAP_LEVEL) {
-    chargerMarkers.forEach(({ marker, info }) => { marker.setMap(null); info.setMap(null); });
-    chargerMarkers = [];
-    $("#charger-status").hidden = false;
-    $("#charger-status").textContent = "충전소를 보려면 지도를 조금 더 확대하세요.";
     return;
   }
   const revision = ++chargerRevision;
