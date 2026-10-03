@@ -1,5 +1,7 @@
 # 너랑 갈.지도 · MapMates
 
+**한국어** | [English](./README-en.md)
+
 > 너랑 갈 다음 여행을 지도 위에 · Find your route. Meet your mates.
 
 **MapMates**는 **Map(지도) + Mates(함께할 친구들)**를 합친 영어 이름으로, ‘너랑 갈.지도’의 지도와 동행이라는 의미를 담았습니다.
