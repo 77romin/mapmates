@@ -1,4 +1,4 @@
-import { CURRENT_USER_ID } from "./shared.js";
+
 
 export const STATUS_LABELS = { open: "모집 중", soon: "마감 임박", closed: "모집 마감" };
 
@@ -32,9 +32,9 @@ export function syncCompanion(item) {
 }
 
 export function isCompanionOwner(state, item) {
-  return state.loggedIn && item.ownerId === CURRENT_USER_ID;
+  return state.loggedIn && item.ownerId === state.user.id;
 }
 
 export function hasJoined(state, item) {
-  return state.loggedIn && (item.participants || []).some((person) => person.id === CURRENT_USER_ID);
+  return state.loggedIn && (item.participants || []).some((person) => person.id === state.user.id);
 }

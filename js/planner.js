@@ -1,6 +1,6 @@
 import { places } from "./data.js";
 import { api } from "./api.js";
-import { CURRENT_USER_ID, escapeHtml, initShell, loadState, saveState, showToast, todayLabel } from "./shared.js";
+import { escapeHtml, initShell, loadState, saveState, showToast, ensureLoggedIn, todayLabel } from "./shared.js";
 
 const state = initShell("planner", loadState());
 let activeDay = 1;
@@ -11,6 +11,9 @@ const $ = (selector) => document.querySelector(selector);
 const placeById = (id) => places.find((place) => place.id === Number(id)) || state.itineraryPlaces?.[Number(id)] || null;
 const placePoint = (place) => ({ ...place, lat: Number(place.lat) || 33.18 + (70 - Number(place.y || 35)) * .006, lng: Number(place.lng) || 126.2 + Number(place.x || 50) * .0065 });
 
+const days = () => Array.from({length: Math.max(1, Math.min(14, Math.round((new Date(state.trip.endDate) - new Date(state.trip.startDate))/86400000) + 1))}, (_,index) => index + 1);
+state.trip.id ||= crypto.randomUUID();
+let routeRevision = 0;
 function dayDate(day) {
   const date = new Date(`${state.trip.startDate}T00:00:00`);
   date.setDate(date.getDate() + day - 1);
@@ -32,7 +35,7 @@ function currentSchedule() {
 }
 
 function renderTabs() {
-  $("#day-tabs").innerHTML = [1, 2, 3].map((day) => {
+  $("#day-tabs").innerHTML = days().map((day) => {
     const date = dayDate(day);
     return `<button class="${activeDay === day ? "is-active" : ""}" type="button" data-day="${day}">DAY ${day} <small>${date.getMonth() + 1}.${String(date.getDate()).padStart(2, "0")}</small></button>`;
   }).join("");
@@ -52,7 +55,7 @@ function renderSchedule() {
     return `<article class="schedule-row" data-place-id="${place.id}">
       <input class="schedule-time" type="time" value="${escapeHtml(item.time)}" aria-label="${escapeHtml(place.title)} 여행 시각" data-time-id="${place.id}" />
       <img src="${place.image}" alt="" />
-      <div class="schedule-copy"><div class="schedule-heading"><h3>${escapeHtml(place.title)}</h3><div><select data-schedule-day="${place.id}" aria-label="${escapeHtml(place.title)} 여행 일자">${[1, 2, 3].map((day) => `<option value="${day}" ${Number(item.day) === day ? "selected" : ""}>DAY ${day}</option>`).join("")}</select><button type="button" data-remove-schedule="${place.id}" aria-label="${escapeHtml(place.title)} 일정에서 삭제">×</button></div></div><textarea data-memo-id="${place.id}" aria-label="${escapeHtml(place.title)} 메모" placeholder="메모를 입력하세요">${escapeHtml(item.memo)}</textarea></div>
+      <div class="schedule-copy"><div class="schedule-heading"><h3>${escapeHtml(place.title)}</h3><div><select data-schedule-day="${place.id}" aria-label="${escapeHtml(place.title)} 여행 일자">${days().map((day) => `<option value="${day}" ${Number(item.day) === day ? "selected" : ""}>DAY ${day}</option>`).join("")}</select><button type="button" data-remove-schedule="${place.id}" aria-label="${escapeHtml(place.title)} 일정에서 삭제">×</button></div></div><textarea data-memo-id="${place.id}" aria-label="${escapeHtml(place.title)} 메모" placeholder="메모를 입력하세요">${escapeHtml(item.memo)}</textarea></div>
     </article>`;
   }).join("") : `<div class="empty-state"><div><strong>이 날짜에는 일정이 없어요.</strong><span>지도에서 여행지를 추가하거나 다른 날짜를 선택하세요.</span></div></div>`;
   document.querySelectorAll("[data-time-id]").forEach((input) => input.addEventListener("change", () => {
@@ -60,6 +63,7 @@ function renderSchedule() {
     item.time = input.value;
     saveState(state);
     renderSchedule();
+    drawRoute();
   }));
   document.querySelectorAll("[data-memo-id]").forEach((input) => input.addEventListener("input", () => {
     const item = state.tripSchedule.find((entry) => Number(entry.placeId) === Number(input.dataset.memoId));
@@ -107,12 +111,16 @@ function updateRouteSummary(distanceKm, minutes) {
 }
 
 async function drawRoute() {
+  const revision = ++routeRevision;
+  const stops = routePlaces();
+  const estimate = stops.slice(1).reduce((sum, place, index) => sum + haversine(stops[index], place), 0);
+  updateRouteSummary(estimate, estimate * 2.2);
   if (!map || !window.kakao?.maps) return;
   if (routeLine) routeLine.setMap(null);
   routeMarkers.forEach((marker) => marker.setMap(null));
   routeMarkers = [];
   const items = routePlaces();
-  if (!items.length) return;
+  if (!items.length) { $("#route-status").textContent = "지도에서 여행지를 추가해 경로를 만들어보세요."; return; }
   const bounds = new window.kakao.maps.LatLngBounds();
   const directPath = items.map((place) => {
     const coordinates = placePoint(place);
@@ -125,6 +133,7 @@ async function drawRoute() {
   if (state.routeMode === "car" && items.length > 1) {
     $("#route-status").textContent = "카카오모빌리티 차량 경로를 불러오는 중이에요.";
     const result = await api.getCarDirections({ origin: placePoint(items[0]), destination: placePoint(items.at(-1)), waypoints: items.slice(1, -1).map(placePoint) });
+    if (revision !== routeRevision) return;
     const vertices = result?.sections?.flatMap((section) => section.roads?.flatMap((road) => road.vertexes || []) || []) || [];
     if (vertices.length >= 4) {
       const carPath = [];
@@ -138,7 +147,7 @@ async function drawRoute() {
   } else {
     $("#route-status").textContent = "여행지 사이를 직선 경로로 표시하고 있어요.";
   }
-  routeLine = new window.kakao.maps.Polyline({ map, path: directPath, strokeWeight: 5, strokeColor: "#172033", strokeOpacity: .8, strokeStyle: "shortdash" });
+  routeLine = new window.kakao.maps.Polyline({ map, path: directPath, strokeWeight: 5, strokeColor: "#dc3545", strokeOpacity: .8, strokeStyle: "solid" });
   const distance = items.slice(1).reduce((sum, item, index) => sum + haversine(items[index], item), 0);
   updateRouteSummary(distance, distance * 2.2);
 }
@@ -208,7 +217,7 @@ async function renderWeather() {
     api.getMidWeather({ ...midRegionCodes(place), tmFc: midForecastBase() }).catch(() => null),
   ]);
   const grouped = (items || []).reduce((result, item) => { (result[item.fcstDate] ||= []).push(item); return result; }, {});
-  $("#planner-weather").innerHTML = [1, 2, 3].map((day) => {
+  $("#planner-weather").innerHTML = days().map((day) => {
     const date = dayDate(day);
     const key = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
     const values = grouped[key] || [];
@@ -236,21 +245,77 @@ async function initMap() {
   drawRoute();
 }
 
-function publishCompanion() {
-  const existing = state.companions.find((item) => item.ownerId === CURRENT_USER_ID && item.sourceTrip === state.trip.title);
-  const participant = { id: CURRENT_USER_ID, nickname: state.user.nickname, photo: state.user.photo, gender: state.user.gender };
-  const payload = {
-    id: existing?.id || Date.now(), ownerId: CURRENT_USER_ID, sourceTrip: state.trip.title, region: "제주", theme: "여행", status: "open",
-    title: `${state.trip.title} 동행을 구해요`, description: "작성한 여행계획을 함께 즐길 동행을 모집합니다.", dates: `${state.trip.startDate.replaceAll("-", ".")} - ${state.trip.endDate.slice(5).replace("-", ".")}`,
-    people: `${existing?.participants?.length || 1}/${state.trip.people}명`, author: state.user.nickname, avatar: state.user.nickname[0], tags: ["여행계획", "제주", "동행"], image: routePlaces()[0]?.image || places[0].image,
-    participants: existing?.participants || [participant], schedule: state.tripSchedule,
-  };
-  if (existing) Object.assign(existing, payload); else state.companions.unshift(payload);
-  saveState(state);
-  window.location.href = `./companion-detail.html?id=${payload.id}`;
+function readTripForm() {
+  const title = $('#plan-title').value.trim();
+  const startDate = $('#plan-start').value;
+  const endDate = $('#plan-end').value;
+  const span = (new Date(endDate) - new Date(startDate)) / 86400000;
+  if (!title || !startDate || !endDate || span < 0 || span > 13) { showToast('제목과 1~14일 이내의 올바른 여행 기간을 입력해주세요.'); return false; }
+  if (state.tripSchedule.some(entry => Number(entry.day) > span + 1)) { showToast('기간을 줄이기 전에 이후 날짜의 일정을 이동하거나 삭제해주세요.'); return false; }
+  const people = Number($('#plan-people').value);
+  const budget = Number($('#plan-budget').value);
+  if (!Number.isInteger(people) || people < 2 || people > 10 || !Number.isFinite(budget) || budget < 0) { showToast('정원은 2~10명, 예산은 0원 이상으로 입력해주세요.'); return false; }
+  Object.assign(state.trip, {title,startDate,endDate,people,budget});
+  return true;
 }
+function savePlan(notify = true) {
+  if (!readTripForm()) return false;
+  if (!ensureLoggedIn(state, '여행계획을 저장하려면 로그인해주세요.')) return false;
+  const snapshot = structuredClone({id:state.trip.id,ownerId:state.user.id,trip:state.trip,tripSchedule:state.tripSchedule,itinerary:state.itinerary,itineraryPlaces:state.itineraryPlaces});
+  const index = state.plans.findIndex(plan => plan.id === snapshot.id && plan.ownerId === state.user.id);
+  if (index >= 0) state.plans[index] = snapshot; else state.plans.unshift(snapshot);
+  try { saveState(state); } catch { showToast('저장 공간이 부족해 계획을 저장하지 못했어요.'); return false; }
+  renderPlanHeader(); renderTabs(); renderSchedule(); renderWeather(); drawRoute();
+  if (notify) showToast('여행계획을 저장했어요. 이제 동행을 모집할 수 있어요.');
+  return true;
+}
+function publishCompanion() {
+  if (!state.tripSchedule.length) return showToast('지도에서 여행지를 먼저 추가해주세요.');
+  if (!savePlan(false)) return;
+  const existing = state.companions.find(item => item.ownerId === state.user.id && item.tripId === state.trip.id);
+  if (existing?.participants.length > state.trip.people) return showToast('현재 참가자 수보다 정원을 줄일 수 없어요.');
+  const participant = {id:state.user.id,nickname:state.user.nickname,photo:state.user.photo,gender:state.user.gender};
+  const allPlaces = Object.fromEntries(state.tripSchedule.map(entry => [entry.placeId,placeById(entry.placeId)]).filter(([,place]) => place));
+  const region = $('#plan-region').value;
+  const payload = {
+    id:existing?.id || Date.now(), ownerId:state.user.id, tripId:state.trip.id, sourceTrip:state.trip.title, region, theme:$('#plan-theme').value,
+    title:state.trip.title, description:$('#plan-description').value.trim() || '이 여행계획을 함께 즐길 동행을 모집해요. 아래 일정에서 우리 여행을 미리 확인하세요.',
+    dates:`${state.trip.startDate.replaceAll('-', '.')} - ${state.trip.endDate.replaceAll('-', '.')}`,
+    startDate:state.trip.startDate, endDate:state.trip.endDate, people:`${existing?.participants.length || 1}/${state.trip.people}명`,author:state.user.nickname,avatar:state.user.nickname[0],tags:[region,'여행계획','동행'],image:Object.values(allPlaces)[0]?.image || places[0].image,
+    participants:existing?.participants || [participant], schedule:structuredClone(state.tripSchedule), places:structuredClone(allPlaces), closed:existing?.closed || false,
+  };
+  if (existing) Object.assign(existing,payload); else state.companions.unshift(payload);
+  try { saveState(state); } catch { return showToast('모집글을 저장하지 못했어요. 저장 공간을 확인해주세요.'); }
+  location.href = `./companion-detail.html?id=${payload.id}`;
+}
+function renderPlanHeader() {
+  $('#trip-title').textContent = state.trip.title;
+  $('#trip-dates').textContent = `${state.trip.startDate} — ${state.trip.endDate}`;
+  $('#plan-duration').textContent = `${days().length}일 여행`;
+  $('#plan-title').value = state.trip.title; $('#plan-start').value = state.trip.startDate; $('#plan-end').value = state.trip.endDate;
+  $('#plan-people').value = state.trip.people; $('#plan-budget').value = state.trip.budget || 0;
+  const existing = state.companions.find(item => item.tripId === state.trip.id && item.ownerId === state.user.id);
+  if (existing) { $('#plan-region').value = existing.region; $('#plan-theme').value = existing.theme; $('#plan-description').value = existing.description; }
+  $('#publish-companion').textContent = existing ? '공유한 일정 업데이트' : '동행 구하기';
+  $('#plan-library').innerHTML = state.plans.filter(plan => state.loggedIn && plan.ownerId === state.user.id).map(plan => `<button type="button" data-plan-id="${escapeHtml(plan.id)}" class="${plan.id === state.trip.id ? 'is-active' : ''}">${escapeHtml(plan.trip.title)}</button>`).join('');
+}
+$('#plan-library').addEventListener('click', event => {
+  const plan = state.plans.find(plan => plan.id === event.target.closest('[data-plan-id]')?.dataset.planId && plan.ownerId === state.user.id);
+  if (!plan) return;
+  Object.assign(state,structuredClone({trip:plan.trip,tripSchedule:plan.tripSchedule,itinerary:plan.itinerary,itineraryPlaces:plan.itineraryPlaces})); activeDay = 1;
+  saveState(state); renderPlanHeader(); renderTabs(); renderSchedule(); renderWeather(); drawRoute();
+});
+$('#new-plan').addEventListener('click', () => {
+  if (!ensureLoggedIn(state)) return;
+  if (state.tripSchedule.length && !savePlan(false)) return;
+  const startDate = new Date().toLocaleDateString('en-CA');
+  state.trip = {id:crypto.randomUUID(),title:'새로운 여행',startDate,endDate:startDate,people:4,budget:0};
+  state.itinerary = []; state.tripSchedule = []; state.itineraryPlaces = {}; activeDay = 1;
+  $('#plan-description').value = ''; saveState(state); renderPlanHeader(); renderTabs(); renderSchedule(); drawRoute(); renderWeather();
+});
 
 syncSchedule();
+renderPlanHeader();
 $("#trip-title").textContent = state.trip.title;
 $("#trip-dates").textContent = `${state.trip.startDate.replaceAll("-", ".")} - ${state.trip.endDate.replaceAll("-", ".")}`;
 renderTabs();
@@ -263,6 +328,6 @@ document.querySelectorAll("[data-route-mode]").forEach((button) => button.addEve
   drawRoute();
 }));
 document.querySelectorAll("[data-route-mode]").forEach((button) => button.classList.toggle("is-active", button.dataset.routeMode === state.routeMode));
-$("#save-plan").addEventListener("click", () => { saveState(state); showToast("여행계획을 저장했어요."); });
+$("#save-plan").addEventListener("click", () => savePlan());
 $("#publish-companion").addEventListener("click", publishCompanion);
 initMap();

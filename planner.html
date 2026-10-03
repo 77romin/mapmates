@@ -7,7 +7,9 @@
     <link rel="icon" type="image/png" href="./assets/neorang-galjido-logo-square-v2.png" />
     <link rel="stylesheet" href="./css/style.css" />
     <link rel="stylesheet" href="./css/subpages.css" />
-  </head>
+    <link rel="stylesheet" href="./css/sunset.css">
+  <script src="./js/first-visit.js"></script>
+</head>
   <body>
     <a class="skip-link" href="#main-content">본문 바로가기</a>
     <header class="topbar">
@@ -22,10 +24,19 @@
           <div><p class="eyebrow">TRIP PLANNER</p><h1>여행 계획</h1><p>장소별 여행 시각과 메모를 정리하고 실제 차량 경로를 확인하세요.</p></div>
           <div class="subpage-actions"><a class="button button-secondary" href="./index.html">＋ 지도에서 장소 추가</a><button class="button button-primary" id="publish-companion" type="button">동행 구하기</button></div>
         </header>
+        <p class="flow-note">장소 담기 → 계획 저장 → 동행 모집 → 참가자 확인<br>공유 후 계획을 수정했다면 ‘공유한 일정 업데이트’를 눌러 동행에게 새 일정을 전달하세요.</p>
+        <div class="section-title-row"><h2>내 여행계획</h2><button class="button button-secondary" id="new-plan" type="button">＋ 새 여행</button></div><div id="plan-library" class="plan-library"></div>
         <div class="planner-page-grid">
           <section class="subpage-card planner-board">
             <div class="section-title-row"><div><span class="status-badge navy">저장됨</span><h2 id="trip-title">제주, 우리 둘의 지도</h2></div><button class="button button-secondary" id="save-plan" type="button">저장</button></div>
-            <div class="planner-summary"><strong id="trip-dates">2026.10.12 - 2026.10.14</strong><span>2박 3일</span><span>여행지 시각순 자동 정렬</span></div>
+            <div class="planner-summary"><strong id="trip-dates">2026.10.12 - 2026.10.14</strong><span id="plan-duration">3일 여행</span><span>여행지 시각순 자동 정렬</span></div>
+            <div class="trip-editor">
+              <label class="field is-full">여행 제목<input id="plan-title" maxlength="80" required></label>
+              <label class="field">출발일<input id="plan-start" type="date" required></label><label class="field">종료일<input id="plan-end" type="date" required></label>
+              <label class="field">동행 정원 (나 포함)<input id="plan-people" type="number" min="2" max="10"></label><label class="field">예상 여행경비 (원)<input id="plan-budget" type="number" min="0" step="1000"></label>
+              <label class="field">지역<select id="plan-region"><option>제주</option><option>서울</option><option>부산</option><option>강원</option><option>기타</option></select></label><label class="field">테마<select id="plan-theme"><option>자연</option><option>사진</option><option>맛집</option><option>문화</option></select></label>
+              <label class="field is-full">동행에게 전할 소개<textarea id="plan-description" maxlength="2000" placeholder="어떤 여행을 함께하고 싶나요?"></textarea></label>
+            </div>
             <div class="day-tabs" id="day-tabs"><button class="is-active" type="button" data-day="1">DAY 1 <small>10.12</small></button><button type="button" data-day="2">DAY 2 <small>10.13</small></button><button type="button" data-day="3">DAY 3 <small>10.14</small></button></div>
             <div class="planner-weather" id="planner-weather" aria-label="일자별 날씨"></div>
             <div class="schedule-list" id="schedule-list"></div>

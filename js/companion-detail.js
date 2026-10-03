@@ -1,5 +1,6 @@
+import { api } from "./api.js";
 import { places } from "./data.js";
-import { CURRENT_USER_ID, ensureLoggedIn, escapeHtml, initShell, loadState, showToast, userAvatar } from "./shared.js";
+import { ensureLoggedIn, escapeHtml, initShell, loadState, showToast, userAvatar } from "./shared.js";
 import { persist } from "./account.js";
 import { STATUS_LABELS, companionCapacity, hasJoined, isCompanionOwner, syncCompanion } from "./companion-utils.js";
 
@@ -8,21 +9,73 @@ const id = Number(new URLSearchParams(location.search).get("id"));
 const item = state.companions.find((entry) => Number(entry.id) === id);
 const $ = (selector) => document.querySelector(selector);
 const MAX_CAPACITY = 10;
+const placeForEntry = entry => item.places?.[Number(entry.placeId)] || places.find(place => place.id === Number(entry.placeId)) || state.itineraryPlaces?.[Number(entry.placeId)];
+let routeMap = null;
+let routeOverlays = [];
+let routeLine = null;
+
+function routeEntries() {
+  const selectedDay = $('#companion-route-day').value;
+  return [...(item.schedule || [])].filter(entry => selectedDay === 'all' || Number(entry.day || 1) === Number(selectedDay))
+    .sort((a,b) => Number(a.day || 1) - Number(b.day || 1) || String(a.time).localeCompare(String(b.time)))
+    .map(entry => ({...entry,place:placeForEntry(entry)}));
+}
+function drawCompanionRoute() {
+  const entries = routeEntries();
+  const points = entries.filter(entry => entry.place && Number.isFinite(Number(entry.place.lat)) && Number.isFinite(Number(entry.place.lng)) && Math.abs(Number(entry.place.lat)) <= 90 && Math.abs(Number(entry.place.lng)) <= 180);
+  $('#companion-route-stops').innerHTML = entries.map((entry,index) => `<li><b>${index + 1}</b><span>${Number(entry.day || 1)}일차 ${escapeHtml(entry.time || '')} · ${escapeHtml(entry.place?.title || '위치 미등록 장소')}</span></li>`).join('');
+  routeOverlays.forEach(overlay => overlay.setMap(null)); routeOverlays = [];
+  routeLine?.setMap(null);
+  if (!points.length) {
+    $('#companion-route-status').textContent = '표시할 장소 좌표가 없어요. 모집자가 일정을 등록하면 동선을 볼 수 있습니다.';
+    if (!routeMap) $('#companion-route-map').textContent = '아직 등록된 동선이 없어요.';
+    return;
+  }
+  if (!routeMap) {
+    const minLat = Math.min(...points.map(entry => Number(entry.place.lat))), maxLat = Math.max(...points.map(entry => Number(entry.place.lat)));
+    const minLng = Math.min(...points.map(entry => Number(entry.place.lng))), maxLng = Math.max(...points.map(entry => Number(entry.place.lng)));
+    const locations = points.map(entry => ({x:60+(Number(entry.place.lng)-minLng)/(maxLng-minLng || 1)*680,y:235-(Number(entry.place.lat)-minLat)/(maxLat-minLat || 1)*180,index:entries.indexOf(entry)+1}));
+    $('#companion-route-map').innerHTML = `<svg viewBox="0 0 800 300" role="img" aria-label="직선 동선 미리보기"><polyline points="${locations.map(point=>`${point.x},${point.y}`).join(' ')}" fill="none" stroke="#dc3545" stroke-width="4"/>${locations.map(point=>`<circle cx="${point.x}" cy="${point.y}" r="18" fill="#dc3545"/><text x="${point.x}" y="${point.y+5}" text-anchor="middle" fill="white" font-size="14">${point.index}</text>`).join('')}</svg>`;
+    $('#companion-route-status').textContent = '지도를 연결하지 못해 좌표 기반 동선 미리보기를 표시합니다. 아래 장소 목록에서 방문 순서를 확인하세요.';
+    return;
+  }
+  const bounds = new window.kakao.maps.LatLngBounds();
+  const path = points.map(entry => {
+    const position = new window.kakao.maps.LatLng(Number(entry.place.lat),Number(entry.place.lng)); bounds.extend(position);
+    const marker = document.createElement('button'); marker.type = 'button'; marker.className = 'companion-route-marker'; marker.textContent = entries.indexOf(entry)+1;
+    marker.setAttribute('aria-label',`${marker.textContent}번 ${entry.place.title}`);
+    marker.addEventListener('click',()=>showToast(`${entry.day || 1}일차 ${entry.time || ''} · ${entry.place.title}`));
+    routeOverlays.push(new window.kakao.maps.CustomOverlay({map:routeMap,position,content:marker,yAnchor:1,zIndex:5}));
+    return position;
+  });
+  routeLine = new window.kakao.maps.Polyline({map:routeMap,path,strokeColor:'#dc3545',strokeWeight:5,strokeOpacity:.9,strokeStyle:'solid'});
+  if (path.length === 1) { routeMap.setCenter(path[0]); routeMap.setLevel(5); } else routeMap.setBounds(bounds,45,45,45,45);
+  $('#companion-route-status').textContent = `${points.length}곳의 방문 동선${entries.length !== points.length ? ' · 좌표가 없는 장소는 지도에서 제외했어요.' : ''}`;
+}
+async function initCompanionRoute() {
+  const days = [...new Set((item.schedule || []).map(entry=>Number(entry.day || 1)))].sort((a,b)=>a-b);
+  $('#companion-route-day').innerHTML = '<option value="all">전체 일정</option>' + days.map(day=>`<option value="${day}">${day}일차</option>`).join('');
+  $('#companion-route-day').addEventListener('change',drawCompanionRoute);
+  const loaded = await api.loadKakaoMap();
+  if (loaded) routeMap = new window.kakao.maps.Map($('#companion-route-map'),{center:new window.kakao.maps.LatLng(36,127.5),level:8});
+  drawCompanionRoute();
+}
+
 
 function scheduleMarkup(canSeeDetail) {
   if (!item.schedule?.length) return "";
-  if (!canSeeDetail) return `<h2>여행 일정</h2><p>${item.schedule.length}개의 여행지가 계획되어 있어요. 참가 후 상세 일정을 함께 확인할 수 있습니다.</p>`;
+
   const rows = [...item.schedule]
     .sort((a, b) => Number(a.day) - Number(b.day) || String(a.time).localeCompare(String(b.time)))
     .map((entry) => {
-      const place = places.find((candidate) => candidate.id === Number(entry.placeId)) || state.itineraryPlaces?.[Number(entry.placeId)];
+      const place = placeForEntry(entry);
       return `<li><span class="schedule-day">${Number(entry.day) || 1}일차 ${escapeHtml(entry.time || "")}</span><strong>${escapeHtml(place?.title || "여행지")}</strong>${entry.memo ? `<p>${escapeHtml(entry.memo)}</p>` : ""}</li>`;
     });
   return `<h2>여행 일정</h2><ol class="companion-schedule">${rows.join("")}</ol>`;
 }
 
 function participantMarkup(person) {
-  const role = person.id === (item.ownerId || `seed-${item.id}`) ? "모집자" : person.id === CURRENT_USER_ID && state.loggedIn ? "나" : "";
+  const role = person.id === (item.ownerId || `seed-${item.id}`) ? "모집자" : person.id === state.user.id && state.loggedIn ? "나" : "";
   return `<li>${userAvatar(person)}<span>${escapeHtml(person.nickname || "여행자")}</span>${role ? `<small>${role}</small>` : ""}</li>`;
 }
 
@@ -60,13 +113,15 @@ function render() {
   $("#participant-list").innerHTML = item.participants.map(participantMarkup).join("");
   renderJoinButton(isOwner, joined);
   $("#owner-edit").hidden = !isOwner;
+  $('#close-recruitment').hidden = !isOwner;
+  $('#close-recruitment').textContent = item.closed ? '참여모집 다시 열기' : '참여마감';
   if (isOwner) renderOwnerForm();
 }
 
 function toggleJoin() {
   if (!ensureLoggedIn(state, "동행에 참가하려면 로그인이 필요해요.")) return;
   if (isCompanionOwner(state, item)) return;
-  const index = item.participants.findIndex((person) => person.id === CURRENT_USER_ID);
+  const index = item.participants.findIndex((person) => person.id === state.user.id);
   if (index >= 0) {
     if (!confirm("동행 참가를 취소할까요?")) return;
     item.participants.splice(index, 1);
@@ -74,11 +129,11 @@ function toggleJoin() {
   } else {
     syncCompanion(item);
     if (item.status === "closed") return showToast("모집이 마감된 동행이에요.");
-    item.participants.push({ id: CURRENT_USER_ID, nickname: state.user.nickname, photo: state.user.photo, gender: state.user.gender });
+    item.participants.push({ id: state.user.id, nickname: state.user.nickname, photo: state.user.photo, gender: state.user.gender });
     state.joinedCompanions = [...new Set([...state.joinedCompanions, item.id])];
   }
   syncCompanion(item);
-  persist(state);
+  if (!persist(state)) return;
   render();
   showToast(index >= 0 ? "동행 참가를 취소했어요." : "동행 참가를 완료했어요.");
 }
@@ -104,7 +159,7 @@ function saveOwnerEdit(event) {
     closed: $("#owner-closed").checked,
   });
   syncCompanion(item);
-  persist(state);
+  if (!persist(state)) return;
   render();
   showToast("모집글을 수정했어요.");
 }
@@ -122,8 +177,15 @@ if (!item) {
   $("#companion-view").hidden = true;
   $("#companion-missing").hidden = false;
 } else {
+  $('#close-recruitment').addEventListener('click', () => {
+    if (!isCompanionOwner(state,item)) return;
+    if (item.closed && item.participants.length >= companionCapacity(item)) return showToast('정원을 늘린 다음 모집을 다시 열 수 있어요.');
+    item.closed = !item.closed; syncCompanion(item);
+    if (!persist(state)) return; render(); showToast(item.closed ? '참여를 마감했어요. 기존 참가자는 일정을 확인할 수 있어요.' : '동행 모집을 다시 열었어요.');
+  });
   $("#join-companion").addEventListener("click", toggleJoin);
   $("#owner-edit-form").addEventListener("submit", saveOwnerEdit);
   $("#owner-delete").addEventListener("click", deleteCompanion);
   render();
+  initCompanionRoute();
 }

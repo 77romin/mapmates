@@ -7,6 +7,8 @@
   <link rel="icon" type="image/png" href="./assets/neorang-galjido-logo-square-v2.png">
   <link rel="stylesheet" href="./css/style.css">
   <link rel="stylesheet" href="./css/subpages.css">
+  <link rel="stylesheet" href="./css/sunset.css">
+  <script src="./js/first-visit.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">본문 바로가기</a>
@@ -22,6 +24,13 @@
       <a class="text-button" href="./companions.html">← 동행 목록</a>
       <div id="companion-view">
         <section class="subpage-card detail-hero" id="companion-hero"></section>
+        <section class="subpage-card companion-route-card" aria-labelledby="companion-route-title">
+          <div class="section-title-row"><div><p class="eyebrow">OUR TRAVEL ROUTE</p><h2 id="companion-route-title">여행 동선</h2></div><label class="field">일정 선택<select id="companion-route-day" aria-label="지도에 표시할 여행 일차"></select></label></div>
+          <p class="helper-text">방문 시각순으로 연결한 빨간 실선은 직선 동선입니다. 실제 도로 경로와 다를 수 있어요.</p>
+          <div id="companion-route-map" class="companion-route-map" aria-label="동행 여행 동선 지도"></div>
+          <p id="companion-route-status" class="helper-text" role="status">지도를 불러오는 중이에요.</p>
+          <ol id="companion-route-stops" class="companion-route-stops" aria-label="지도 방문 순서"></ol>
+        </section>
         <div class="detail-layout-page">
           <article class="subpage-card detail-content" id="companion-content"></article>
           <aside class="subpage-card detail-sidebar" aria-labelledby="participant-title">
@@ -29,6 +38,7 @@
             <p class="helper-text"><span class="gender-dot is-male"></span>남성 <span class="gender-dot is-female"></span>여성 테두리로 표시됩니다.</p>
             <ul class="participant-list" id="participant-list"></ul>
             <button class="button button-primary full-width" id="join-companion" type="button">참가 신청</button>
+            <button id="close-recruitment" class="button button-secondary close-recruitment" type="button" hidden>참여마감</button>
             <p class="helper-text" id="join-help"></p>
           </aside>
         </div>
@@ -58,6 +68,7 @@
 
   <nav class="mobile-nav" aria-label="모바일 메뉴"><a data-page-link="explore" href="./index.html"><span>⌖</span>지도</a><a data-page-link="planner" href="./planner.html"><span>☷</span>일정</a><a data-page-link="companions" href="./companions.html"><span>♙</span>동행</a><a data-page-link="community" href="./community.html"><span>□</span>라운지</a><a data-page-link="mypage" href="./mypage.html"><span>○</span>MY</a></nav>
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
+  <script src="./config.js" onerror="this.remove()"></script>
   <script type="module" src="./js/companion-detail.js"></script>
 </body>
 </html>
