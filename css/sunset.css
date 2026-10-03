@@ -79,3 +79,4 @@ body { background:radial-gradient(ellipse at 90% 0,#edd3cf70,transparent 50%),li
 /* Anchors and native buttons share the same centered button box. */
 .button{display:inline-flex;align-items:center;justify-content:center;gap:8px;line-height:1.4;text-align:center;vertical-align:middle;text-decoration:none}
 a.button:hover,a.button:focus{text-decoration:none}
+.comment-form{grid-template-columns:minmax(0,1fr) 44px;align-items:center;gap:12px}.comment-form .field{min-width:0}.comment-form .comment-send{width:44px;height:44px;min-height:44px;padding:0;margin-bottom:18px;border-radius:50%;align-self:center}.comment-send svg{display:block;flex-shrink:0}.comment-send:hover{transform:translateY(-2px)}.comment-send:focus-visible{outline:3px solid #ca987f;outline-offset:3px}
