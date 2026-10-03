@@ -22,7 +22,7 @@ const base = process.env.TEST_URL || 'http://localhost:5500';
  await page.screenshot({path:path.resolve('docs/screenshots/05-intro-desktop.png')});
  await page.locator('.intro-nav [data-enter]').click(); await page.waitForURL('**/index.html');
  await go('index.html'); check('Repeat visit opens map',page.url().endsWith('index.html'));
- let state = await storage();check('10 demo members, 20 posts, 10 saved plans, 10 trips',state.members.length === 10 && state.posts.length === 20 && state.plans.length === 10 && state.companions.length === 10);
+ let state = await storage();check('10 demo members, 50 posts, 40 saved plans, 40 trips',state.members.length === 10 && state.posts.length === 50 && state.plans.length === 40 && state.companions.length === 40);
  check('Visitor starts logged out',!state.loggedIn);
  check('Weather initially hidden', !(await page.locator('#weather-map-badge').isVisible()));
  await page.locator('[data-layer=weather]').click();check('Weather toggle on',await page.locator('#weather-map-badge').isVisible());

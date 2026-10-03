@@ -1,3 +1,4 @@
+import { addDemoExpansion } from './demo-expansion.js';
 import { companions as seedCompanions, posts as seedPosts, hotplaces as seedHotplaces, members as seedMembers, demoPlaceCorrections, demoPhotoCorrections } from "./data.js";
 
 export const STORAGE_KEY = "neorang-galjido-v1";
@@ -91,6 +92,9 @@ export function loadState() {
     }));
     state.demoPhotoVersion=1;
     try { localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); } catch { /* Keep corrected photographs visible for this session. */ }
+  }
+  if (addDemoExpansion(state)) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* Keep extra demo entries readable in this session. */ }
   }
   state.user = state.loggedIn ? state.members.find(member => member.id === state.user.id) || state.user : state.user;
   state.joinedCompanions = state.companions.filter(item => item.participants?.some(person => person.id === state.user.id)).map(item => item.id);
