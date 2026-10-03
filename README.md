@@ -10,8 +10,8 @@ HTML·CSS·JavaScript로 구현한 프론트엔드 프로젝트이며 회원, �
 
 | GitHub 프로필 사진 | 이름 | 담당업무 |
 | --- | --- | --- |
-| <a href="https://github.com/77romin"><img src="https://github.com/77romin.png?size=160" width="80" height="80" alt="김강민 GitHub 프로필 사진"></a> | [김강민](https://github.com/77romin) | **지도·내 여행·외부 API·통합** — 카카오맵, TourAPI 주변 검색, 여행지 필터, 날씨·충전소, 일정 편집, 차량 경로, 공통 상태 관리와 통합 테스트 |
-| <a href="https://github.com/yeeunma"><img src="https://github.com/yeeunma.png?size=160" width="80" height="80" alt="마예은 GitHub 프로필 사진"></a> | [마예은](https://github.com/yeeunma) | **회원·동행·커뮤니티** — 회원가입·로그인, 프로필 관리, 동행 목록·상세·참가 권한, 게시글·댓글·대댓글, 서브페이지 반응형과 접근성 |
+| <a href="https://github.com/77romin"><img src="https://github.com/77romin.png?size=160" width="80" height="80" alt="김강민 GitHub 프로필 사진"></a> | [김강민](https://github.com/77romin) | **기획·지도·내 여행·외부 API 통합·동행** — 카카오맵·공공데이터 관광정보 API 연결과 주변 검색, 여행지 필터, 날씨, 일정 편집, 차량 경로, 공통 상태 관리와 통합 테스트, 동행 목록·상세·참가 권한, 서브페이지 반응형과 접근성 |
+| <a href="https://github.com/yeeunma"><img src="https://github.com/yeeunma.png?size=160" width="80" height="80" alt="마예은 GitHub 프로필 사진"></a> | [마예은](https://github.com/yeeunma) | **회원·커뮤니티·전기차 충전소** — 회원가입, 로그인, 프로필 관리, 게시글·댓글·대댓글 구현, 전기차 충전소 정보와 현황 |
 
 자세한 업무 분담은 [업무 분담 문서](./docs/WORK_SPLIT.md)를 참고하세요.
 
