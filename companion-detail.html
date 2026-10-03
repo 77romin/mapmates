@@ -25,8 +25,9 @@
       <div id="companion-view">
         <section class="subpage-card detail-hero" id="companion-hero"></section>
         <section class="subpage-card companion-route-card" aria-labelledby="companion-route-title">
-          <div class="section-title-row"><div><p class="eyebrow">OUR TRAVEL ROUTE</p><h2 id="companion-route-title">여행 동선</h2></div><label class="field">일정 선택<select id="companion-route-day" aria-label="지도에 표시할 여행 일차"></select></label></div>
-          <p class="helper-text">방문 시각순으로 연결한 빨간 실선은 직선 동선입니다. 실제 도로 경로와 다를 수 있어요.</p>
+          <div class="section-title-row"><div><p class="eyebrow">OUR TRAVEL ROUTE</p><h2 id="companion-route-title">여행 동선</h2></div><div class="trip-map-options"><label>경로<select id="companion-route-mode"><option value="straight">직선</option><option value="car">차량경로</option></select></label><label>지도 타입<select id="companion-map-type"><option value="roadmap">일반</option><option value="skyview">스카이뷰</option><option value="roadview">로드뷰</option><option value="terrain">지형도</option></select></label></div></div>
+          <div id="companion-day-buttons" class="trip-day-buttons" aria-label="여행 일차"></div>
+          <p id="companion-day-weather" class="trip-day-weather" role="status"></p><p id="companion-map-help" class="helper-text"></p>
           <div id="companion-route-map" class="companion-route-map" aria-label="동행 여행 동선 지도"></div>
           <p id="companion-route-status" class="helper-text" role="status">지도를 불러오는 중이에요.</p>
           <ol id="companion-route-stops" class="companion-route-stops" aria-label="지도 방문 순서"></ol>

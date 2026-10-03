@@ -19,3 +19,37 @@ body { background:radial-gradient(ellipse at 90% 0,#edd3cf70,transparent 50%),li
 .map-controls {align-content:start;}.place-filter-panel {top:130px;}.place-filter-options button {font-size:12px;}.place-filter-options button.is-active {background:#f4e4d8;color:#80524d;border-color:#c69d86;}.place-filter-section>strong {color:#a46855;}.notification-button {text-decoration:none;}
 @media(max-width:760px) {.map-view.is-active {height:calc(100svh - 64px);min-height:440px;}.map-controls {top:auto;bottom:92px;}.mobile-search-fab {bottom:24px;display:flex;}.map-categories {top:18px;}.weather-forecast-card {top:74px;width:calc(100% - 82px);left:14px;transform:none;}.place-filter-panel {top:68px;}.layer-status {bottom:76px;}.map-type-menu {top:auto;bottom:0;}.intro-link {font-size:11px;}}
 .companion-route-card {padding:24px;margin:20px 0;}.companion-route-card h2 {margin:0;font-size:24px;}.companion-route-map {height:350px;border-radius:16px;overflow:hidden;background:#efe6df;display:grid;place-items:center;}.companion-route-map svg {width:100%;height:100%;}.companion-route-marker {width:34px;height:34px;border:3px solid #fff;border-radius:50%;background:#dc3545;color:#fff;box-shadow:0 3px 12px #6b353544;font-size:13px;font-weight:700;}.companion-route-stops {display:flex;flex-wrap:wrap;gap:12px;margin:14px 0 0;padding:0;list-style:none;}.companion-route-stops li {display:flex;align-items:center;gap:8px;font-size:12px;}.companion-route-stops b {display:grid;place-items:center;background:#dc3545;color:#fff;border-radius:50%;width:24px;height:24px;flex-shrink:0;}@media(max-width:640px){.companion-route-card{padding:18px;}.companion-route-map{height:280px;}.companion-route-stops{flex-direction:column;}}
+/* The map remains the workspace for discovering, viewing and planning trips. */
+#explore-panel-content {display:flex;flex-direction:column;min-height:0;flex:1;overflow:hidden}
+#explore-panel-content[hidden],#map-workspace[hidden]{display:none}
+#map-workspace{overflow:auto;padding-bottom:26px}
+#map-workspace h2{margin:5px 0 20px} #map-workspace h3{margin:25px 0 12px}
+.workspace-trip-card{padding:14px;margin:14px 0;background:#fffaf5;border:1px solid #e6d6ce;border-radius:18px}
+.workspace-trip-card.is-selected{border-color:#ac705d;background:#f5e9e1}
+.workspace-trip-card>button{display:grid;gap:8px;text-align:left;border:0;background:none;width:100%;padding:0;color:#483b39}
+.workspace-trip-card strong{font-size:16px}.workspace-trip-card span{font-size:12px;color:#81746f}
+.trip-card-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px;font-size:12px}
+.trip-card-actions select,.trip-map-options select{padding:7px;border:1px solid #dbc7bf;border-radius:9px;background:#fffaf6;color:#544343}
+.trip-card-actions button{border:0;background:none;color:#915c4c}
+.trip-map-options{display:flex;gap:15px;flex-wrap:wrap}.trip-map-options label{display:grid;gap:5px}
+.trip-day-buttons{display:flex;gap:7px;overflow:auto;margin:17px 0 12px;padding-bottom:6px}
+.trip-day-buttons button{flex-shrink:0;border:1px solid #ddc9bf;border-radius:999px;padding:10px 16px;background:#fff9f4;color:#74574f}
+.trip-day-buttons button[aria-pressed=true]{background:#77565a;color:white;border-color:#77565a}
+.trip-day-weather{padding:14px;background:#f4e8df;border-radius:14px;font-size:13px;line-height:1.6}
+.workspace-form{display:grid;gap:12px}.workspace-form label{display:grid;gap:6px;font-size:13px}
+.workspace-form input,.workspace-form select,.workspace-form textarea{width:100%;padding:10px;border:1px solid #decac0;border-radius:10px;background:#fffcf8;color:#493d3b}.workspace-form textarea{min-height:75px}
+.workspace-stops{list-style:none;padding:0}.workspace-stops li{display:flex;gap:8px;align-items:center;padding:13px 0;border-bottom:1px solid #e6d8d0;font-size:13px}.workspace-stops strong{flex:1}.workspace-stops input{max-width:90px}.workspace-stops button{border:0;background:none;color:#a35c50}
+#workspace-place-results{display:grid;gap:6px;margin:10px 0}#workspace-place-results button{padding:10px;text-align:left;border:1px solid #decac0;border-radius:10px;background:#fffaf5}
+.workspace-map-status{position:absolute;z-index:15;bottom:55px;left:25px;max-width:calc(100% - 110px);padding:12px 18px;border-radius:14px;background:#fffaf2e8;color:#654a43;font-size:13px;box-shadow:0 5px 25px #55413b22}
+.map-type-picker .map-type-menu{right:0;top:calc(100% + 6px);width:106px;padding:6px;border-radius:12px}
+.map-type-menu .map-base-options{display:flex;flex-direction:column;gap:3px}
+.map-controls .map-type-menu button{width:100%;height:38px;border-radius:8px;box-shadow:none;border:0;background:transparent;font-size:12px}
+.map-controls .map-type-menu button.is-active,.map-controls .map-type-menu button[aria-pressed=true]{background:#77565a;color:#fff}
+.map-type-menu #terrain-toggle{margin-top:3px}
+.map-controls{bottom:200px;top:auto}
+.roadview-dialog{width:min(1000px,94vw);max-width:94vw;padding:20px;border:0;border-radius:22px;background:#fff9f2;color:#53423e;box-shadow:0 30px 100px #241a1960}
+.roadview-dialog::backdrop{background:#2d2424a6}.roadview-dialog h2{margin:0}.roadview-dialog button{width:38px;height:38px;border:0;border-radius:50%;font-size:25px;background:#eee0d5}.roadview-dialog p{font-size:13px}.roadview-panorama{height:min(65vh,600px);border-radius:14px;overflow:hidden}
+@media(max-width:700px){.map-rail{display:flex;position:fixed;left:10px;bottom:76px;flex-direction:row;padding:4px;border:0;border-radius:15px;background:#fff8f0f0;box-shadow:0 6px 30px #44322a22}.map-rail button{width:65px;min-height:46px}.map-rail button small{font-size:11px}.map-stage .map-controls{bottom:190px}.trip-map-options{gap:8px}.companion-route-card .section-title-row{flex-wrap:wrap}.roadview-dialog{padding:14px}.roadview-panorama{height:60vh}}
+.map-type-picker .map-type-menu{bottom:auto}
+#workspace-resume{display:block;margin:12px 0}
+@media(max-width:760px){.map-rail{z-index:320}.search-panel{padding-bottom:78px;background:#fffaf4}#map-workspace .mobile-panel-close{display:block}#map-workspace .section-title-row{align-items:center}.workspace-map-status{bottom:140px;left:12px;max-width:calc(100% - 75px);font-size:12px}}
