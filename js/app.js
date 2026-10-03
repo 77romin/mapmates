@@ -1,3 +1,5 @@
+import { mountWorkspace } from './map-workspace.js';
+import { bindRoadview } from './trip-map.js';
 import { places } from "./data.js";
 import { api } from "./api.js";
 import { readProfileImage } from "./account.js";
@@ -17,6 +19,7 @@ const fallbackPlaces = places.map((place) => ({ ...place }));
 const liveData = { tour: false, weather: null, chargerCount: null };
 const layerVisibility = { place: state.placeCategories.length > 0, weather: state.weatherVisible === true, charger: false, hotplace: false };
 let kakaoMap = null;
+let workspace = null;
 let kakaoMarkers = [];
 let kakaoRoute = null;
 let chargerMarkers = [];
@@ -95,6 +98,7 @@ function setView(view) {
     if (page) window.location.href = `./${page}`;
     return;
   }
+  workspace?.show("explore");
   state.activeView = "explore";
   $$(".app-view").forEach((section) => section.classList.toggle("is-active", section.dataset.view === "explore"));
   $(".search-panel")?.classList.remove("is-open");
@@ -151,6 +155,7 @@ function bindPlaceCards() {
 }
 
 function renderMarkers(result = filteredPlaces()) {
+  if(workspace && workspace.tab!=="explore") result=[];
   const markerRoot = $("#map-markers");
   markerRoot.innerHTML = result.map((place) => `
     <button class="map-marker ${state.selectedPlaceId === place.id ? "is-active" : ""}" type="button" data-marker-id="${place.id}" style="left:${place.x}%;top:${place.y}%" aria-label="${escapeHtml(place.title)}">
@@ -163,6 +168,7 @@ function renderMarkers(result = filteredPlaces()) {
 
 function syncKakaoMarkers(result = filteredPlaces()) {
   if (!kakaoMap || !window.kakao?.maps) return;
+  if(workspace && workspace.tab!=="explore") result=[];
   kakaoMarkers.forEach((marker) => marker.setMap(null));
   kakaoMarkers = result.map((place) => {
     const lat = place.lat || 33.18 + (70 - place.y) * .006;
@@ -305,25 +311,11 @@ function bindDragAndDrop() {
 }
 
 function renderRoute() {
-  const items = state.itinerary.map(placeById).filter(Boolean);
-  const points = items.map((place) => `${place.x * 10},${place.y * 7}`).join(" ");
-  $("#route-layer").innerHTML = points ? `<polyline points="${points}" fill="none" stroke="#dc3545" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />` : "";
-  syncKakaoRoute(items);
+  // The map only displays a route after selecting a trip in the sidebar.
+  if (kakaoRoute) { kakaoRoute.setMap(null); kakaoRoute=null; }
+  if (!workspace || workspace.tab==='explore') $('#route-layer').innerHTML='';
 }
-
-function syncKakaoRoute(items = state.itinerary.map(placeById).filter(Boolean)) {
-  if (!kakaoMap || !window.kakao?.maps) return;
-  if (kakaoRoute) kakaoRoute.setMap(null);
-  if (items.length < 2) return;
-  kakaoRoute = new window.kakao.maps.Polyline({
-    path: items.map((place) => new window.kakao.maps.LatLng(place.lat || 33.18 + (70 - place.y) * .006, place.lng || 126.2 + place.x * .0065)),
-    strokeWeight: 5,
-    strokeColor: "#dc3545",
-    strokeOpacity: .82,
-    strokeStyle: "solid",
-  });
-  kakaoRoute.setMap(kakaoMap);
-}
+function syncKakaoRoute() { renderRoute(); }
 
 function showPlaceDetail(place) {
   if (!place) return;
@@ -450,7 +442,7 @@ function bindGlobalEvents() {
   });
   $$(".trip-meta button").forEach(button=>button.addEventListener("click",()=>location.href="./planner.html"));
   $("#trip-collapse-button").addEventListener("click", () => $("#trip-panel").classList.remove("is-open"));
-  $("#rail-start-trip").addEventListener("click", () => location.href = "./planner.html");
+
   $("#refresh-nearby-button").addEventListener("click", () => refreshNearbyFromMap(true));
   $("#add-stop-button").addEventListener("click", () => { $(".search-panel").classList.add("is-open"); toast("지도에서 추가할 장소를 선택하세요."); });
   $("#save-trip-button")?.addEventListener("click", () => { persist(); toast("여행 일정을 저장했어요."); });
@@ -480,6 +472,8 @@ function bindGlobalEvents() {
   });
   $$('[data-map-base]').forEach((button) => button.addEventListener("click", () => {
     selectedMapType = button.dataset.mapBase;
+    terrainEnabled=false; $("#terrain-toggle").setAttribute("aria-pressed","false");
+    if(selectedMapType==='roadview') toast("파란색 도로를 더블클릭하면 로드뷰가 열려요.");
     $$('[data-map-base]').forEach((item) => {
       const selected = item === button;
       item.classList.toggle("is-active", selected);
@@ -489,6 +483,7 @@ function bindGlobalEvents() {
   }));
   $("#terrain-toggle").addEventListener("click", () => {
     terrainEnabled = !terrainEnabled;
+    if(terrainEnabled){selectedMapType="roadmap";$$(`[data-map-base]`).forEach(b=>{b.classList.remove("is-active");b.setAttribute("aria-checked","false");});}
     $("#terrain-toggle").setAttribute("aria-pressed", String(terrainEnabled));
     applyMapType();
   });
@@ -544,7 +539,10 @@ async function initKakaoMap() {
   kakaoMap = new window.kakao.maps.Map(mapElement, {
     center: new window.kakao.maps.LatLng(INITIAL_MAP_CENTER.lat, INITIAL_MAP_CENTER.lng),
     level: 9,
+    disableDoubleClickZoom: true,
   });
+  bindRoadview(kakaoMap,()=>selectedMapType);
+  workspace?.refresh();
   kakaoMap.setDraggable(true);
   kakaoMap.setZoomable(true);
   stage.classList.add("has-live-map");
@@ -892,8 +890,10 @@ function init() {
   if ($("#favorite-count")) $("#favorite-count").textContent = state.favorites.length;
   $("#search-input").value = state.search;
   $$('[data-layer]').forEach(item => {item.setAttribute('aria-pressed', String(layerVisibility[item.dataset.layer]));item.classList.toggle('is-active',layerVisibility[item.dataset.layer]);});
+  workspace=mountWorkspace(state,()=>kakaoMap,()=>{renderItinerary();renderMarkers();});
   bindGlobalEvents();
   setView("explore");
+  if(sessionStorage.getItem("neorang-workspace-return")==="mine"){sessionStorage.removeItem("neorang-workspace-return");workspace.resume();}
   initKakaoMap();
   hydrateLiveData();
 }
