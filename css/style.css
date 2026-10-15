@@ -506,3 +506,7 @@ h1, h2, h3, p { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+.place-category-marker { display: grid; place-items: center; width: 32px; height: 32px; padding: 4px; border: 2px solid white; border-radius: 50% 50% 50% 6px; background: var(--marker-color); color: white; box-shadow: 0 2px 6px #0005; transform: rotate(-45deg); cursor: pointer; }
+.place-category-marker svg { transform: rotate(45deg); flex-shrink: 0; }
+.place-category-marker:hover, .place-category-marker:focus-visible, .place-category-marker.is-active { outline: 3px solid var(--marker-color); outline-offset: 2px; }
+.map-marker-pin svg { display: block; }

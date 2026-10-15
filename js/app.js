@@ -3,6 +3,7 @@ import { bindRoadview } from './trip-map.js';
 import { places } from "./data.js";
 import { api } from "./api.js";
 import { popularPlaces } from './popular-places.js';
+import { markerStyle, markerIcon } from './place-marker.js';
 
 import { loadState, saveState, initShell, ensureLoggedIn } from './shared.js';
 const NEARBY_RADIUS_METERS = 20000;
@@ -157,8 +158,8 @@ function renderMarkers(result = filteredPlaces()) {
   if(workspace && workspace.tab!=="explore") result=[];
   const markerRoot = $("#map-markers");
   markerRoot.innerHTML = result.map((place) => `
-    <button class="map-marker ${state.selectedPlaceId === place.id ? "is-active" : ""}" type="button" data-marker-id="${place.id}" style="left:${place.x}%;top:${place.y}%" aria-label="${escapeHtml(place.title)}">
-      <span class="map-marker-pin"><span>${place.id}</span></span><span class="map-marker-label">${place.title}</span>
+    <button class="map-marker ${state.selectedPlaceId === place.id ? "is-active" : ""}" type="button" data-marker-id="${place.id}" style="left:${place.x}%;top:${place.y}%" aria-label="${markerStyle(place.category).label} · ${escapeHtml(place.title)}">
+      <span class="map-marker-pin" style="background:${markerStyle(place.category).color}"><span>${markerIcon(place.category)}</span></span><span class="map-marker-label">${escapeHtml(place.title)}</span>
     </button>`).join("");
   $$('[data-marker-id]').forEach((button) => button.addEventListener("click", () => selectPlace(Number(button.dataset.markerId))));
   renderRoute();
@@ -172,8 +173,15 @@ function syncKakaoMarkers(result = filteredPlaces()) {
   kakaoMarkers = result.map((place) => {
     const lat = place.lat || 33.18 + (70 - place.y) * .006;
     const lng = place.lng || 126.2 + place.x * .0065;
-    const marker = new window.kakao.maps.Marker({ position: new window.kakao.maps.LatLng(lat, lng), map: layerVisibility.place ? kakaoMap : null, title: place.title });
-    window.kakao.maps.event.addListener(marker, "click", () => selectPlace(place.id));
+    const style=markerStyle(place.category);
+    const content=document.createElement('button');
+    content.type='button';content.className=`place-category-marker${state.selectedPlaceId===place.id?' is-active':''}`;
+    content.dataset.category=place.category;content.dataset.placeId=place.id;
+    content.style.setProperty('--marker-color',style.color);
+    content.title=`${style.label} · ${place.title}`;content.setAttribute('aria-label',content.title);
+    content.innerHTML=markerIcon(place.category);
+    content.onclick=event=>{event.stopPropagation();selectPlace(place.id);};
+    const marker = new window.kakao.maps.CustomOverlay({ position: new window.kakao.maps.LatLng(lat, lng), map: layerVisibility.place ? kakaoMap : null, content, yAnchor:1, zIndex:state.selectedPlaceId===place.id?7:5 });
     return marker;
   });
   syncHotplaceLayer();
