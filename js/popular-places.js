@@ -1,3 +1,5 @@
+import { topK } from './top-k.js';
+export const comparePopularity = (a,b) => b.userCount-a.userCount || b.planCount-a.planCount || String(a.title).localeCompare(String(b.title),'ko');
 // Count saved plans, while counting each member only once per place.
 export function popularPlaces(plans, bounds, limit = 10) {
   if (!bounds) return [];
@@ -18,7 +20,7 @@ export function popularPlaces(plans, bounds, limit = 10) {
       item.members.add(plan.ownerId); item.planCount++;
     }
   }
-  return [...grouped.values()].map(item => ({ ...item.place, userCount: item.members.size, planCount: item.planCount }))
-    .sort((a,b) => b.userCount-a.userCount || b.planCount-a.planCount || String(a.title).localeCompare(String(b.title),'ko'))
-    .slice(0, limit);
+  return topK((function* () {
+    for (const item of grouped.values()) yield { ...item.place, userCount: item.members.size, planCount: item.planCount };
+  })(), limit, comparePopularity);
 }
