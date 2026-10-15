@@ -39,6 +39,14 @@
             </div>
             <div class="day-tabs" id="day-tabs"><button class="is-active" type="button" data-day="1">DAY 1 <small>10.12</small></button><button type="button" data-day="2">DAY 2 <small>10.13</small></button><button type="button" data-day="3">DAY 3 <small>10.14</small></button></div>
             <div class="planner-weather" id="planner-weather" aria-label="일자별 날씨"></div>
+            <section class="route-optimization" aria-label="하루 동선 최적화">
+              <button class="button button-secondary" id="optimize-route" type="button">동선 최적화</button>
+              <a class="button button-secondary" href="#route-comparison">지도에서 전후 비교 ↓</a>
+              <p class="helper-text">현재 DAY의 첫 장소와 마지막 장소를 유지해요. 적용하면 중간 장소의 방문 시각을 기존 시간대에 다시 배정합니다. 예약 시간이 있는 일정은 확인해주세요.</p>
+              <div id="optimization-preview" aria-live="polite"></div>
+              <button class="button button-primary" id="apply-optimization" type="button" hidden>추천 순서 적용</button>
+              <button class="button button-secondary" id="undo-optimization" type="button" hidden>최적화 되돌리기</button>
+            </section>
             <div class="schedule-list" id="schedule-list"></div>
           </section>
           <aside class="planner-side-stack">
@@ -51,6 +59,14 @@
             <a class="button button-secondary full-width planner-add-place" href="./index.html">＋ 장소 추가</a>
           </aside>
         </div>
+        <section class="subpage-card route-comparison" id="route-comparison" aria-label="최적화 전후 지도 비교">
+          <h2>동선 전후 비교</h2>
+          <p class="helper-text" data-comparison-status aria-live="polite"></p>
+          <div class="comparison-grid">
+            <section><h3>최적화 전 · 기존 순서</h3><div class="comparison-map" data-comparison-map></div><p data-comparison-order></p></section>
+            <section><h3>최적화 후 · 추천 순서</h3><div class="comparison-map" data-comparison-map></div><p data-comparison-order></p></section>
+          </div>
+        </section>
       </div>
     </main>
     <nav class="mobile-nav"><a data-page-link="explore" href="./index.html"><span>⌖</span>지도</a><a data-page-link="planner" href="./planner.html"><span>☷</span>내 여행</a><a data-page-link="companions" href="./companions.html"><span>♙</span>동행</a><a data-page-link="community" href="./community.html"><span>□</span>라운지</a><a href="./mypage.html"><span>○</span>MY</a></nav>

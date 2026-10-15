@@ -1,5 +1,7 @@
 import { places } from "./data.js";
 import { api } from "./api.js";
+import { optimizeRoute, assignTimeSlots } from './route-optimizer.js';
+import { RouteComparison } from './route-comparison.js';
 import { escapeHtml, initShell, loadState, saveState, showToast, ensureLoggedIn, todayLabel } from "./shared.js";
 
 const state = initShell("planner", loadState());
@@ -14,6 +16,17 @@ const placePoint = (place) => ({ ...place, lat: Number(place.lat) || 33.18 + (70
 const days = () => Array.from({length: Math.max(1, Math.min(14, Math.round((new Date(state.trip.endDate) - new Date(state.trip.startDate))/86400000) + 1))}, (_,index) => index + 1);
 state.trip.id ||= crypto.randomUUID();
 let routeRevision = 0;
+let optimization = null;
+let optimizationUndo = null;
+let comparison = null;
+function clearOptimization() {
+  optimization = null;
+  optimizationUndo = null;
+  $('#optimization-preview').textContent = '';
+  $('#apply-optimization').hidden = true;
+  $('#undo-optimization').hidden = true;
+  comparison?.show(currentSchedule().map(item=>placeById(item.placeId)).filter(Boolean));
+}
 function dayDate(day) {
   const date = new Date(`${state.trip.startDate}T00:00:00`);
   date.setDate(date.getDate() + day - 1);
@@ -48,6 +61,7 @@ function renderTabs() {
 }
 
 function renderSchedule() {
+  clearOptimization();
   const schedule = currentSchedule();
   $("#schedule-list").innerHTML = schedule.length ? schedule.map((item) => {
     const place = placeById(item.placeId);
@@ -68,6 +82,7 @@ function renderSchedule() {
   document.querySelectorAll("[data-memo-id]").forEach((input) => input.addEventListener("input", () => {
     const item = state.tripSchedule.find((entry) => Number(entry.placeId) === Number(input.dataset.memoId));
     item.memo = input.value;
+    clearOptimization();
     saveState(state);
   }));
   document.querySelectorAll("[data-schedule-day]").forEach((select) => select.addEventListener("change", () => {
@@ -90,6 +105,48 @@ function renderSchedule() {
     showToast("일정에서 여행지를 삭제했어요.");
   }));
 }
+
+$('#optimize-route').addEventListener('click', () => {
+  clearOptimization();
+  const schedule = currentSchedule();
+  if (schedule.some(item => !/^([01]\d|2[0-3]):[0-5]\d$/.test(item.time)) || new Set(schedule.map(item => item.time)).size !== schedule.length) {
+    showToast('방문 시각을 서로 다른 올바른 시간으로 입력해주세요.'); return;
+  }
+  try {
+    const result = optimizeRoute(schedule.map(item => placeById(item.placeId)));
+    const proposed = assignTimeSlots(schedule, result.order);
+    comparison.show(schedule.map(item=>placeById(item.placeId)),proposed.map(item=>placeById(item.placeId)));
+    const saved = result.beforeKm - result.afterKm;
+    const percent = result.beforeKm ? saved / result.beforeKm * 100 : 0;
+    $('#optimization-preview').textContent = `직선거리 기준 ${result.beforeKm.toFixed(2)} → ${result.afterKm.toFixed(2)} km (${percent.toFixed(1)}% 감소). `
+      + proposed.map(item => `${item.time} ${placeById(item.placeId).title}`).join(' → ')
+      + (saved < 1e-9 ? ' · 이미 최적 순서입니다.' : '');
+    if (saved > 1e-9) {
+      optimization = {schedule:structuredClone(schedule), proposed, tripId:state.trip.id, day:activeDay};
+      $('#apply-optimization').hidden = false;
+    }
+  } catch (error) { showToast(error.message); }
+});
+$('#apply-optimization').addEventListener('click', () => {
+  const pending = optimization;
+  if (!pending || pending.tripId !== state.trip.id || pending.day !== activeDay || JSON.stringify(currentSchedule()) !== JSON.stringify(pending.schedule)) return clearOptimization();
+  const previous = structuredClone(state.tripSchedule);
+  state.tripSchedule = state.tripSchedule.filter(item => Number(item.day) !== activeDay).concat(pending.proposed);
+  try { saveState(state); } catch { state.tripSchedule = previous; showToast('저장하지 못했어요. 저장 공간을 확인해주세요.'); return; }
+  renderSchedule(); drawRoute(); renderWeather();
+  optimizationUndo = {schedule:previous, tripId:state.trip.id, day:activeDay};
+  $('#undo-optimization').hidden = false;
+  comparison.show(pending.schedule.map(item=>placeById(item.placeId)),pending.proposed.map(item=>placeById(item.placeId)));
+  showToast('추천 순서를 적용했어요. 계획 저장으로 반영해주세요.');
+});
+$('#undo-optimization').addEventListener('click', () => {
+  if (!optimizationUndo || optimizationUndo.tripId !== state.trip.id || optimizationUndo.day !== activeDay) return clearOptimization();
+  const previous = state.tripSchedule;
+  state.tripSchedule = optimizationUndo.schedule;
+  try { saveState(state); } catch { state.tripSchedule = previous; showToast('되돌리기를 저장하지 못했어요.'); return; }
+  renderSchedule(); drawRoute(); renderWeather();
+  showToast('최적화 전 일정으로 되돌렸어요.');
+});
 
 function routePlaces() {
   return currentSchedule().map((item) => placeById(item.placeId)).filter(Boolean);
@@ -242,6 +299,7 @@ async function initMap() {
   if (!loaded) { $("#planner-map").textContent = "카카오맵을 불러오지 못했습니다."; return; }
   const first = placePoint(routePlaces()[0] || places[0]);
   map = new window.kakao.maps.Map($("#planner-map"), { center: new window.kakao.maps.LatLng(first.lat, first.lng), level: 8 });
+  comparison.show(currentSchedule().map(item=>placeById(item.placeId)).filter(Boolean),optimization?.proposed.map(item=>placeById(item.placeId)));
   drawRoute();
 }
 
@@ -324,6 +382,7 @@ function startNewPlan() {
 }
 $('#new-plan').addEventListener('click', startNewPlan);
 
+comparison = new RouteComparison($('#route-comparison'));
 syncSchedule();
 renderPlanHeader();
 $("#trip-title").textContent = state.trip.title;
