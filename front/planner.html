@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>내 여행 | 너랑 갈.지도</title>
+    <link rel="icon" type="image/png" href="./assets/mapMates-logo-v1.png" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <link rel="stylesheet" href="./css/subpages.css" />
+    <link rel="stylesheet" href="./css/sunset.css">
+  <script src="./js/first-visit.js"></script>
+</head>
+  <body>
+    <a class="skip-link" href="#main-content">본문 바로가기</a>
+    <header class="topbar">
+      <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/mapMates-logo-v1.png" alt=""><span>너랑 <strong>갈.지도</strong></span></a>
+      <form class="topbar-search" id="global-search-form"><span class="icon icon-search"></span><input id="global-search-input" type="search" placeholder="장소를 검색해보세요" /><button type="submit">검색</button></form>
+      <nav class="desktop-nav"><a class="nav-item" data-page-link="explore" href="./index.html">지도 탐색</a><a class="nav-item" data-page-link="planner" href="./planner.html">내 여행</a><a class="nav-item" data-page-link="companions" href="./companions.html">동행 찾기</a><a class="nav-item" data-page-link="community" href="./community.html">커뮤니티</a></nav>
+      <div class="topbar-actions"><a class="profile-button" href="./mypage.html"><span class="avatar" data-user-avatar>강</span><span class="profile-name" data-user-name>김강민</span></a></div>
+    </header>
+    <main class="subpage-main" id="main-content">
+      <div class="subpage-shell">
+        <header class="subpage-header">
+          <div><p class="eyebrow">MY JOURNEYS</p><h1>내 여행</h1><p>여행 카드를 선택해 일정과 경로를 확인하고, 나만의 여행을 이어서 준비하세요.</p></div>
+          <div class="subpage-actions"><button class="button button-primary" id="publish-companion" type="button">동행 구하기</button></div>
+        </header>
+        <p class="flow-note">장소 담기 → 계획 저장 → 동행 모집 → 참가자 확인<br>공유 후 계획을 수정했다면 ‘공유한 일정 업데이트’를 눌러 동행에게 새 일정을 전달하세요.</p>
+        <div class="section-title-row"><h2>내 여행계획</h2><button class="button button-secondary" id="new-plan" type="button">＋ 새 여행</button></div><div id="plan-library" class="plan-library"></div>
+        <div class="planner-page-grid" id="plan-detail" tabindex="-1" aria-label="선택한 여행 세부 정보">
+          <section class="subpage-card planner-board">
+            <div class="section-title-row"><div><span class="status-badge navy">저장됨</span><h2 id="trip-title">제주, 우리 둘의 지도</h2></div><button class="button button-secondary" id="save-plan" type="button">저장</button></div>
+            <div class="planner-summary"><strong id="trip-dates">2026.10.12 - 2026.10.14</strong><span id="plan-duration">3일 여행</span><span>여행지 시각순 자동 정렬</span></div>
+            <div class="trip-editor">
+              <label class="field is-full">여행 제목<input id="plan-title" maxlength="80" required></label>
+              <label class="field">출발일<input id="plan-start" type="date" required></label><label class="field">종료일<input id="plan-end" type="date" required></label>
+              <label class="field">동행 정원 (나 포함)<input id="plan-people" type="number" min="2" max="10"></label><label class="field">예상 여행경비 (원)<input id="plan-budget" type="number" min="0" step="1000"></label>
+              <label class="field">지역<select id="plan-region"><option>서울</option><option>경기</option><option>강원</option><option>충남</option><option>충북</option><option>경남</option><option>경북</option><option>전남</option><option>전북</option><option>제주</option><option>기타</option></select></label><label class="field">테마<select id="plan-theme"><option>자연</option><option>사진</option><option>맛집</option><option>문화</option></select></label>
+              <label class="field is-full">동행에게 전할 소개<textarea id="plan-description" maxlength="2000" placeholder="어떤 여행을 함께하고 싶나요?"></textarea></label>
+            </div>
+            <div class="day-tabs" id="day-tabs"><button class="is-active" type="button" data-day="1">DAY 1 <small>10.12</small></button><button type="button" data-day="2">DAY 2 <small>10.13</small></button><button type="button" data-day="3">DAY 3 <small>10.14</small></button></div>
+            <div class="planner-weather" id="planner-weather" aria-label="일자별 날씨"></div>
+            <section class="route-optimization" aria-label="하루 동선 최적화">
+              <button class="button button-secondary" id="optimize-route" type="button">동선 최적화</button>
+              <a class="button button-secondary" href="#route-comparison">지도에서 전후 비교 ↓</a>
+              <p class="helper-text">현재 DAY의 첫 장소와 마지막 장소를 유지해요. 적용하면 중간 장소의 방문 시각을 기존 시간대에 다시 배정합니다. 예약 시간이 있는 일정은 확인해주세요.</p>
+              <div id="optimization-preview" aria-live="polite"></div>
+              <button class="button button-primary" id="apply-optimization" type="button" hidden>추천 순서 적용</button>
+              <button class="button button-secondary" id="undo-optimization" type="button" hidden>최적화 되돌리기</button>
+            </section>
+            <div class="schedule-list" id="schedule-list"></div>
+          </section>
+          <aside class="planner-side-stack">
+            <section class="subpage-card planner-map-card">
+              <div class="section-title-row"><h2>경로 선택</h2><div class="route-choice"><button class="is-active" type="button" data-route-mode="straight">직선</button><button type="button" data-route-mode="car">차량</button></div></div>
+              <div class="planner-map" id="planner-map" aria-label="여행 경로 지도"></div>
+              <p class="route-status" id="route-status">직선 경로를 표시하고 있어요.</p>
+            </section>
+            <section class="subpage-card"><h2>예상 여행 정보</h2><div class="trip-summary"><div><span>이동 거리</span><strong id="route-distance">-</strong></div><div><span>이동 시간</span><strong id="route-duration">-</strong></div></div></section>
+            <a class="button button-secondary full-width planner-add-place" href="./index.html">＋ 장소 추가</a>
+          </aside>
+        </div>
+        <section class="subpage-card route-comparison" id="route-comparison" aria-label="최적화 전후 지도 비교">
+          <h2>동선 전후 비교</h2>
+          <p class="helper-text" data-comparison-status aria-live="polite"></p>
+          <div class="comparison-grid">
+            <section><h3>최적화 전 · 기존 순서</h3><div class="comparison-map" data-comparison-map></div><p data-comparison-order></p></section>
+            <section><h3>최적화 후 · 추천 순서</h3><div class="comparison-map" data-comparison-map></div><p data-comparison-order></p></section>
+          </div>
+        </section>
+      </div>
+    </main>
+    <nav class="mobile-nav"><a data-page-link="explore" href="./index.html"><span>⌖</span>지도</a><a data-page-link="planner" href="./planner.html"><span>☷</span>내 여행</a><a data-page-link="companions" href="./companions.html"><span>♙</span>동행</a><a data-page-link="community" href="./community.html"><span>□</span>라운지</a><a href="./mypage.html"><span>○</span>MY</a></nav>
+    <div class="toast-container" id="toast-container"></div>
+    <script src="./config.js"></script>
+    <script type="module" src="./js/planner.js"></script>
+  </body>
+</html>

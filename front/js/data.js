@@ -1,0 +1,239 @@
+export const places = [
+  {
+    id: 1,
+    title: "성산일출봉",
+    region: "제주 서귀포시",
+    category: "attraction",
+    categoryLabel: "자연 관광지",
+    description: "바다 위로 솟아오른 거대한 화산체와 제주 동쪽의 일출을 만나는 곳",
+    rating: 4.8,
+    reviews: 1284,
+    distance: 3.2,
+    weather: "맑음 21°",
+    sunrise: "06:31",
+    sunset: "18:12",
+    image: "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?auto=format&fit=crop&w=900&q=85",
+    x: 72,
+    y: 31,
+    lat: 33.4621,
+    lng: 126.9363,
+    duration: 70,
+    tip: "일출 40분 전에 도착하면 여유롭게 정상 전망대를 이용할 수 있어요.",
+  },
+  {
+    id: 2,
+    title: "월정리 해변",
+    region: "제주 제주시",
+    category: "attraction",
+    categoryLabel: "해변",
+    description: "에메랄드빛 바다를 따라 카페와 산책길이 이어지는 제주 동쪽 해변",
+    rating: 4.7,
+    reviews: 932,
+    distance: 8.6,
+    weather: "구름 조금 20°",
+    sunrise: "06:32",
+    sunset: "18:13",
+    image: "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?auto=format&fit=crop&w=900&q=85",
+    x: 60,
+    y: 20,
+    lat: 33.5565,
+    lng: 126.7958,
+    duration: 60,
+    tip: "오전에는 비교적 한적하고, 해 질 무렵에는 바다색이 가장 부드러워요.",
+  },
+  {
+    id: 3,
+    title: "우진해장국",
+    region: "제주 제주시",
+    category: "food",
+    categoryLabel: "향토 음식",
+    description: "제주식 고사리 육개장으로 오랫동안 사랑받는 로컬 맛집",
+    rating: 4.6,
+    reviews: 2150,
+    distance: 14.8,
+    weather: "맑음 22°",
+    sunrise: "06:33",
+    sunset: "18:14",
+    image: "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=85",
+    x: 28,
+    y: 25,
+    lat: 33.5115,
+    lng: 126.5200,
+    duration: 50,
+    tip: "대기 시간이 긴 편이라 오픈 시간에 맞추거나 포장 이용을 추천해요.",
+  },
+  {
+    id: 4,
+    title: "비자림",
+    region: "제주 제주시",
+    category: "attraction",
+    categoryLabel: "숲·자연",
+    description: "수백 년 된 비자나무 사이로 천천히 걷는 고요한 숲길",
+    rating: 4.8,
+    reviews: 884,
+    distance: 6.4,
+    weather: "흐림 19°",
+    sunrise: "06:32",
+    sunset: "18:13",
+    image: "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=900&q=85",
+    x: 54,
+    y: 38,
+    lat: 33.4915,
+    lng: 126.8115,
+    duration: 90,
+    tip: "비가 살짝 내린 다음 날 숲 향이 가장 진하고 길도 선명해요.",
+  },
+  {
+    id: 5,
+    title: "아쿠아플라넷 제주",
+    region: "제주 서귀포시",
+    category: "culture",
+    categoryLabel: "문화시설",
+    description: "제주 바다 생태를 가까이에서 만나는 대형 해양 문화 공간",
+    rating: 4.5,
+    reviews: 736,
+    distance: 2.7,
+    weather: "맑음 21°",
+    sunrise: "06:31",
+    sunset: "18:12",
+    image: "https://images.unsplash.com/photo-1546026423-cc4642628d2b?auto=format&fit=crop&w=900&q=85",
+    x: 77,
+    y: 39,
+    lat: 33.4290,
+    lng: 126.9277,
+    duration: 150,
+    tip: "공연 시간표를 먼저 확인하고 관람 순서를 정하면 대기 시간을 줄일 수 있어요.",
+  },
+  {
+    id: 6,
+    title: "스테이 오롯",
+    region: "제주 구좌읍",
+    category: "stay",
+    categoryLabel: "감성 숙소",
+    description: "돌담과 낮은 정원이 어우러진 조용한 제주 동쪽 스테이",
+    rating: 4.9,
+    reviews: 318,
+    distance: 7.5,
+    weather: "구름 조금 20°",
+    sunrise: "06:32",
+    sunset: "18:13",
+    image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=900&q=85",
+    x: 65,
+    y: 47,
+    lat: 33.4700,
+    lng: 126.8400,
+    duration: 720,
+    tip: "체크인 전에 호스트에게 주차 위치와 셀프 체크인 방법을 확인하세요.",
+  },
+  {
+    id: 7,
+    title: "김녕미로공원",
+    region: "제주 제주시",
+    category: "course",
+    categoryLabel: "체험 코스",
+    description: "바람을 따라 미로를 탐험하며 가볍게 즐기는 야외 체험",
+    rating: 4.4,
+    reviews: 522,
+    distance: 11.2,
+    weather: "구름 조금 20°",
+    sunrise: "06:32",
+    sunset: "18:13",
+    image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=85",
+    x: 46,
+    y: 28,
+    lat: 33.5366,
+    lng: 126.7722,
+    duration: 60,
+    tip: "아이와 함께라면 입구에서 제공하는 지도를 챙겨 게임처럼 즐겨보세요.",
+  },
+  {
+    id: 8,
+    title: "제주민속촌",
+    region: "제주 표선면",
+    category: "culture",
+    categoryLabel: "역사·문화",
+    description: "옛 제주 마을의 생활과 건축을 걸으며 살펴보는 야외 박물관",
+    rating: 4.5,
+    reviews: 449,
+    distance: 18.3,
+    weather: "맑음 21°",
+    sunrise: "06:31",
+    sunset: "18:12",
+    image: "https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=900&q=85",
+    x: 69,
+    y: 66,
+    lat: 33.3225,
+    lng: 126.8423,
+    duration: 100,
+    tip: "해설 프로그램 시간을 맞추면 제주의 옛 생활상을 더 깊게 이해할 수 있어요.",
+  },
+];
+
+export const companions = [
+  { id: 1, region: "제주", theme: "사진", status: "open", title: "제주 동쪽, 필름 카메라 들고 천천히 걸어요", description: "성산부터 월정리까지 사진 찍으며 여유롭게 다닐 동행을 찾아요.", dates: "10.12 - 10.14", people: "2/4명", author: "여행하는 예은", avatar: "예", tags: ["사진", "카페", "렌터카"], image: places[0].image },
+  { id: 2, region: "부산", theme: "맛집", status: "soon", title: "부산 영도 로컬 맛집 투어 같이 하실 분", description: "혼자서는 여러 메뉴를 못 시켜서 맛집 위주로 함께 다녀요.", dates: "10.09 - 10.10", people: "3/4명", author: "먹보대장", avatar: "먹", tags: ["맛집", "대중교통", "20대"], image: "https://images.unsplash.com/photo-1517154421773-0529f29ea451?auto=format&fit=crop&w=900&q=85" },
+  { id: 3, region: "강원", theme: "자연", status: "open", title: "설악산 단풍과 속초 바다를 한 번에", description: "등산 초보도 괜찮은 코스로 다녀오고 저녁에는 속초에서 쉬어요.", dates: "10.24 - 10.25", people: "1/3명", author: "주말산책", avatar: "산", tags: ["자연", "등산", "1박2일"], image: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=900&q=85" },
+  { id: 4, region: "서울", theme: "문화", status: "open", title: "서울 야간 궁궐 산책과 전시 관람", description: "오후 전시를 보고 해 질 무렵 궁궐 야간 개장을 함께 봐요.", dates: "10.17", people: "2/5명", author: "도시수집가", avatar: "도", tags: ["전시", "산책", "당일"], image: "https://images.unsplash.com/photo-1517154421773-0529f29ea451?auto=format&fit=crop&w=900&q=85" },
+  { id: 5, region: "제주", theme: "자연", status: "soon", title: "올레길 7코스, 걷는 속도 비슷한 동행", description: "빨리 걷기보다 풍경을 즐기며 완주하는 것이 목표예요.", dates: "10.13", people: "3/4명", author: "느린발걸음", avatar: "느", tags: ["올레길", "걷기", "30대"], image: places[3].image },
+  { id: 6, region: "부산", theme: "사진", status: "open", title: "해운대 일출부터 흰여울 노을까지", description: "하루 동안 부산의 빛이 좋은 시간을 따라 사진을 찍습니다.", dates: "10.31", people: "1/3명", author: "빛을따라", avatar: "빛", tags: ["일출", "사진", "당일"], image: "https://images.unsplash.com/photo-1534274867514-d5b47ef89ed7?auto=format&fit=crop&w=900&q=85" },
+];
+
+export const posts = [
+  { id: 1, board: "travel", category: "제주", title: "렌터카 없이 제주 동쪽 2박 3일 다녀온 동선", author: "예은", date: "2026.10.01", views: 284, comments: 18, content: "버스와 택시를 섞어서 이동한 실제 동선을 정리해봤어요.\n\n첫째 날은 제주시에서 월정리, 둘째 날은 비자림과 성산, 마지막 날은 표선 쪽으로 이동했습니다. 배차 간격을 확인하고 카페에서 쉬는 시간을 충분히 잡으면 렌터카 없이도 여유롭게 여행할 수 있어요." },
+  { id: 2, board: "travel", category: "맛집", title: "부산 영도에서 다시 가고 싶은 로컬 식당 5곳", author: "강민", date: "2026.09.29", views: 196, comments: 11, content: "관광객이 많은 곳과 동네 주민들이 찾는 곳을 섞어서 골랐습니다. 영업시간이 짧은 곳이 있으니 방문 전 확인하세요." },
+  { id: 3, board: "travel", category: "팁", title: "가을 여행 짐 싸기 체크리스트 공유합니다", author: "단풍여행", date: "2026.09.27", views: 343, comments: 25, content: "낮과 밤의 기온 차가 큰 계절이라 얇은 옷을 여러 겹 준비하는 편이 좋아요. 보조배터리, 작은 우산, 물티슈도 유용했습니다." },
+  { id: 4, board: "travel", category: "강원", title: "설악산 단풍 초보 코스와 주차 정보", author: "주말산책", date: "2026.09.25", views: 412, comments: 31, content: "이른 시간에 도착하는 것을 추천합니다. 대중교통을 이용하면 주차 걱정 없이 입구까지 갈 수 있어요." },
+  { id: 5, board: "notice", category: "공지", title: "너랑 갈.지도 베타 서비스를 시작합니다", author: "관리자", date: "2026.10.02", views: 1024, comments: 0, content: "지도 기반 여행정보 검색과 동행 찾기를 한곳에서 이용할 수 있는 너랑 갈.지도의 베타 서비스를 시작합니다. 이용 중 발견한 문제와 의견은 커뮤니티에 남겨주세요." },
+  { id: 6, board: "notice", category: "안내", title: "안전한 동행 매칭을 위한 이용 수칙", author: "관리자", date: "2026.10.01", views: 687, comments: 0, content: "첫 만남은 사람이 많은 공공장소를 이용하고, 일정과 비상 연락처를 지인에게 공유하세요. 금전 거래를 요구하는 사용자는 신고해 주세요." },
+  { id: 7, board: "news", category: "관광", title: "가을 여행주간, 지역별 야간 관광 프로그램 확대", author: "관광소식", date: "2026.10.02", views: 156, comments: 0, content: "가을 여행주간을 맞아 주요 지역의 야간 관광과 문화 해설 프로그램이 확대 운영됩니다. 방문 전 각 운영기관의 최신 일정을 확인하세요." },
+  { id: 8, board: "news", category: "축제", title: "10월 전국 지역축제와 교통 통제 정보", author: "관광소식", date: "2026.10.01", views: 241, comments: 0, content: "10월 지역축제 기간에는 행사장 주변 교통이 혼잡할 수 있습니다. 대중교통과 임시 셔틀 운행 정보를 함께 확인하세요." },
+  { id: 9, board: "news", category: "안전", title: "단풍철 산행 전 기상과 탐방로 상태를 확인하세요", author: "관광소식", date: "2026.09.30", views: 198, comments: 0, content: "일교차와 갑작스러운 기상 변화에 대비해 방풍 의류와 충분한 물을 준비하고, 통제된 탐방로에는 진입하지 마세요." },
+];
+
+export const hotplaces = [
+  { id: 1, title: "월정리의 오후", image: places[1].image },
+  { id: 2, title: "비 온 뒤 비자림", image: places[3].image },
+  { id: 3, title: "성산의 아침", image: places[0].image },
+];
+
+// Fictional local-only demo accounts; the same people own posts, trips and comments.
+const demoNames = ['김하늘', '이서연', '박도윤', '최지우', '정민준', '윤수빈', '한지호', '오예린', '장시우', '송다은'];
+const demoNicknames = ['노을수집가', '바다산책', '필름로그', '주말기차', '숲의속도', '커피한모금', '길위의도윤', '달빛산책', '지도밖으로', '여행지기'];
+export const members = demoNames.map((name, index) => ({
+  id: `demo-${index + 1}`, email: `traveler${index + 1}@example.com`, password: 'Trip2026!', name,
+  nickname: demoNicknames[index], birthDate: `199${index}-05-15`, gender: index % 2 ? 'female' : 'male',
+  photo: `./assets/profiles/traveler-${index + 1}.svg`, bio: ['풍경을 느리게 기록해요.', '맛있는 한 끼와 산책을 좋아해요.', '처음 만나는 여행도 함께라면 편안해요.'][index % 3],
+  demo: true, role: index === 9 ? 'admin' : 'member',
+}));
+const demoTitles = ['제주 바다와 카페를 천천히', '부산 골목의 맛을 찾아서', '강릉 바다 옆에서 쉬는 주말', '서울, 전시와 저녁 산책', '제주 숲길을 걷는 하루', '부산 노을 사진 여행', '서울 한강 피크닉', '강원 가을 숲 여행', '제주 동쪽 작은 마을 여행', '부산 바다와 책방'];
+const demoRegions = ['제주', '부산', '강원', '서울', '제주', '부산', '서울', '강원', '제주', '부산'];
+const demoCoordinates = { 부산: [35.1595,129.1604], 서울: [37.5665,126.978], 강원: [37.7519,128.876] };
+const demoPlaces = { 부산: ['광안리 해변','흰여울문화마을','영도 책방'], 서울: ['경복궁','서울숲','한강공원'], 강원: ['경포해변','안목 커피거리','오죽헌'] };
+// Coordinates verified with Kakao Places; the former arithmetic offsets could land in the sea.
+const demoPlacePoints = {
+  부산: [[35.1531932736837,129.118976093583],[35.07944374604049,129.0437540909888],[35.09193842355592,129.03293612035995]],
+  서울: [[37.577613288258206,126.97689786832184],[37.5443222301513,127.037617759165],[37.5292974433415,127.06892112991]],
+  강원: [[37.8034055083125,128.910210247605],[37.7710119794053,128.949002946696],[37.77924783956944,128.8775431442553]],
+};
+export const demoPlaceCorrections = demoRegions.flatMap((region,index)=>region==='제주'?[]:demoPlaces[region].map((title,n)=>({id:10000+index*10+n,title,oldLat:demoCoordinates[region][0]+n*.015,oldLng:demoCoordinates[region][1]+n*.01,lat:demoPlacePoints[region][n][0],lng:demoPlacePoints[region][n][1]})));
+// First-stop photographs verified from TourAPI, rather than the shared placeholder cover.
+const firstVisitImages = {
+  제주: 'https://tong.visitkorea.or.kr/cms/resource/93/4075293_image2_1.jpg',
+  부산: 'https://tong.visitkorea.or.kr/cms/resource/45/3311245_image2_1.jpg',
+  강원: 'https://tong.visitkorea.or.kr/cms/resource/25/4075925_image2_1.jpg',
+  서울: 'https://tong.visitkorea.or.kr/cms/resource/98/3487598_image2_1.jpg',
+};
+export const demoPhotoCorrections = [{id:places[1].id,title:places[1].title,oldImage:places[1].image,image:firstVisitImages.제주},...demoRegions.flatMap((region,index)=>region==='제주'?[]:[{id:10000+index*10,title:demoPlaces[region][0],oldImage:places[0].image,image:firstVisitImages[region]}])];
+places[1].image = firstVisitImages.제주;
+companions.splice(0, companions.length, ...members.map((member, index) => {
+  const region = demoRegions[index];
+  const tripPlaces = region === '제주' ? [places[1], places[3], places[0]] : demoPlaces[region].map((title, n) => ({ ...places[n], id: 10000 + index * 10 + n, title, region, image: n===0 ? firstVisitImages[region] : places[n].image, lat: demoPlacePoints[region][n][0], lng: demoPlacePoints[region][n][1] }));
+  const participants = [member, ...(index % 3 === 1 ? [members[(index + 1) % 10], members[(index + 2) % 10]] : [])].map(({id,nickname,photo,gender}) => ({id,nickname,photo,gender}));
+  const startDate = `2026-10-${String(12 + index).padStart(2,'0')}`;
+  return { id: index + 1, ownerId: member.id, title: demoTitles[index], sourceTrip: demoTitles[index], tripId: `seed-plan-${index + 1}`, region, theme: ['사진','맛집','자연','문화'][index % 4], description: `${region}에서 서두르지 않고 함께 여행해요. 오전에는 산책하고 오후에는 맛있는 식사와 풍경을 즐길 계획입니다. 첫 동행도 환영해요!`, dates: `10.${12+index} - 10.${14+index}`, startDate, endDate: `2026-10-${14+index}`, people: `${participants.length}/4명`, participants, author: member.nickname, avatar: member.nickname[0], tags: [region,'여유로운 여행','동행'], image: tripPlaces[0].image, schedule: tripPlaces.map((place,n) => ({placeId: place.id, day: 1, time: ['09:30','11:30','15:00'][n], memo: ['풍경을 감상하며 만나기','함께 점심 먹기','노을 전에 느긋하게 산책'][n]})), places: Object.fromEntries(tripPlaces.map(place => [place.id,place])), closed: index === 8, status: index === 8 ? 'closed' : participants.length === 3 ? 'soon' : 'open' };
+}));
+const extraPostTitles = ['함께 여행할 때 처음 정해두면 좋은 것들','비 오는 날의 제주 실내 코스','강릉에서 가장 좋았던 아침 산책','노을 사진을 담는 나만의 방법','혼자 가도 편안한 작은 책방','전기차로 여행할 때 충전 계획 세우기','서울 숲과 카페 사이 느린 하루','가을 바다 여행 준비물','첫 동행 여행 후기를 남겨요','일정에 빈 시간을 남겨두는 이유','우리 동네 숨은 산책길'];
+posts.push(...extraPostTitles.map((title,index) => ({id: 10 + index, board:'travel', category:['여행 팁','후기','추천'][index%3], title, content: '체험용 여행 기록입니다.\n\n여행에서는 목적지를 많이 방문하기보다 함께 걷고 쉬는 시간을 충분히 남겨두었어요. 지도에서 장소를 담아 시간을 정리하고, 동행 모집글에서 서로 일정을 확인하니 준비가 훨씬 수월했습니다.\n\n여러분은 어떤 여행을 좋아하나요? 댓글로 이야기를 나눠주세요.', date:`2026.09.${String(28-index).padStart(2,'0')}`, views: 30+index*17})));
+posts.forEach((post,index) => { const member = post.board === 'travel' ? members[index%9] : members[9]; post.ownerId = member.id; post.author = member.nickname; post.demo = true; post.comments = 0; });
+
+hotplaces.forEach((item,index) => Object.assign(item,{lat:places[index].lat,lng:places[index].lng,date:'2026-10-01',type:'자연',description:'체험용 핫플레이스'}));

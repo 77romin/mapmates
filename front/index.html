@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="지도에서 여행지를 찾고, 일정을 만들고, 함께 갈 동행을 만나는 여행 서비스" />
+    <title>너랑 갈.지도</title>
+    <link rel="icon" type="image/png" href="./assets/mapMates-logo-v1.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <link rel="stylesheet" href="./css/sunset.css">
+  <script src="./js/first-visit.js"></script>
+</head>
+  <body>
+    <a class="skip-link" href="#main-content">본문 바로가기</a>
+    <header class="topbar">
+      <a class="brand" href="./index.html" aria-label="지도 탐색으로 이동">
+        <img class="brand-logo" src="./assets/mapMates-logo-v1.png" alt="" />
+        <span>너랑 <strong>갈.지도</strong></span>
+      </a>
+
+      <form class="topbar-search" id="global-search-form" role="search">
+        <span class="icon icon-search" aria-hidden="true"></span>
+        <input id="global-search-input" type="search" placeholder="장소를 검색해보세요" aria-label="전체 여행지 검색" autocomplete="off" />
+        <button type="submit" aria-label="검색 실행">⌘ K</button>
+      </form>
+
+      <nav class="desktop-nav" aria-label="주요 메뉴">
+        <a class="nav-item is-active" href="./index.html">지도 탐색</a>
+        <a class="nav-item" href="./planner.html">내 여행</a>
+        <a class="nav-item" href="./companions.html">동행 찾기</a>
+        <a class="nav-item" href="./community.html">커뮤니티</a>
+      </nav>
+
+      <div class="topbar-actions">
+        <a class="profile-button" id="profile-button" href="./mypage.html">
+          <span class="avatar" data-user-avatar>○</span><span class="profile-name" data-user-name>로그인</span>
+        </a>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <section class="app-view map-view is-active" id="view-explore" data-view="explore" aria-labelledby="explore-title">
+        <h1 class="sr-only" id="explore-title">지도에서 여행지 탐색</h1>
+        <aside class="map-rail" aria-label="지도 빠른 메뉴">
+          <button class="is-active" type="button" data-workspace="explore"><span>⌖</span><small>탐색</small></button>
+          <button type="button" data-workspace="browse"><span>☷</span><small>둘러보기</small></button>
+          <button type="button" data-workspace="mine"><span>♡</span><small>내 여행</small></button>
+        </aside>
+        <aside class="search-panel" aria-label="여행지 검색">
+          <div id="explore-panel-content"><div class="panel-heading">
+            <div>
+              <p class="eyebrow">DISCOVER KOREA</p>
+              <h2>Explore</h2>
+            </div>
+            <button class="icon-button mobile-panel-close" id="mobile-panel-close" type="button" aria-label="검색 패널 닫기">×</button>
+          </div>
+
+          <a class="planning-promo" href="#" data-workspace="mine">
+            <span class="planning-promo-image" aria-hidden="true"></span>
+            <span><strong>다음 여행을<br />계획해 보세요</strong><small>나만의 여행 동선 만들기</small></span>
+            <b>›</b>
+          </a>
+
+          <form class="search-form" id="search-form">
+            <span class="icon icon-search" aria-hidden="true"></span>
+            <input id="search-input" type="search" placeholder="지역, 관광지, 음식점 검색" autocomplete="off" />
+            <button type="submit" aria-label="검색">검색</button>
+          </form>
+
+          <div class="nearby-heading"><h3>지금 지도 주변 여행지</h3><button type="button" id="refresh-nearby-button" aria-label="현재 지도 다시 검색">↻</button></div>
+          <div class="result-summary">
+            <div><strong id="result-count">8</strong>개의 여행지 <span class="live-data-status" id="live-data-status">데이터 연결 중</span></div>
+            <select id="sort-select" aria-label="정렬 방식">
+              <option value="recommended">추천순</option>
+              <option value="rating">이름순</option>
+              <option value="distance">거리순</option>
+            </select>
+          </div>
+          <div class="place-list" id="place-list" aria-live="polite"></div></div><div id="map-workspace" hidden></div>
+        </aside>
+
+        <div class="map-stage" id="map-stage" aria-label="관광지 지도">
+          <div class="map-pattern" aria-hidden="true"></div>
+          <svg class="route-layer" id="route-layer" viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div id="map-markers"></div>
+          <button class="search-panel-toggle" id="search-panel-toggle" type="button" aria-label="여행지 정보 접기" aria-expanded="true"><span aria-hidden="true">‹</span></button>
+
+          <div class="map-toolbar">
+            <button class="map-search-trigger" id="map-search-trigger" type="button">
+              <span class="icon icon-search" aria-hidden="true"></span>
+              <span>지역이나 장소를 검색해보세요</span>
+              <kbd>⌘ K</kbd>
+            </button>
+            <button class="icon-button" id="filter-open-button" type="button" aria-label="필터 열기"><span class="icon icon-filter"></span></button>
+          </div>
+
+          <div class="map-categories" aria-label="지도 레이어">
+            <button class="map-category is-active" id="place-filter-toggle" type="button" aria-expanded="false" aria-controls="place-filter-panel"><span>⌖</span>여행지</button>
+            <button class="map-category" type="button" data-layer="weather" aria-pressed="false"><span>☀</span>날씨</button>
+            <button class="map-category" type="button" data-layer="charger"><span>ϟ</span>충전소</button>
+            <button class="map-category" type="button" data-layer="hotplace"><span>♡</span>핫플</button>
+          </div>
+
+          <section id="hotplace-ranking" class="hotplace-ranking" aria-label="현재 지도 인기 장소" aria-live="polite" hidden></section>
+          <div class="place-filter-panel" id="place-filter-panel" hidden>
+            <div class="place-filter-section">
+              <strong>여행지</strong>
+              <div class="place-filter-options" aria-label="표시할 여행지 종류">
+                <button class="is-active" type="button" data-place-category="all" aria-pressed="true">전체</button>
+                <button class="is-active" type="button" data-place-category="attraction" aria-pressed="true">관광지</button>
+                <button class="is-active" type="button" data-place-category="food" aria-pressed="true">맛집</button>
+                <button class="is-active" type="button" data-place-category="stay" aria-pressed="true">숙소</button>
+                <button class="is-active" type="button" data-place-category="culture" aria-pressed="true">문화</button>
+                <button class="is-active" type="button" data-place-category="festival" aria-pressed="true">공연·행사</button>
+                <button class="is-active" type="button" data-place-category="shopping" aria-pressed="true">쇼핑</button>
+                <button class="is-active" type="button" data-place-category="course" aria-pressed="true">코스</button>
+              </div>
+            </div>
+          </div>
+
+          <section class="weather-forecast-card" id="weather-map-badge" hidden aria-label="지도 중심 날씨" aria-live="polite">
+            <p class="weather-loading">날씨를 불러오는 중이에요.</p>
+          </section>
+
+          <p id="charger-status" class="layer-status" role="status" hidden></p>
+          <div class="map-controls" aria-label="지도 제어">
+            <button type="button" id="locate-button" aria-label="현재 위치">◎</button>
+            <div><button type="button" id="zoom-in" aria-label="확대">+</button><button type="button" id="zoom-out" aria-label="축소">−</button></div>
+            <div class="map-type-picker">
+              <button class="map-type-toggle" id="map-type-toggle" type="button" aria-label="지도 타입 선택" aria-expanded="false"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Z M9 3v16 M15 5v16"/></svg></button>
+              <div class="map-type-menu" id="map-type-menu" hidden>
+
+                <div class="map-base-options" role="radiogroup" aria-label="기본 지도 타입">
+                  <button class="is-active" type="button" role="radio" aria-checked="true" data-map-base="roadmap">일반</button>
+                  <button type="button" role="radio" aria-checked="false" data-map-base="skyview">위성</button>
+                  <button type="button" role="radio" aria-checked="false" data-map-base="roadview">로드뷰</button>
+                </div>
+                <button id="terrain-toggle" type="button" aria-pressed="false">지형도</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="map-legend"><span></span>선택한 여행 경로</div>
+          <button class="mobile-search-fab" id="mobile-search-fab" type="button"><span class="icon icon-search"></span>여행지 찾기</button>
+        </div>
+
+        <aside class="trip-panel" id="trip-panel" aria-label="나의 여행 일정">
+          <div class="trip-panel-header">
+            <div>
+              <p class="eyebrow">MY TRIP</p>
+              <h2>제주, 우리 둘의 지도</h2>
+            </div>
+            <button class="icon-button" id="trip-collapse-button" type="button" aria-label="일정 패널 접기">›</button>
+          </div>
+          <div class="trip-meta">
+            <button type="button"><span class="icon icon-calendar"></span><span id="trip-date-label">10월 12일 - 14일</span></button>
+            <button type="button"><span>2</span>명</button>
+          </div>
+          <div class="trip-progress"><span style="width: 68%"></span></div>
+          <div class="trip-progress-label"><span>여행 준비도</span><strong>68%</strong></div>
+
+          <div class="itinerary-list" id="itinerary-list"></div>
+          <button class="add-stop-button" id="add-stop-button" type="button">＋ 장소 추가하기</button>
+
+          <div class="trip-summary">
+            <div><span>총 이동거리</span><strong id="trip-distance">42.8 km</strong></div>
+            <div><span>예상 이동시간</span><strong id="trip-duration">1시간 35분</strong></div>
+          </div>
+          <div class="trip-actions">
+            <button class="button button-secondary" id="share-trip-button" type="button">공유</button>
+            <a class="button button-primary" href="./planner.html">여행계획 확인</a>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <nav class="mobile-nav" aria-label="모바일 주요 메뉴">
+      <a class="is-active" href="#" data-workspace="explore"><span>⌖</span>지도</a>
+      <a href="#" data-workspace="browse"><span>☷</span>둘러보기</a>
+      <a href="#" data-workspace="mine"><span>♡</span>내 여행</a>
+      <a href="./community.html"><span>□</span>라운지</a>
+      <a href="./mypage.html"><span>○</span>MY</a>
+    </nav>
+
+    <div class="modal-root" id="modal-root" aria-live="polite"></div>
+    <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+    <script src="./config.js" onerror="this.remove()"></script>
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>
