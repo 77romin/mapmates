@@ -193,7 +193,7 @@ back/
 | 메서드 | 경로 | 설명 |
 | --- | --- | --- |
 | GET | `/api/posts?board&category&keyword&sort=latest\|views\|comments&page` | 목록 |
-| POST | `/api/posts` 🔒 | 작성 (`board=notice`는 👑) |
+| POST | `/api/posts` 🔒 | 작성 (`board=notice`·`news`는 👑, 일반 회원은 `travel`만) |
 | GET | `/api/posts/{id}` | 상세 (조회수 +1) |
 | PUT / DELETE | `/api/posts/{id}` 🔒 | 작성자·관리자만 |
 | GET / POST | `/api/posts/{id}/comments` | 댓글 목록·작성 🔒 (`parentId`로 대댓글) |

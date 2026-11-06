@@ -88,7 +88,7 @@ CALL expect_error('T14 같은 사람 중복 참가 거부', CONCAT('INSERT INTO 
 INSERT INTO posts (owner_id, board, category, title, content) VALUES
   (@m2, 'travel', '제주', '렌터카 없이 제주 동쪽 2박 3일 다녀온 동선', '버스와 택시를 섞어서 이동한 실제 동선을 정리해봤어요. 월정리와 비자림을 들렀어요.');
 SET @post1 = LAST_INSERT_ID();
-INSERT INTO posts (owner_id, board, title, content) VALUES (@m1, 'notice', '서비스 점검 안내', '10월 20일 새벽 점검이 있어요.');
+INSERT INTO posts (owner_id, board, category, title, content) VALUES (@m1, 'notice', '공지', '서비스 점검 안내', '10월 20일 새벽 점검이 있어요.');
 SET @post2 = LAST_INSERT_ID();
 CALL expect_error('T15 E5: 게시글·동행 둘 다 지정하면 거부', CONCAT('INSERT INTO comments (owner_id, post_id, companion_id, content) VALUES (', @m1, ', ', @post1, ', ', @c1, ', ''x'')'));
 CALL expect_error('T16 E5: 대상이 없으면 거부', CONCAT('INSERT INTO comments (owner_id, content) VALUES (', @m1, ', ''x'')'));
@@ -153,5 +153,51 @@ WHERE c.status = 'open' GROUP BY c.id, p.title, p.capacity ORDER BY c.created_at
 CALL expect_true('T26 E10: 한국 범위 밖 좌표가 남아 있지 않음',
   (SELECT COUNT(*) FROM attractions WHERE latitude IS NOT NULL AND NOT (latitude BETWEEN 33 AND 39 AND longitude BETWEEN 124 AND 132)) = 0,
   (SELECT CONCAT('좌표 없는 관광지 ', COUNT(*), '행') FROM attractions WHERE latitude IS NULL));
+
+-- ===== T27~T32. 프론트 화면 대조로 보완한 posts·hotplaces 규칙 =====
+CALL expect_error('T27 프론트 대조: 분류(category) 없는 게시글 거부',
+  CONCAT('INSERT INTO posts (owner_id, board, title, content) VALUES (', @m2, ', ''travel'', ''분류 없음'', ''x'')'));
+
+INSERT INTO posts (owner_id, board, category, title, content) VALUES (@m3, 'travel', '부산', '광안리 야경 보러 간 날', '해운대에서 버스로 이동했어요.');
+SET @post3 = LAST_INSERT_ID();
+CALL expect_true('T28 프론트 대조: 새 글은 updated_at이 NULL(수정됨 표시 없음)',
+  (SELECT updated_at IS NULL FROM posts WHERE id = @post3), '');
+
+-- E9 조회수 증가 SQL 그대로 실행
+UPDATE posts SET view_count = view_count + 1 WHERE id = @post3;
+UPDATE posts SET view_count = view_count + 1 WHERE id = @post3;
+CALL expect_true('T29 프론트 대조: 조회수가 올라도 updated_at은 그대로 NULL',
+  (SELECT view_count = 2 AND updated_at IS NULL FROM posts WHERE id = @post3),
+  (SELECT CONCAT('view_count=', view_count, ', updated_at=', IFNULL(updated_at, 'NULL')) FROM posts WHERE id = @post3));
+
+-- 글 수정 SQL은 updated_at = NOW()를 함께 넣는다
+UPDATE posts SET title = '광안리 야경 보러 간 날 (사진 추가)', updated_at = NOW() WHERE id = @post3;
+CALL expect_true('T30 프론트 대조: 글을 수정하면 updated_at이 채워짐',
+  (SELECT updated_at IS NOT NULL AND view_count = 2 FROM posts WHERE id = @post3),
+  (SELECT CONCAT('updated_at=', updated_at) FROM posts WHERE id = @post3));
+
+INSERT INTO hotplaces (owner_id, content_type_id, title, image_path, latitude, longitude, created_at, updated_at)
+VALUES (@m3, 12, '비 온 뒤 비자림', 'uploads/hotplaces/2.jpg', 33.4907, 126.8079, '2026-01-01 00:00:00', '2026-01-01 00:00:00');
+SET @h1 = LAST_INSERT_ID();
+UPDATE hotplaces SET description = '이끼가 가장 예쁜 시간은 오전이에요.' WHERE id = @h1;
+CALL expect_true('T31 프론트 대조: 핫플을 수정하면 updated_at이 바뀌고 created_at은 유지',
+  (SELECT updated_at > '2026-01-01 00:00:00' AND created_at = '2026-01-01 00:00:00' FROM hotplaces WHERE id = @h1),
+  (SELECT CONCAT('created_at=', created_at, ', updated_at=', updated_at) FROM hotplaces WHERE id = @h1));
+
+-- 프론트 검색은 제목·내용·작성자 닉네임·분류를 모두 본다(front/js/community.js).
+-- FULLTEXT는 제목·내용만 다루므로 닉네임·분류는 LIKE로 더한다. Service의 검색 SQL에 이 형태를 쓴다.
+SET @kw = '숲길';
+CALL expect_true('T32 프론트 대조: 작성자 닉네임으로 검색됨(FULLTEXT만으로는 0건)',
+  (SELECT COUNT(*) FROM posts p JOIN members m ON m.id = p.owner_id
+    WHERE p.board = 'travel' AND (MATCH(p.title, p.content) AGAINST(@kw IN BOOLEAN MODE)
+      OR m.nickname LIKE CONCAT('%', @kw, '%') OR p.category LIKE CONCAT('%', @kw, '%'))) = 1
+  AND (SELECT COUNT(*) FROM posts WHERE MATCH(title, content) AGAINST(@kw IN BOOLEAN MODE)) = 0,
+  '닉네임 ''숲길산책''의 글 1건');
+SET @kw = '부산';
+CALL expect_true('T32b 프론트 대조: 분류로 검색됨',
+  (SELECT COUNT(*) FROM posts p JOIN members m ON m.id = p.owner_id
+    WHERE p.board = 'travel' AND (MATCH(p.title, p.content) AGAINST(@kw IN BOOLEAN MODE)
+      OR m.nickname LIKE CONCAT('%', @kw, '%') OR p.category LIKE CONCAT('%', @kw, '%'))) = 1,
+  '분류 ''부산''의 글 1건');
 
 SELECT 'done' AS step;

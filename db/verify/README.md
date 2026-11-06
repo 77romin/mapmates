@@ -40,6 +40,8 @@ mysql -u <사용자> -p --default-character-set=utf8mb4 -t -e "source run_all.sq
 | E6 | 탈퇴 시 본인 데이터 삭제, 남의 답글은 부모만 NULL로 남음, 남의 글 유지 | T18~T23 |
 | E6 | 게시글 삭제 시 댓글·답글 함께 삭제 (CASCADE + 자기참조 SET NULL 동시) | T25 |
 | E10 | 한국 범위 밖 좌표 94행 정리 | T26 |
+| 프론트 대조 | 분류 없는 게시글 거부, 조회수가 올라도 `updated_at`은 NULL 유지(‘수정됨’ 오표시 방지), 글 수정 시에만 채워짐 | T27~T30 |
+| 프론트 대조 | 핫플 수정 시 `updated_at` 갱신, 게시글 검색이 닉네임·분류까지 찾음 | T31 T32 T32b |
 
 | 쿼리 | 사용 인덱스 | 읽는 행(추정) |
 | --- | --- | --- |
@@ -59,3 +61,14 @@ mysql -u <사용자> -p --default-character-set=utf8mb4 -t -e "source run_all.sq
 - **E5:** 정적 검토 때는 “CASCADE 컬럼에 CHECK 불가”로 예상하고 트리거를 대안으로 냈지만, 실행해 보니 CHECK가 정상 동작했어요. 그래서 처음 추천안(CHECK)을 그대로 유지해요.
 - **E1:** 덤프 원본 오류 두 가지 보완 — 구군 FK를 복합 FK로 교체, `contenttypes` 39번 이름 ‘관광지’ → ‘음식점’
 - **E10 추가:** 지도 주변 조회 인덱스, 좌표 이상치 정리
+
+## 프론트 화면 대조로 보완한 점 (posts·comments·hotplaces, 마예은)
+
+| 대상 | 프론트 | 보완 |
+| --- | --- | --- |
+| `posts.updated_at` | 값이 있으면 상세 화면에 ‘(수정됨)’ 표시 (`post-detail.js`) | `ON UPDATE` 제거, `NULL DEFAULT NULL`. 조회수 +1(E9)로는 바뀌지 않고 글 수정 SQL에서만 `updated_at = NOW()` |
+| `posts.category` | 글쓰기에서 필수 입력, 최대 10자 | `NULL` → `NOT NULL` |
+| `posts.board` 권한 | 일반 회원은 travel만, news·notice는 관리자만 (`board.js`) | DDL 변경 없음. Service 규칙으로 명시 |
+| 게시글 검색 | 제목·내용·작성자 닉네임·분류 검색 (`community.js`) | FULLTEXT(제목·내용) + `nickname LIKE` + `category LIKE` 형태로 검색 SQL 작성 (T32) |
+| `hotplaces.updated_at` | API 명세에 수정(PUT) 있음 | 다른 테이블처럼 `ON UPDATE CURRENT_TIMESTAMP` 컬럼 추가 |
+| `comments` | 내용 500자, 2단계 답글, 답글 있으면 내용만 삭제 | 변경 없음 (DDL과 일치) |

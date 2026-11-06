@@ -122,16 +122,20 @@ CREATE TABLE companion_participants (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
 -- ---------- 게시판 [E7, E9] ----------
+-- [프론트 대조] 일반 회원은 travel만 작성, news·notice는 관리자만 작성한다(front/js/board.js canWriteBoard). Service에서 확인.
+-- [프론트 대조] 분류는 글쓰기 화면에서 필수 입력(최대 10자)이므로 NOT NULL.
+-- [프론트 대조] updated_at은 '(수정됨)' 표시에 쓰인다. ON UPDATE를 두면 조회수 +1(E9)에도 시각이 바뀌어
+--              조회된 모든 글이 '(수정됨)'으로 보인다. 그래서 NULL = 수정 안 됨으로 두고, 글 수정 SQL에서만 NOW()를 넣는다.
 CREATE TABLE posts (
   id         BIGINT        NOT NULL AUTO_INCREMENT,
   owner_id   BIGINT        NOT NULL,
   board      ENUM('travel','news','notice') NOT NULL,
-  category   VARCHAR(20)   NULL,
+  category   VARCHAR(20)   NOT NULL,
   title      VARCHAR(100)  NOT NULL,
   content    TEXT          NOT NULL,
   view_count INT UNSIGNED  NOT NULL DEFAULT 0,
   created_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  updated_at DATETIME      NULL DEFAULT NULL COMMENT '제목·분류·본문을 수정한 시각. NULL이면 수정 안 됨',
   PRIMARY KEY (id),
   INDEX idx_posts_board_created (board, created_at),
   INDEX idx_posts_board_views (board, view_count),
@@ -181,6 +185,8 @@ CREATE TABLE hotplaces (
   latitude        DECIMAL(10,7) NOT NULL,
   longitude       DECIMAL(10,7) NOT NULL,
   created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  -- [프론트 대조] API 명세에 핫플 수정(PUT /api/hotplaces/{id})이 있어 다른 테이블과 같이 수정 시각을 둔다.
+  updated_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   INDEX idx_hotplaces_owner (owner_id),
   INDEX idx_hotplaces_position (latitude, longitude),
