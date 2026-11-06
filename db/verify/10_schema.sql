@@ -1,0 +1,193 @@
+-- ERD 추천안(E1~E10) + 검증에서 찾은 보완점을 반영한 검증용 DDL
+-- 1단계 결정이 확정되면 이 파일을 db/schema.sql의 출발점으로 쓴다.
+USE mapmates_erd_check;
+
+-- ---------- SSAFY_TRIP 테이블 보완 ----------
+-- [발견] contenttypes 39가 '관광지'로 잘못 들어가 있다. TourAPI 기준 39는 음식점.
+UPDATE contenttypes SET content_type_name = '음식점' WHERE content_type_id = 39;
+
+-- [E2] content_id를 FK 대상으로 쓰기 위해 NOT NULL + UNIQUE
+ALTER TABLE attractions
+  MODIFY content_id INT NOT NULL COMMENT '콘텐츠번호(TourAPI contentid)',
+  MODIFY first_image1 VARCHAR(255) NULL COMMENT '이미지경로1',
+  MODIFY first_image2 VARCHAR(255) NULL COMMENT '이미지경로2',
+  ADD UNIQUE KEY uk_attractions_content_id (content_id);
+
+-- [발견] gugun_code는 시도마다 1부터 다시 시작한다(234행 중 고유값 31개).
+-- 기존 FK(si_gun_gu_code → guguns.gugun_code)는 다른 시도의 구군도 통과시키므로 (시도, 구군) 복합 FK로 바꾼다.
+ALTER TABLE attractions DROP FOREIGN KEY attractions_sigungu_to_guguns_gugun_fk;
+ALTER TABLE guguns ADD UNIQUE KEY uk_guguns_sido_gugun (sido_code, gugun_code);
+ALTER TABLE attractions
+  ADD INDEX idx_attractions_area_type (area_code, content_type_id),
+  ADD CONSTRAINT fk_attractions_guguns FOREIGN KEY (area_code, si_gun_gu_code) REFERENCES guguns (sido_code, gugun_code);
+
+-- [E10] 지도 주변 조회(위도·경도 범위)용 복합 인덱스. 없으면 전체 스캔.
+ALTER TABLE attractions ADD INDEX idx_attractions_lat_lng (latitude, longitude);
+
+-- [E10] 좌표가 0이거나 한국 범위 밖인 94행은 지도에 엉뚱하게 찍히지 않도록 좌표를 비운다.
+UPDATE attractions SET latitude = NULL, longitude = NULL
+WHERE NOT (latitude BETWEEN 33 AND 39 AND longitude BETWEEN 124 AND 132);
+SELECT ROW_COUNT() AS coordinates_cleared;
+
+-- ---------- 회원 ----------
+CREATE TABLE members (
+  id            BIGINT       NOT NULL AUTO_INCREMENT,
+  email         VARCHAR(100) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  name          VARCHAR(30)  NOT NULL,
+  nickname      VARCHAR(20)  NOT NULL,
+  birth_date    DATE         NOT NULL,
+  gender        ENUM('male','female') NOT NULL,
+  photo         MEDIUMTEXT   NULL,
+  bio           VARCHAR(200) NULL,
+  role          ENUM('member','admin') NOT NULL DEFAULT 'member',
+  created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_members_email (email),
+  UNIQUE KEY uk_members_nickname (nickname)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+-- ---------- 여행계획 [E3] ----------
+CREATE TABLE plans (
+  id          BIGINT        NOT NULL AUTO_INCREMENT,
+  owner_id    BIGINT        NOT NULL,
+  title       VARCHAR(100)  NOT NULL,
+  start_date  DATE          NOT NULL,
+  end_date    DATE          NOT NULL,
+  capacity    TINYINT       NOT NULL DEFAULT 2 COMMENT '동행 정원(본인 포함)',
+  budget      INT           NOT NULL DEFAULT 0,
+  region      VARCHAR(20)   NULL,
+  theme       VARCHAR(20)   NULL,
+  description VARCHAR(1000) NULL,
+  created_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_plans_owner (owner_id, updated_at),
+  CONSTRAINT fk_plans_members FOREIGN KEY (owner_id) REFERENCES members (id) ON DELETE CASCADE,
+  CONSTRAINT chk_plans_period CHECK (end_date >= start_date AND DATEDIFF(end_date, start_date) <= 13),
+  CONSTRAINT chk_plans_capacity CHECK (capacity BETWEEN 2 AND 10),
+  CONSTRAINT chk_plans_budget CHECK (budget >= 0)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+CREATE TABLE plan_items (
+  id         BIGINT       NOT NULL AUTO_INCREMENT,
+  plan_id    BIGINT       NOT NULL,
+  content_id INT          NOT NULL,
+  day_no     TINYINT      NOT NULL,
+  visit_time TIME         NULL,
+  sort_order SMALLINT     NOT NULL,
+  memo       VARCHAR(200) NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_plan_items_order (plan_id, day_no, sort_order),
+  INDEX idx_plan_items_content (content_id),
+  CONSTRAINT fk_plan_items_plans FOREIGN KEY (plan_id) REFERENCES plans (id) ON DELETE CASCADE,
+  CONSTRAINT fk_plan_items_attractions FOREIGN KEY (content_id) REFERENCES attractions (content_id),
+  CONSTRAINT chk_plan_items_day CHECK (day_no BETWEEN 1 AND 14)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+CREATE TABLE favorites (
+  member_id  BIGINT   NOT NULL,
+  content_id INT      NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (member_id, content_id),
+  INDEX idx_favorites_content (content_id),
+  CONSTRAINT fk_favorites_members FOREIGN KEY (member_id) REFERENCES members (id) ON DELETE CASCADE,
+  CONSTRAINT fk_favorites_attractions FOREIGN KEY (content_id) REFERENCES attractions (content_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+-- ---------- 동행 [E4] ----------
+-- [발견] 모집자는 plans.owner_id로 알 수 있으므로 companions.owner_id를 두면 이행 종속(3NF 위반)이 된다. 두지 않는다.
+-- [발견] 같은 이유로 모집자를 참가자 테이블에 'host'로 넣지 않는다. 현재 인원 = 1 + 참가자 수.
+CREATE TABLE companions (
+  id         BIGINT   NOT NULL AUTO_INCREMENT,
+  plan_id    BIGINT   NOT NULL,
+  status     ENUM('open','closed') NOT NULL DEFAULT 'open',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_companions_plan (plan_id),
+  INDEX idx_companions_status (status, created_at),
+  CONSTRAINT fk_companions_plans FOREIGN KEY (plan_id) REFERENCES plans (id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+CREATE TABLE companion_participants (
+  companion_id BIGINT   NOT NULL,
+  member_id    BIGINT   NOT NULL,
+  joined_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (companion_id, member_id),
+  INDEX idx_participants_member (member_id),
+  CONSTRAINT fk_participants_companions FOREIGN KEY (companion_id) REFERENCES companions (id) ON DELETE CASCADE,
+  CONSTRAINT fk_participants_members FOREIGN KEY (member_id) REFERENCES members (id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+-- ---------- 게시판 [E7, E9] ----------
+CREATE TABLE posts (
+  id         BIGINT        NOT NULL AUTO_INCREMENT,
+  owner_id   BIGINT        NOT NULL,
+  board      ENUM('travel','news','notice') NOT NULL,
+  category   VARCHAR(20)   NULL,
+  title      VARCHAR(100)  NOT NULL,
+  content    TEXT          NOT NULL,
+  view_count INT UNSIGNED  NOT NULL DEFAULT 0,
+  created_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_posts_board_created (board, created_at),
+  INDEX idx_posts_board_views (board, view_count),
+  INDEX idx_posts_owner (owner_id),
+  FULLTEXT INDEX ft_posts_title_content (title, content) WITH PARSER ngram,
+  CONSTRAINT fk_posts_members FOREIGN KEY (owner_id) REFERENCES members (id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+-- ---------- 댓글 [E5, E6] ----------
+-- 프론트는 답글을 2단계로만 만든다(parentId = 최상위 댓글, replyTo = 답한 사람 닉네임).
+-- replyTo 닉네임은 복사하지 않고 reply_to_member_id로 참조한다.
+CREATE TABLE comments (
+  id                 BIGINT       NOT NULL AUTO_INCREMENT,
+  owner_id           BIGINT       NOT NULL,
+  post_id            BIGINT       NULL,
+  companion_id       BIGINT       NULL,
+  parent_id          BIGINT       NULL,
+  reply_to_member_id BIGINT       NULL,
+  content            VARCHAR(500) NOT NULL,
+  deleted            BOOLEAN      NOT NULL DEFAULT FALSE,
+  created_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_comments_post (post_id, created_at),
+  INDEX idx_comments_companion (companion_id, created_at),
+  INDEX idx_comments_parent (parent_id),
+  CONSTRAINT fk_comments_members FOREIGN KEY (owner_id) REFERENCES members (id) ON DELETE CASCADE,
+  CONSTRAINT fk_comments_posts FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+  CONSTRAINT fk_comments_companions FOREIGN KEY (companion_id) REFERENCES companions (id) ON DELETE CASCADE,
+  CONSTRAINT fk_comments_parent FOREIGN KEY (parent_id) REFERENCES comments (id) ON DELETE SET NULL,
+  CONSTRAINT fk_comments_reply_to FOREIGN KEY (reply_to_member_id) REFERENCES members (id) ON DELETE SET NULL,
+  -- [E5] 게시글 댓글과 동행 댓글 중 정확히 하나. ON DELETE CASCADE 컬럼에는 CHECK가 허용된다(MySQL 8.0.46 확인).
+  -- ON DELETE SET NULL 컬럼(parent_id, reply_to_member_id)에는 CHECK를 걸 수 없다(오류 3823, 20_tests.sql T01).
+  CONSTRAINT chk_comments_target CHECK ((post_id IS NULL) <> (companion_id IS NULL))
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+-- ---------- 핫플레이스 [E8] ----------
+-- [발견] 프론트 데모의 type은 '자연' 같은 자유 문자열이다. 명세의 '장소유형'은 contenttypes FK로 통일한다.
+CREATE TABLE hotplaces (
+  id              BIGINT        NOT NULL AUTO_INCREMENT,
+  owner_id        BIGINT        NOT NULL,
+  content_type_id INT           NOT NULL,
+  title           VARCHAR(100)  NOT NULL,
+  description     VARCHAR(1000) NULL,
+  image_path      VARCHAR(255)  NOT NULL,
+  visited_on      DATE          NULL,
+  latitude        DECIMAL(10,7) NOT NULL,
+  longitude       DECIMAL(10,7) NOT NULL,
+  created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_hotplaces_owner (owner_id),
+  INDEX idx_hotplaces_position (latitude, longitude),
+  CONSTRAINT fk_hotplaces_members FOREIGN KEY (owner_id) REFERENCES members (id) ON DELETE CASCADE,
+  CONSTRAINT fk_hotplaces_contenttypes FOREIGN KEY (content_type_id) REFERENCES contenttypes (content_type_id),
+  CONSTRAINT chk_hotplaces_position CHECK (latitude BETWEEN 33 AND 39 AND longitude BETWEEN 124 AND 132)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+SELECT 'schema ok' AS step, COUNT(*) AS tables_in_schema
+FROM information_schema.tables WHERE table_schema = 'mapmates_erd_check';
