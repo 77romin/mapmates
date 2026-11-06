@@ -1,93 +1,68 @@
-# 3팀_김강민_마예은
+<p align="center">
+  <img src="./front/assets/mapMates-logo-v1.png" width="140" height="140" alt="MapMates · 너랑 갈.지도 logo">
+</p>
 
+# 너랑 갈.지도 · MapMates — 백엔드·DB 프로젝트
 
+> 3팀 김강민 · 마예은 | SSAFY EnjoyTrip 관통 프로젝트 (Web Backend 5회차 + DB 6회차)
 
-## Getting started
+**MapMates**는 지도에서 여행지를 찾고, 일정을 만들고, 함께 갈 동행을 모으는 여행 웹앱이에요.
+이전 단계에서 만든 프론트엔드는 데이터를 브라우저 `localStorage`에 저장했어요. 이번 단계에서는 **Servlet MVC 백엔드와 MySQL 데이터베이스**를 붙여 여러 사용자가 데이터를 함께 쓰는 서비스로 바꿔요.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## 저장소 구조
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+| 경로 | 내용 |
+| --- | --- |
+| [`front/`](./front) | 프론트엔드 (HTML·CSS·JS). 기존 [77romin/mapmates](https://github.com/77romin/mapmates) 커밋 히스토리를 그대로 가져왔어요. 기능 소개는 [front/README.md](./front/README.md) |
+| [`back/`](./back) | 백엔드 (Java 17+, Jakarta Servlet 6.0, Tomcat 10.1, JDBC). 설계는 [back/docs/BACKEND_DESIGN.md](./back/docs/BACKEND_DESIGN.md) |
+| [`db/`](./db) | DB 설계 (ERD, DDL, 더미 데이터). `db/ref/`에 SSAFY_TRIP 스키마·관광지 덤프 |
+| [`docs/`](./docs) | 팀 문서. 업무 분담은 [docs/WORK_SPLIT.md](./docs/WORK_SPLIT.md) |
 
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## 아키텍처
 
 ```
-cd existing_repo
-git remote add origin https://lab.ssafy.com/s16/a11/project/6.database/3-kkm-mye.git
-git branch -M master
-git push -uf origin master
+front (정적 HTML/JS) ──fetch JSON──▶ Servlet(Controller) ─▶ Service ─▶ DAO ─▶ MySQL
 ```
 
-## Integrate with your tools
+- 프론트 화면은 그대로 두고 **JSON API**를 붙여요. Maven 빌드 시 `front/`가 WAR에 함께 들어가 API와 같은 주소에서 열려요.
+- Service가 트랜잭션을 열고 DAO에 Connection을 넘겨요. DAO는 SQL만 담당해요.
+- 로그인은 `HttpSession`을 쓰고, 비밀번호는 PBKDF2로 해시해서 저장해요.
 
-* [Set up project integrations](https://lab.ssafy.com/s16/a11/project/6.database/3-kkm-mye/-/settings/integrations)
+## 진행 현황
 
-## Collaborate with your team
+| 영역 | 요구사항 | 상태 | 담당 |
+| --- | --- | --- | --- |
+| 백엔드 설계·공통 기반 | – | ✅ 완료 | 김강민 |
+| 회원·인증 API | F107, F108 | ✅ 백엔드 완료 / 프론트 연동 예정 | 마예은 (연동) |
+| ERD·DDL | DB PJT | ⏳ 진행 예정 | 공동 |
+| 관광지 조회 | F101~F103 | ⏳ | 김강민 |
+| 여행계획·찜 | F104 | ⏳ | 김강민 |
+| 동행 모집·참가 | 추가 기능 | ⏳ | 김강민 |
+| 게시판·공지사항·댓글 | F109, F110 | ⏳ | 마예은 |
+| 핫플레이스 | F105 | ⏳ | 마예은 |
+| 전기차 충전소 | F114 | 프론트 직접 호출 유지 (선택: 서버 캐시) | 마예은 |
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+자세한 단계별 분담과 의존 관계는 [업무 분담 문서](./docs/WORK_SPLIT.md)를 참고하세요.
 
-## Test and Deploy
+## 팀
 
-Use the built-in continuous integration in GitLab.
+| GitHub 프로필 사진 | 이름 | 이번 단계 담당 |
+| --- | --- | --- |
+| <a href="https://github.com/77romin"><img src="https://github.com/77romin.png?size=160" width="80" height="80" alt="김강민 GitHub 프로필 사진"></a> | [김강민](https://github.com/77romin) | **관광지·여행계획·동행·공통 연동** — 백엔드 공통 기반, ERD 병합, 관광지·여행계획·찜·동행 API, 프론트 API 연동 공통 모듈, 길찾기 프록시 |
+| <a href="https://github.com/yeeunma"><img src="https://github.com/yeeunma.png?size=160" width="80" height="80" alt="마예은 GitHub 프로필 사진"></a> | [마예은](https://github.com/yeeunma) | **회원 연동·커뮤니티·핫플레이스·충전소** — 회원 API 프론트 연동, 게시판·공지사항·댓글 API, 핫플레이스 사진 업로드, 충전소 |
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+## 실행 방법
 
-***
+1. MySQL에 회원 임시 테이블 생성: [`back/docs/sql/members-draft.sql`](./back/docs/sql/members-draft.sql) (정식 스키마는 `db/`에 작성 예정)
+2. `back/src/main/resources/application.properties.example`을 `application.properties`로 복사하고 DB 계정 입력
+3. STS 또는 IntelliJ에서 `back/`을 Maven 프로젝트로 Import → Tomcat 10.1에 추가 → 실행
+4. `http://localhost:8080/mapmates/index.html` 접속 (API 확인: `/mapmates/api/auth/me`)
 
-# Editing this README
+## 산출물
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+| 산출물 | 위치 |
+| --- | --- |
+| 개선된 요구사항 목록 | 작성 예정 |
+| Usecase Diagram, Class Diagram | 작성 예정 |
+| ER 다이어그램, DB Schema (DDL) | `db/` (작성 예정) |
+| 소스코드, 실행 화면 캡처 | `back/`, `front/`, 캡처는 작성 예정 |
