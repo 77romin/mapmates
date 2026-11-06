@@ -1,0 +1,9 @@
+# SSAFY 명세서(對外秘)는 저장소에 올리지 않는다
+**/ref/*.pdf
+**/ref/*.md
+
+# 빌드·IDE
+target/
+.idea/
+*.iml
+.DS_Store
