@@ -17,6 +17,7 @@
   </properties>
 
   <dependencies>
+    <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>5.11.4</version><scope>test</scope></dependency>
     <!-- Tomcat 10.1이 제공하므로 WAR에 넣지 않는다 -->
     <dependency>
       <groupId>jakarta.servlet</groupId>
@@ -44,6 +45,8 @@
   <build>
     <finalName>mapmates</finalName>
     <plugins>
+      <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.13.0</version></plugin>
+      <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.5.2</version></plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-war-plugin</artifactId>
@@ -60,7 +63,7 @@
                 <exclude>tmp/**</exclude>
                 <exclude>node_modules/**</exclude>
                 <exclude>dev-server.js</exclude>
-                <exclude>README*.md</exclude>
+                <exclude>README*.md</exclude><exclude>config.js</exclude>
               </excludes>
             </resource>
           </webResources>

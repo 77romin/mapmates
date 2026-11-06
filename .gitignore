@@ -10,3 +10,6 @@ target/
 
 # 검증 스크립트가 만드는 15MB 덤프 사본
 db/verify/00_base.sql
+
+.env
+.artifacts/

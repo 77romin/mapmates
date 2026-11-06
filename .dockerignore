@@ -1,0 +1,7 @@
+.git
+**/target
+**/node_modules
+**/config.js
+**/application.properties
+.env
+db/verify

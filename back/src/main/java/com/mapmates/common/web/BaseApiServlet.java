@@ -71,6 +71,8 @@ public abstract class BaseApiServlet extends HttpServlet {
 
     private final Routes routes = new Routes();
 
+    protected void validateResource(ApiRequest request) {}
+
     /** 하위 클래스가 라우트를 등록한다. */
     protected abstract void routes(Routes r);
 
@@ -94,6 +96,7 @@ public abstract class BaseApiServlet extends HttpServlet {
                 pathMatched = true;
                 if (route.method().equals(method)) {
                     ApiRequest request = new ApiRequest(req, resp, vars);
+                    validateResource(request);
                     Object body = route.handler().handle(request);
                     writeSuccess(resp, request.status(), body);
                     return;

@@ -37,6 +37,7 @@ public final class Tx {
     /** 변경 작업. 하나의 트랜잭션으로 묶고 실패 시 롤백한다. */
     public static <T> T write(SqlWork<T> work) {
         try (Connection conn = DBUtil.getConnection()) {
+            conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
             conn.setAutoCommit(false);
             try {
                 T result = work.apply(conn);

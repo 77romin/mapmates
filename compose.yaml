@@ -1,0 +1,35 @@
+services:
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile.mysql
+    environment:
+      TZ: Asia/Seoul
+      MYSQL_ROOT_PASSWORD: ${MAPMATES_ROOT_PASSWORD:-local-root-only}
+      MYSQL_DATABASE: mapmates
+      MYSQL_USER: mapmates
+      MYSQL_PASSWORD: ${MAPMATES_DB_PASSWORD:-local-mapmates-only}
+    volumes:
+      - mapmates-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -h127.0.0.1 -umapmates -p$$MYSQL_PASSWORD mapmates -e 'SELECT 1 FROM members LIMIT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+  web:
+    build: .
+    ports: ["127.0.0.1:8080:8080"]
+    environment:
+      TZ: Asia/Seoul
+      MAPMATES_DB_URL: jdbc:mysql://db:3306/mapmates?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useSSL=false
+      MAPMATES_DB_USER: mapmates
+      MAPMATES_DB_PASSWORD: ${MAPMATES_DB_PASSWORD:-local-mapmates-only}
+      MAPMATES_KAKAO_JS_KEY: ${MAPMATES_KAKAO_JS_KEY:-}
+      MAPMATES_WEATHER_API_KEY: ${MAPMATES_WEATHER_API_KEY:-}
+      MAPMATES_EV_CHARGER_API_KEY: ${MAPMATES_EV_CHARGER_API_KEY:-}
+      MAPMATES_KAKAO_REST_KEY: ${MAPMATES_KAKAO_REST_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  mapmates-data:
