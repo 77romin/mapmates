@@ -16,7 +16,7 @@ export function isPostOwner(state, post) {
 }
 
 export function commentsOf(state, post) {
-  return state.postComments[post.id] || [];
+  return state.postComments[post.id] || Array.from({length:Number(post.commentCount||0)},()=>({}));
 }
 
 export function formatDate(date = new Date()) {

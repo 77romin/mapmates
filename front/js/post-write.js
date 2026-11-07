@@ -1,3 +1,4 @@
+import { serverMode, request, refresh, serverSnapshot } from "./server-api.js";
 import { ensureLoggedIn, initShell, loadState, showToast } from "./shared.js";
 import { persist } from "./account.js";
 import { BOARDS, formatDate, isPostOwner, canWriteBoard } from "./board.js";
@@ -58,7 +59,7 @@ $("#post-content").addEventListener("input", updateLength);
 $("#post-form").addEventListener("input", () => { dirty = true; });
 window.addEventListener("beforeunload", (event) => { if (dirty) event.preventDefault(); });
 
-$("#post-form").addEventListener("submit", (event) => {
+$("#post-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!state.loggedIn || (editing && !isPostOwner(state, editing))) return showToast("글을 저장할 권한이 없어요.");
   const problem = formError();
@@ -70,6 +71,7 @@ $("#post-form").addEventListener("submit", (event) => {
     title: $("#post-title").value.trim(),
     content: $("#post-content").value.trim().slice(0, MAX_CONTENT),
   };
+  if(serverMode){try{const saved=await request(editing?`posts/${editing.id}`:'posts',editing?'PUT':'POST',values);dirty=false;location.href=`./post-detail.html?id=${saved.id}`;}catch(e){$('#post-error').textContent=e.message;}return;}
   const post = editing || { id: Date.now(), ownerId: state.user.id, author: state.user.nickname, date: formatDate(), views: 0 };
   Object.assign(post, values, editing ? { updatedAt: Date.now() } : {});
   if (!editing) state.posts.unshift(post);

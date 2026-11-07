@@ -1,3 +1,4 @@
+import { serverMode, request, refresh, serverSnapshot } from "./server-api.js";
 import { escapeHtml, initShell, loadState, showToast, logoutAccount, switchAccount } from "./shared.js";
 import { MIN_SIGNUP_AGE, ageOf, persist, readProfileImage, safeNextUrl } from "./account.js";
 
@@ -50,8 +51,8 @@ function signupError() {
 
 document.querySelectorAll("[data-account-tab]").forEach((tab) => tab.addEventListener("click", () => showMode(tab.dataset.accountTab)));
 
-$("#logout-button").addEventListener("click", () => {
-  logoutAccount(state);
+$("#logout-button").addEventListener("click", async () => {
+  await logoutAccount(state);
   initShell("signup", state);
   renderAccountState();
   showMode("login");
@@ -73,12 +74,13 @@ $("#signup-photo").addEventListener("change", async () => {
 
 $("#signup-photo-remove").addEventListener("click", () => { photo = ""; renderPhoto(); });
 
-$("#signup-form").addEventListener("submit", (event) => {
+$("#signup-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const problem = signupError();
   $("#signup-error").textContent = problem ? problem[1] : "";
   if (problem) { problem[0].focus(); return; }
 
+  if(serverMode){try{await request('members','POST',{email:$('#signup-email').value.trim(),password:$('#signup-password').value,name:$('#signup-name').value.trim(),nickname:$('#signup-nickname').value.trim(),birthDate:$('#signup-birth').value,gender:$('#signup-gender').value,photo});location.href=nextUrl;}catch(e){$('#signup-error').textContent=e.message;}return;}
   const email = $("#signup-email").value.trim().toLowerCase();
   if (state.members.some(member => member.email.toLowerCase() === email)) {
     $("#signup-error").textContent = "이미 가입된 이메일이에요. 로그인해주세요.";
@@ -105,10 +107,11 @@ $("#signup-form").addEventListener("submit", (event) => {
   location.href = nextUrl;
 });
 
-$("#login-form").addEventListener("submit", (event) => {
+$("#login-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const email = $("#login-email").value.trim().toLowerCase();
   const password = $("#login-password").value;
+  if(serverMode){try{await request('auth/login','POST',{email,password});location.href=nextUrl;}catch(e){$('#login-error').textContent=e.message;}return;}
   const member = state.members.find(entry => entry.email.toLowerCase() === email);
   let message = "";
   if (!email || !password) message = "이메일과 비밀번호를 입력해주세요.";
@@ -125,8 +128,9 @@ renderPhoto();
 showMode(params.get("mode") === "signup" ? "signup" : "login");
 
 // Frontend demo recovery: identity fields are only a local simulation, not email verification.
-$("#recover-form").addEventListener("submit", event => {
+$("#recover-form").addEventListener("submit", async event => {
   event.preventDefault();
+  if(serverMode){try{await request('auth/password-reset','POST',{email:$('#recover-email').value,name:$('#recover-name').value,birthDate:$('#recover-birth').value,newPassword:$('#recover-password').value});$('#recover-error').textContent='비밀번호를 변경했어요.';}catch(e){$('#recover-error').textContent=e.message;}return;}
   const member = state.members.find(user => user.email.toLowerCase() === $("#recover-email").value.trim().toLowerCase() && user.name === $("#recover-name").value.trim() && user.birthDate === $("#recover-birth").value);
   const password = $("#recover-password").value;
   if (!member) return $("#recover-error").textContent = "입력한 회원정보를 확인해주세요.";
@@ -141,3 +145,5 @@ $("#demo-accounts").addEventListener('click', event => {
   if (!member) return;
   $("#login-email").value = member.email; $("#login-password").value = member.password; showMode('login'); $("#login-email").focus();
 });
+
+if(serverMode){$('#demo-accounts').innerHTML='<p class="helper-text">시연 계정: traveler1@mapmates.test ~ traveler10@mapmates.test / travel1234 (10번은 운영자)</p>'; }

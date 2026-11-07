@@ -1,3 +1,6 @@
+import { serverMode, request, ready } from "./server-api.js";
+await ready;
+const tourRow = p => ({contentid:p.id,contenttypeid:p.contentTypeId,title:p.title,mapx:p.lng,mapy:p.lat,firstimage:p.image,addr1:p.address});
 const config = window.APP_CONFIG || {};
 const chargerCache = new Map();
 const chargerRequests = new Map();
@@ -21,10 +24,11 @@ async function requestJson(url, options = {}) {
 }
 
 export const api = {
-  hasLiveTourApi: Boolean(config.TOUR_API_KEY),
+  hasLiveTourApi: serverMode || Boolean(config.TOUR_API_KEY),
   hasKakaoMap: Boolean(config.KAKAO_JS_KEY),
 
   async searchTour({ keyword = "", areaCode = 39, contentTypeId = "" } = {}) {
+    if(serverMode)return (await request(`attractions?${new URLSearchParams({keyword,areaCode,contentTypeId,size:100})}`)).items.filter(p=>p.lat!=null&&p.lng!=null).map(tourRow);
     if (!config.TOUR_API_KEY) return null;
     const endpoint = keyword
       ? "https://apis.data.go.kr/B551011/KorService2/searchKeyword2"
@@ -46,6 +50,7 @@ export const api = {
   },
 
   async searchNearby({ lng, lat, radius = 10000, contentTypeId = "" }) {
+    if(serverMode)return (await request(`attractions/nearby?${new URLSearchParams({lng,lat,radius:radius/1000,contentTypeId,size:100})}`)).items.map(tourRow);
     if (!config.TOUR_API_KEY) return null;
     const url = withQuery("https://apis.data.go.kr/B551011/KorService2/locationBasedList2", {
       serviceKey: config.TOUR_API_KEY,
@@ -65,6 +70,7 @@ export const api = {
   },
 
   async getTourDetail(contentId) {
+    if(serverMode)return null;
     if (!config.TOUR_API_KEY || !contentId) return null;
     const data = await requestJson(withQuery('https://apis.data.go.kr/B551011/KorService2/detailCommon2', {serviceKey:config.TOUR_API_KEY, MobileOS:'ETC', MobileApp:'NeorangGaljido', _type:'json', contentId}));
     const items = data?.response?.body?.items?.item;
@@ -175,10 +181,10 @@ export const api = {
   },
 
   async getCarDirections({ origin, destination, waypoints = [] }) {
-    if (!config.KAKAO_REST_KEY || !origin || !destination) return null;
+    if ((!serverMode && !config.KAKAO_REST_KEY) || !origin || !destination) return null;
     const sameOriginProxy = location.protocol.startsWith("http") ? location.origin : "";
     const proxyBase = String(config.API_PROXY_URL || sameOriginProxy).replace(/\/$/, "");
-    const endpoint = proxyBase ? `${proxyBase}/api/kakao-directions` : "https://apis-navi.kakaomobility.com/v1/directions";
+    const endpoint = serverMode ? new URL("../api/kakao-directions",import.meta.url).href : proxyBase ? `${proxyBase}/api/kakao-directions` : "https://apis-navi.kakaomobility.com/v1/directions";
     const url = withQuery(endpoint, {
       origin: `${origin.lng},${origin.lat}`,
       destination: `${destination.lng},${destination.lat}`,
@@ -187,7 +193,7 @@ export const api = {
       car_fuel: "GASOLINE",
     });
     try {
-      const data = await requestJson(url, { headers: { Authorization: `KakaoAK ${config.KAKAO_REST_KEY}` } });
+      const data = await requestJson(url, serverMode ? {} : { headers: { Authorization: `KakaoAK ${config.KAKAO_REST_KEY}` } });
       return data?.routes?.[0] || null;
     } catch {
       return null;

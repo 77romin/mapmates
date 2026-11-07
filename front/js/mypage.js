@@ -1,3 +1,4 @@
+import { serverMode, request, refresh, serverSnapshot } from "./server-api.js";
 import { escapeHtml, initShell, loadState, showToast, logoutAccount } from "./shared.js";
 import { GENDER_LABELS, clearUserContent, emptyUser, persist, readProfileImage, syncUserProfile } from "./account.js";
 import { STATUS_LABELS, syncCompanion } from "./companion-utils.js";
@@ -42,7 +43,7 @@ function render() {
   $("#profile-avatar").innerHTML = avatarMarkup(nextPhoto, state.user.nickname);
   $("#profile-avatar").className = `photo-preview ${state.user.gender === "female" ? "is-female" : "is-male"}`;
   $("#profile-photo-remove").hidden = !nextPhoto;
-  $("#withdraw-password-field").hidden = !state.user.password;
+  $("#withdraw-password-field").hidden = !serverMode && !state.user.password;
   renderActivity();
 }
 
@@ -62,10 +63,11 @@ $("#profile-photo").addEventListener("change", async () => {
 
 $("#profile-photo-remove").addEventListener("click", () => { nextPhoto = ""; render(); });
 
-$("#profile-form").addEventListener("submit", (event) => {
+$("#profile-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const nickname = $("#profile-nickname").value.trim();
   if (!nickname) { $("#profile-nickname").focus(); return showToast("닉네임을 입력해주세요."); }
+  if(serverMode){try{await request('members/me','PUT',{...state.user,nickname,photo:nextPhoto});location.reload();}catch(e){showToast(e.message);}return;}
   const previous = { nickname: state.user.nickname, photo: state.user.photo };
   state.user.nickname = nickname;
   state.user.photo = nextPhoto;
@@ -88,12 +90,12 @@ $("#settings-toggle").addEventListener("click", () => {
   if (!panel.hidden) panel.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
-$("#logout-button").addEventListener("click", () => {
-  logoutAccount(state);
+$("#logout-button").addEventListener("click", async () => {
+  await logoutAccount(state);
   location.href = "./index.html";
 });
 
-$("#password-form").addEventListener("submit", (event) => {
+$("#password-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const current = $("#current-password").value;
   const nextPassword = $("#new-password").value;
@@ -104,6 +106,7 @@ $("#password-form").addEventListener("submit", (event) => {
   else if (nextPassword === state.user.password) message = "기존 비밀번호와 다른 비밀번호를 입력해주세요.";
   $("#password-error").textContent = message;
   if (message) return;
+  if(serverMode){try{await request('members/me/password','PUT',{currentPassword:current,newPassword:nextPassword});event.target.reset();showToast('비밀번호를 변경했어요.');}catch(e){$('#password-error').textContent=e.message;}return;}
   state.user.password = nextPassword;
   persist(state);
   event.target.reset();
@@ -111,10 +114,11 @@ $("#password-form").addEventListener("submit", (event) => {
   showToast("비밀번호를 변경했어요.");
 });
 
-$("#withdraw-form").addEventListener("submit", (event) => {
+$("#withdraw-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (state.user.password && $("#withdraw-password").value !== state.user.password) return showToast("비밀번호가 맞지 않아요.");
   if (!confirm("회원탈퇴 시 작성한 게시글·댓글·모집글과 동행 참가 기록이 모두 삭제되며 복구할 수 없습니다. 탈퇴할까요?")) return;
+  if(serverMode){try{await request('members/me','DELETE',{currentPassword:$('#withdraw-password').value});localStorage.removeItem('neorang-galjido-v1-drafts');location.href='./index.html';}catch(e){showToast(e.message);}return;}
   clearUserContent(state);
   state.loggedIn = false;
   state.members = state.members.filter(member => member.id !== state.user.id);

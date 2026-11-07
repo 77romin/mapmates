@@ -1,3 +1,4 @@
+import { serverMode, request, refresh, serverSnapshot } from "./server-api.js";
 import { syncCompanion, hasJoined, isCompanionOwner } from './companion-utils.js';
 import { places } from './data.js';
 import { escapeHtml, saveState, loadState, ensureLoggedIn, showToast } from './shared.js';
@@ -60,9 +61,10 @@ export function mountWorkspace(state, getMap, onChange) {
     return `<button type="button" class="button button-primary workspace-join" id="workspace-join" aria-label="${joined && !owner ? '참가 중 · 다시 누르면 참가 취소' : owner ? '내 모집글' : closed ? '모집 마감' : '동행하기'}" title="${joined && !owner ? '다시 누르면 참가를 취소합니다' : ''}" ${owner || (closed && !joined) ? 'disabled' : ''}>${owner ? '내 모집글' : joined ? '참가 중' : closed ? '모집 마감' : '동행하기'}</button>`;
   }
 
-  function joinSelected() {
+  async function joinSelected() {
     // Re-read storage so another tab's participation or closure is respected.
     const id = selected.id;
+    if(serverMode)await refresh();
     Object.assign(state, loadState());
     selected = state.companions.find(item => String(item.id) === String(id));
     if (!selected) { render(); draw(); showToast('삭제된 모집글이에요.'); return; }
@@ -71,6 +73,7 @@ export function mountWorkspace(state, getMap, onChange) {
     if (isCompanionOwner(state, selected) || (selected.status === 'closed' && !joined)) { render(); draw(); return; }
     if (!state.loggedIn) sessionStorage.setItem('neorang-browse-return', String(id));
     if (!ensureLoggedIn(state, '동행에 참가하려면 로그인해주세요.')) return;
+    if(serverMode){try{Object.assign(selected,await request(`companions/${selected.id}/participants${joined?'/me':''}`,joined?'DELETE':'POST',joined?undefined:{}));render();draw();}catch(e){showToast(e.message);}return;}
     const previousParticipants = [...selected.participants], previousJoined = [...state.joinedCompanions];
     if (joined) {
       selected.participants = selected.participants.filter(person => person.id !== state.user.id);

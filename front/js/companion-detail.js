@@ -1,3 +1,4 @@
+import { serverMode, request, refresh, serverSnapshot } from "./server-api.js";
 import { initComments } from './comments.js';
 import { TripRoute, tripDays, dayDate, renderDayWeather, applyType, bindRoadview } from './trip-map.js';
 import { api } from "./api.js";
@@ -87,9 +88,10 @@ function render() {
   if (isOwner) renderOwnerForm();
 }
 
-function toggleJoin() {
+async function toggleJoin() {
   if (!ensureLoggedIn(state, "동행에 참가하려면 로그인이 필요해요.")) return;
   if (isCompanionOwner(state, item)) return;
+  if(serverMode){try{const joined=hasJoined(state,item);Object.assign(item,await request(`companions/${item.id}/participants${joined?'/me':''}`,joined?'DELETE':'POST',joined?undefined:{}));render();}catch(e){showToast(e.message);}return;}
   const index = item.participants.findIndex((person) => person.id === state.user.id);
   if (index >= 0) {
     if (!confirm("동행 참가를 취소할까요?")) return;
@@ -107,7 +109,7 @@ function toggleJoin() {
   showToast(index >= 0 ? "동행 참가를 취소했어요." : "동행 참가를 완료했어요.");
 }
 
-function saveOwnerEdit(event) {
+async function saveOwnerEdit(event) {
   event.preventDefault();
   if (!isCompanionOwner(state, item)) return showToast("모집글 작성자만 수정할 수 있어요.");
   const title = $("#owner-title").value.trim();
@@ -119,6 +121,7 @@ function saveOwnerEdit(event) {
   else if (capacity < item.participants.length) message = "현재 참가자 수보다 적게 설정할 수 없어요.";
   $("#owner-error").textContent = message;
   if (message) return;
+  if(serverMode){try{Object.assign(item,await request(`companions/${item.id}`,'PUT',{title,description,capacity,closed:$('#owner-closed').checked}));render();}catch(e){$('#owner-error').textContent=e.message;}return;}
   Object.assign(item, {
     title,
     description,
@@ -133,9 +136,10 @@ function saveOwnerEdit(event) {
   showToast("모집글을 수정했어요.");
 }
 
-function deleteCompanion() {
+async function deleteCompanion() {
   if (!isCompanionOwner(state, item)) return showToast("모집글 작성자만 삭제할 수 있어요.");
   if (!confirm("모집글을 삭제하면 참가자 목록도 함께 사라져요. 삭제할까요?")) return;
+  if(serverMode){try{await request(`companions/${item.id}`,'DELETE');location.href='./companions.html';}catch(e){showToast(e.message);}return;}
   state.companions = state.companions.filter((entry) => entry !== item);
   state.joinedCompanions = state.joinedCompanions.filter((value) => Number(value) !== Number(item.id));
   delete state.companionComments?.[item.id];
@@ -147,9 +151,10 @@ if (!item) {
   $("#companion-view").hidden = true;
   $("#companion-missing").hidden = false;
 } else {
-  $('#close-recruitment').addEventListener('click', () => {
+  $('#close-recruitment').addEventListener('click', async () => {
     if (!isCompanionOwner(state,item)) return;
     if (item.closed && item.participants.length >= companionCapacity(item)) return showToast('정원을 늘린 다음 모집을 다시 열 수 있어요.');
+    if(serverMode){try{Object.assign(item,await request(`companions/${item.id}`,'PUT',{closed:!item.closed}));render();}catch(e){showToast(e.message);}return;}
     item.closed = !item.closed; syncCompanion(item);
     if (!persist(state)) return; render(); showToast(item.closed ? '참여를 마감했어요. 기존 참가자는 일정을 확인할 수 있어요.' : '동행 모집을 다시 열었어요.');
   });
@@ -160,3 +165,5 @@ if (!item) {
   initComments({ state, collection: "companionComments", id: item.id, ownerId: item.ownerId, next: `companion-detail.html?id=${item.id}` });
   initCompanionRoute();
 }
+
+if(serverMode){$('#owner-dates').readOnly=true;$('#owner-dates').title='여행 기간은 내 여행에서 변경해주세요.';$('#owner-tags').readOnly=true;$('#owner-tags').title='태그는 여행 지역과 테마를 사용해요.';}

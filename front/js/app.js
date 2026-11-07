@@ -1,3 +1,4 @@
+import { serverMode, request, placePayload } from "./server-api.js";
 import { mountWorkspace } from './map-workspace.js';
 import { bindRoadview } from './trip-map.js';
 import { places } from "./data.js";
@@ -187,14 +188,17 @@ function syncKakaoMarkers(result = filteredPlaces()) {
   syncHotplaceLayer();
 }
 
-function syncHotplaceLayer() {
+let hotplaceRequest=0;
+async function syncHotplaceLayer() {
   hotplaceMarkers.forEach(marker => marker.setMap(null)); hotplaceMarkers=[];
   const panel=$('#hotplace-ranking'); panel.hidden=!layerVisibility.hotplace;
   if(!layerVisibility.hotplace)return;
   if(!kakaoMap || !window.kakao?.maps){panel.innerHTML='<h3>지금 지도에서 인기 있는 장소</h3><p>지도가 연결되면 저장된 여행계획의 인기 장소를 확인할 수 있어요.</p>';return;}
   const bounds=kakaoMap.getBounds(),sw=bounds.getSouthWest(),ne=bounds.getNorthEast();
-  const items=popularPlaces(loadState().plans,{south:sw.getLat(),west:sw.getLng(),north:ne.getLat(),east:ne.getLng()});
-  panel.innerHTML='<h3>지금 지도에서 인기 있는 장소</h3><p class="hotplace-ranking-note">이 브라우저의 저장된 여행계획 기준 · 최대 10곳</p>'+ (items.length?'<ol>'+items.map((place,index)=>`<li><button type="button" data-popular-index="${index}"><b>${index+1}</b><span><strong>${escapeHtml(place.title)}</strong><small>${place.userCount}명의 여행계획 · ${place.planCount}개 일정</small></span></button></li>`).join('')+'</ol>':'<p>현재 지도 범위에 저장된 여행 장소가 없어요. 지도를 이동해 다른 지역을 확인해보세요.</p>');
+  const serial=++hotplaceRequest;
+  let items;try{items=serverMode?await request(`popular-places?${new URLSearchParams({south:sw.getLat(),west:sw.getLng(),north:ne.getLat(),east:ne.getLng()})}`):popularPlaces(loadState().plans,{south:sw.getLat(),west:sw.getLng(),north:ne.getLat(),east:ne.getLng()});}catch(e){panel.textContent=e.message;return;}
+  if(serial!==hotplaceRequest||!layerVisibility.hotplace)return;
+  panel.innerHTML='<h3>지금 지도에서 인기 있는 장소</h3><p class="hotplace-ranking-note">'+(serverMode?'전체 회원의 저장된 여행계획 기준':'이 브라우저의 저장된 여행계획 기준')+' · 최대 10곳</p>'+ (items.length?'<ol>'+items.map((place,index)=>`<li><button type="button" data-popular-index="${index}"><b>${index+1}</b><span><strong>${escapeHtml(place.title)}</strong><small>${place.userCount}명의 여행계획 · ${place.planCount}개 일정</small></span></button></li>`).join('')+'</ol>':'<p>현재 지도 범위에 저장된 여행 장소가 없어요. 지도를 이동해 다른 지역을 확인해보세요.</p>');
   items.forEach((place,index)=>{
     const select=()=>{const detail={weather:'날씨 버튼에서 확인',sunrise:'조회 중',sunset:'조회 중',duration:60,x:50,y:50,image:'./assets/sunset-clouds.png',...place,categoryLabel:place.categoryLabel || '인기 여행지'};state.itineraryPlaces[detail.id]={...detail};showPlaceDetail(detail);};
     panel.querySelector(`[data-popular-index="${index}"]`).onclick=select;
@@ -210,7 +214,11 @@ function selectPlace(id) {
   showPlaceDetail(placeById(id));
 }
 
-function toggleFavorite(id) {
+async function toggleFavorite(id) {
+  if(serverMode){
+    if(!ensureLoggedIn(state,'찜하려면 로그인해주세요.'))return;
+    try{const exists=state.favorites.includes(id);await request(exists?`favorites/${id}`:'favorites',exists?'DELETE':'POST',exists?undefined:placePayload(placeById(id)));}catch(e){toast(e.message);return;}
+  }
   state.favorites = state.favorites.includes(id) ? state.favorites.filter((item) => item !== id) : [...state.favorites, id];
   persist();
   renderPlaces();
@@ -808,6 +816,7 @@ function mapTourPlace(item, index) {
     ...fallback,
     id: Number(item.contentid) || index + 1,
     contentId: item.contentid,
+    contentTypeId:Number(item.contenttypeid),
     title: item.title || fallback.title,
     region: item.addr1 || "제주특별자치도",
     category: type[0],
@@ -842,7 +851,7 @@ async function refreshTourData(keyword = "") {
     renderPlaces();
     renderItinerary();
     if (keyword && kakaoMap && places[0]?.lat && places[0]?.lng) kakaoMap.panTo(new window.kakao.maps.LatLng(places[0].lat, places[0].lng));
-    status.textContent = "TourAPI LIVE";
+    status.textContent = serverMode ? "관광정보 DB" : "TourAPI LIVE";
     status.classList.add("is-live");
   } catch {
     renderPlaces();

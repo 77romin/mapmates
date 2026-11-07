@@ -1,3 +1,4 @@
+import { serverMode, request, refresh, serverSnapshot } from "./server-api.js";
 import { initComments } from './comments.js';
 import { escapeHtml, initShell, loadState, showToast } from "./shared.js";
 import { persist } from "./account.js";
@@ -10,6 +11,7 @@ const $ = (selector) => document.querySelector(selector);
 
 
 function countView() {
+  if(serverMode)return;
   const key = `neorang-viewed-post-${post.id}`;
   try {
     if (sessionStorage.getItem(key)) return;
@@ -36,9 +38,10 @@ function renderArticle() {
   $("#delete-post")?.addEventListener("click", deletePost);
 }
 
-function deletePost() {
+async function deletePost() {
   if (!isPostOwner(state, post)) return showToast("작성자만 게시글을 삭제할 수 있어요.");
   if (!confirm("게시글과 댓글이 모두 삭제돼요. 삭제할까요?")) return;
+  if(serverMode){try{await request(`posts/${post.id}`,'DELETE');location.href=`./community.html?board=${post.board}`;}catch(e){showToast(e.message);}return;}
   state.posts = state.posts.filter((item) => item !== post);
   delete state.postComments[post.id];
   persist(state);

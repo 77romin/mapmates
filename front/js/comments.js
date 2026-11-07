@@ -1,3 +1,4 @@
+import { serverMode, request, refresh, serverSnapshot } from "./server-api.js";
 import { ensureLoggedIn, escapeHtml, loadState, showToast, userAvatar } from './shared.js';
 import { persist } from './account.js';
 import { formatDateTime } from './board.js';
@@ -37,9 +38,11 @@ export function initComments({ state, collection, id, ownerId, next }) {
     if (!persist(state)) { state[collection][id] = before; return false; }
     return true;
   }
-  function add(content, parent) {
+  async function reloadComments(){state[collection][id]=await request(`${collection==='postComments'?'posts':'companions'}/${id}/comments`);render();}
+  async function add(content, parent) {
     if (!ensureLoggedIn(state, '댓글을 쓰려면 로그인이 필요해요.')) return false;
     if (!content.trim()) { showToast('댓글 내용을 입력해주세요.'); return false; }
+    if(serverMode){try{await request(`${collection==='postComments'?'posts':'companions'}/${id}/comments`,'POST',{content:content.trim(),parentId:parent?Number(parent):null});await reloadComments();return true;}catch(e){showToast(e.message);return false;}}
     return change(() => {
       const target = parent && find(parent);
       if (parent && (!target || target.deleted)) { showToast('답글을 달 댓글이 삭제되었어요.'); return false; }
@@ -48,12 +51,12 @@ export function initComments({ state, collection, id, ownerId, next }) {
     });
   }
   $('#comment-content').addEventListener('input', () => { $('#comment-length').textContent = `${$('#comment-content').value.length} / 500`; });
-  $('#comment-form').addEventListener('submit', event => {
+  $('#comment-form').addEventListener('submit', async event => {
     event.preventDefault();
-    if (!add($('#comment-content').value)) return;
+    if (!await add($('#comment-content').value)) return;
     event.target.reset(); $('#comment-length').textContent = '0 / 500'; render(); showToast('댓글을 등록했어요.');
   });
-  $('#comment-list').addEventListener('click', event => {
+  $('#comment-list').addEventListener('click', async event => {
     const button = event.target.closest('button[data-action]');
     if (!button) return;
     const { action } = button.dataset;
@@ -66,6 +69,7 @@ export function initComments({ state, collection, id, ownerId, next }) {
     }
     if (action === 'edit' && mine(comment)) { replyingId = null; editingId = comment.id; render(); }
     if (action === 'delete' && canDelete(comment) && confirm('이 댓글을 삭제할까요? 답글은 유지됩니다.')) {
+      if(serverMode){try{await request(`comments/${comment.id}`,'DELETE');await reloadComments();}catch(e){showToast(e.message);}return;}
       if (!change(() => {
         const current = find(button.dataset.id);
         if (!current || !canDelete(current)) return;
@@ -75,16 +79,17 @@ export function initComments({ state, collection, id, ownerId, next }) {
       editingId = replyingId = null; render(); showToast('댓글을 삭제했어요.');
     }
   });
-  $('#comment-list').addEventListener('submit', event => {
+  $('#comment-list').addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.target;
     const content = form.querySelector('textarea').value.trim();
     if (form.dataset.parent) {
-      if (!add(content, form.dataset.parent)) return;
+      if (!await add(content, form.dataset.parent)) return;
       replyingId = null; render(); showToast('답글을 등록했어요.'); return;
     }
     if (!content) return showToast('댓글 내용을 입력해주세요.');
     if (!mine(find(form.dataset.id) || {})) return showToast('내 댓글만 수정할 수 있어요.');
+    if(serverMode){try{await request(`comments/${form.dataset.id}`,'PUT',{content});editingId=null;await reloadComments();}catch(e){showToast(e.message);}return;}
     if (!change(() => { const comment = find(form.dataset.id); if (comment && mine(comment) && !comment.deleted) Object.assign(comment, { content: content.slice(0, 500), updatedAt: Date.now() }); })) return;
     editingId = null; render(); showToast('댓글을 수정했어요.');
   });

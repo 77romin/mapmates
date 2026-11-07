@@ -1,3 +1,5 @@
+import { serverMode, ready, serverSnapshot, request, refresh } from "./server-api.js";
+await ready;
 import { addDemoExpansion } from './demo-expansion.js';
 import { companions as seedCompanions, posts as seedPosts, hotplaces as seedHotplaces, members as seedMembers, demoPlaceCorrections, demoPhotoCorrections } from "./data.js";
 
@@ -38,6 +40,14 @@ function clone(value) {
 }
 
 export function loadState() {
+  if(serverMode){
+    let local={};try{local=JSON.parse(localStorage.getItem(STORAGE_KEY+'-drafts')||'{}');}catch{}
+    const current=clone(serverSnapshot());
+    const owner=current.loggedIn?current.user.id:'guest';
+    const draft=(current.loggedIn && local.pendingGuestTrip) || local.drafts?.[owner] || {};
+    if(current.loggedIn && local.pendingGuestTrip){local.drafts ||= {};local.drafts[owner]=draft;delete local.pendingGuestTrip;localStorage.setItem(STORAGE_KEY+'-drafts',JSON.stringify(local));}
+    return {...clone(baseState),itinerary:[],tripSchedule:[],itineraryPlaces:{},trip:{title:"새로운 여행",startDate:new Date().toLocaleDateString("en-CA"),endDate:new Date().toLocaleDateString("en-CA"),people:4,budget:0},...local,...draft,...current,itineraryPlaces:{...draft.itineraryPlaces,...current.favoritePlaces},drafts:local.drafts||{}};
+  }
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch { saved = {}; }
   if (!saved || typeof saved !== "object" || Array.isArray(saved)) saved = {};
@@ -102,6 +112,11 @@ export function loadState() {
 }
 
 export function saveState(state) {
+  if(serverMode){
+    const owner=state.loggedIn?state.user.id:'guest';state.drafts ||= {};
+    state.drafts[owner]=clone({trip:state.trip,tripSchedule:state.tripSchedule,itinerary:state.itinerary,itineraryPlaces:state.itineraryPlaces});
+    localStorage.setItem(STORAGE_KEY+'-drafts',JSON.stringify({drafts:state.drafts,routeMode:state.routeMode,placeCategories:state.placeCategories,weatherVisible:state.weatherVisible,pendingGuestTrip:state.pendingGuestTrip}));return;
+  }
   if (state.loggedIn && state.user.id) {
     const index = state.members.findIndex(member => member.id === state.user.id);
     if (index >= 0) state.members[index] = { ...state.user };
@@ -188,7 +203,8 @@ export function todayLabel(dateValue) {
   return Number.isNaN(date.getTime()) ? dateValue : `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-export function logoutAccount(state) {
+export async function logoutAccount(state) {
+  if(serverMode){await request('auth/logout','POST',{});await refresh();Object.assign(state,loadState());return;}
   saveState(state);
   const guest = state.drafts.guest || {trip:clone(baseState.trip),tripSchedule:[],itinerary:[],itineraryPlaces:{},favorites:[]};
   Object.assign(state,clone(guest)); state.loggedIn = false;

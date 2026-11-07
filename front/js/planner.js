@@ -1,3 +1,4 @@
+import { serverMode, request, planPayload } from "./server-api.js";
 import { places } from "./data.js";
 import { api } from "./api.js";
 import { optimizeRoute, assignTimeSlots } from './route-optimizer.js';
@@ -316,9 +317,12 @@ function readTripForm() {
   Object.assign(state.trip, {title,startDate,endDate,people,budget,region:$('#plan-region').value,theme:$('#plan-theme').value,description:$('#plan-description').value.trim()});
   return true;
 }
-function savePlan(notify = true) {
+async function savePlan(notify = true) {
   if (!readTripForm()) return false;
   if (!ensureLoggedIn(state, '여행계획을 저장하려면 로그인해주세요.')) return false;
+  if(serverMode){
+    try{const payload=planPayload({...state,itineraryPlaces:Object.fromEntries(state.tripSchedule.map(e=>[e.placeId,placeById(e.placeId)]))});const old=state.plans.find(p=>p.id===state.trip.id);const saved=await request(old?`plans/${old.id}`:'plans',old?'PUT':'POST',payload);state.trip.id=saved.id;state.plans=state.plans.filter(p=>p.id!==saved.id);state.plans.unshift(saved);saveState(state);renderPlanHeader();if(notify)showToast('여행계획을 저장했어요.');return true;}catch(e){showToast(e.message);return false;}
+  }
   const snapshot = structuredClone({id:state.trip.id,ownerId:state.user.id,trip:state.trip,tripSchedule:state.tripSchedule,itinerary:state.itinerary,itineraryPlaces:state.itineraryPlaces});
   const index = state.plans.findIndex(plan => plan.id === snapshot.id && plan.ownerId === state.user.id);
   if (index >= 0) state.plans[index] = snapshot; else state.plans.unshift(snapshot);
@@ -327,9 +331,10 @@ function savePlan(notify = true) {
   if (notify) showToast('여행계획을 저장했어요. 이제 동행을 모집할 수 있어요.');
   return true;
 }
-function publishCompanion() {
+async function publishCompanion() {
   if (!state.tripSchedule.length) return showToast('지도에서 여행지를 먼저 추가해주세요.');
-  if (!savePlan(false)) return;
+  if (!await savePlan(false)) return;
+  if(serverMode){try{const cp=await request('companions','POST',{planId:Number(state.trip.id)});location.href=`./companion-detail.html?id=${cp.id}`;}catch(e){showToast(e.message);}return;}
   const existing = state.companions.find(item => item.ownerId === state.user.id && item.tripId === state.trip.id);
   if (existing?.participants.length > state.trip.people) return showToast('현재 참가자 수보다 정원을 줄일 수 없어요.');
   const participant = {id:state.user.id,nickname:state.user.nickname,photo:state.user.photo,gender:state.user.gender};
@@ -373,8 +378,8 @@ $('#plan-library').addEventListener('click', event => {
   $("#plan-detail").focus({preventScroll:true});
   $("#plan-detail").scrollIntoView({behavior:"smooth",block:"start"});
 });
-function startNewPlan() {
-  if (state.loggedIn && state.tripSchedule.length && !savePlan(false)) return;
+async function startNewPlan() {
+  if (state.loggedIn && state.tripSchedule.length && !await savePlan(false)) return;
   const startDate = new Date().toLocaleDateString('en-CA');
   state.trip = {id:crypto.randomUUID(),title:'새로운 여행',startDate,endDate:startDate,people:4,budget:0};
   state.itinerary = []; state.tripSchedule = []; state.itineraryPlaces = {}; activeDay = 1;
@@ -400,7 +405,12 @@ document.querySelectorAll("[data-route-mode]").forEach((button) => button.classL
 $("#save-plan").addEventListener("click", () => savePlan());
 $("#publish-companion").addEventListener("click", publishCompanion);
 if (new URLSearchParams(location.search).get('new') === '1') {
-  startNewPlan();
+  await startNewPlan();
   history.replaceState(null, '', './planner.html');
 }
 initMap();
+
+if(serverMode){
+ const button=document.createElement('button');button.type='button';button.className='text-button is-danger';button.textContent='저장 계획 삭제';button.id='delete-plan';$('#save-plan').after(button);
+ button.addEventListener('click',async()=>{const plan=state.plans.find(p=>p.id===state.trip.id);if(!plan)return showToast('저장된 계획을 선택해주세요.');if(!confirm('이 계획과 연결된 동행 모집·참가·질문도 함께 삭제할까요?'))return;try{await request(`plans/${plan.id}`,'DELETE');state.plans=state.plans.filter(p=>p.id!==plan.id);state.tripSchedule=[];state.itinerary=[];saveState(state);location.href='./planner.html?new=1';}catch(e){showToast(e.message);}});
+}
