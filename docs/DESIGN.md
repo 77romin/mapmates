@@ -70,7 +70,17 @@ classDiagram
 
 `catalog`는 관광지, `travel`은 여행계획·동행·찜의 연관 집합, `community`는 게시판·댓글을 담당한다. DTO는 요청 검증에 사용하고, DAO 조회 결과는 화면에 필요한 필드 이름으로 반환한다. SQL 파라미터는 PreparedStatement로 바인딩하며 정렬·테이블·열 이름은 코드의 허용 목록에서만 선택한다.
 
+## 시스템 구조 이미지
+
+![프론트엔드 백엔드 데이터베이스 구조](diagrams/architecture.png)
+
+[편집 원본](diagrams/architecture.excalidraw)
+
 ## ER Diagram
+
+![13개 테이블의 도메인별 ERD](diagrams/erd.png)
+
+[큰 이미지](diagrams/erd.png) · [편집 원본](diagrams/erd.excalidraw) · [전체 DDL](../db/schema.sql)
 
 ```mermaid
 erDiagram
