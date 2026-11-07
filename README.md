@@ -1,68 +1,77 @@
-<p align="center">
-  <img src="./front/assets/mapMates-logo-v1.png" width="140" height="140" alt="MapMates · 너랑 갈.지도 logo">
-</p>
+# MapMates · 너랑 갈.지도
 
-# 너랑 갈.지도 · MapMates — 백엔드·DB 프로젝트
+지도에서 관광지를 발견하고 여행계획을 저장한 뒤 함께할 동행을 모집하는 서비스입니다. 기존 프론트에 **Servlet MVC + JDBC + MySQL**을 연결했습니다. 회원·여행계획·찜·동행·게시글·댓글은 서버에 저장되어 다른 브라우저에서도 공유됩니다.
 
-> 3팀 김강민 · 마예은 | SSAFY EnjoyTrip 관통 프로젝트 (Web Backend 5회차 + DB 6회차)
+- 기록용 GitHub: https://github.com/77romin/mapmates
+- 제출용 GitLab: https://lab.ssafy.com/s16/a11/project/6.database/3-kkm-mye
+- 프론트 화면 안내: [한국어](front/README.md) · [English](front/README-en.md)
+- [요구사항·Usecase·Class Diagram·ERD](docs/DESIGN.md)
+- [DB 스키마](db/schema.sql) · [초기 데이터](db/seed.sql) · [AI 검증 기록](db/AI_REVIEW.md)
+- [검증 결과와 실행 화면](docs/VALIDATION.md)
 
-**MapMates**는 지도에서 여행지를 찾고, 일정을 만들고, 함께 갈 동행을 모으는 여행 웹앱이에요.
-이전 단계에서 만든 프론트엔드는 데이터를 브라우저 `localStorage`에 저장했어요. 이번 단계에서는 **Servlet MVC 백엔드와 MySQL 데이터베이스**를 붙여 여러 사용자가 데이터를 함께 쓰는 서비스로 바꿔요.
+## 실행
 
-## 저장소 구조
+Docker Desktop 실행 후 저장소 루트에서:
 
-| 경로 | 내용 |
-| --- | --- |
-| [`front/`](./front) | 프론트엔드 (HTML·CSS·JS). 기존 [77romin/mapmates](https://github.com/77romin/mapmates) 커밋 히스토리를 그대로 가져왔어요. 기능 소개는 [front/README.md](./front/README.md) |
-| [`back/`](./back) | 백엔드 (Java 17+, Jakarta Servlet 6.0, Tomcat 10.1, JDBC). 설계는 [back/docs/BACKEND_DESIGN.md](./back/docs/BACKEND_DESIGN.md) |
-| [`db/`](./db) | DB 설계 (ERD, DDL, 더미 데이터). `db/ref/`에 SSAFY_TRIP 스키마·관광지 덤프 |
-| [`docs/`](./docs) | 팀 문서. 업무 분담은 [docs/WORK_SPLIT.md](./docs/WORK_SPLIT.md) |
-
-## 아키텍처
-
-```
-front (정적 HTML/JS) ──fetch JSON──▶ Servlet(Controller) ─▶ Service ─▶ DAO ─▶ MySQL
+```sh
+docker compose up -d --build
 ```
 
-- 프론트 화면은 그대로 두고 **JSON API**를 붙여요. Maven 빌드 시 `front/`가 WAR에 함께 들어가 API와 같은 주소에서 열려요.
-- Service가 트랜잭션을 열고 DAO에 Connection을 넘겨요. DAO는 SQL만 담당해요.
-- 로그인은 `HttpSession`을 쓰고, 비밀번호는 PBKDF2로 해시해서 저장해요.
+http://localhost:8080/mapmates/index.html 에 접속합니다. 첫 빌드는 이미지·Maven 의존성을 다운로드하며 DB 초기화에는 관광지 50,915행을 적재합니다. 기존 MySQL이 필요하지 않고 호스트에 DB 포트를 공개하지 않습니다. 데이터는 Docker 볼륨에 보존됩니다. 종료는 `docker compose down`으로 합니다.
 
-## 진행 현황
+시연 계정은 `traveler1@mapmates.test` ~ `traveler10@mapmates.test`, 비밀번호는 `travel1234`입니다. 10번은 운영자입니다. 초기 데이터는 회원 10명, 계획·동행 각 1개, 게시글 2개, 댓글 1개입니다. 프론트 단독 실행의 체험 데이터와 별개입니다.
 
-| 영역 | 요구사항 | 상태 | 담당 |
-| --- | --- | --- | --- |
-| 백엔드 설계·공통 기반 | – | ✅ 완료 | 김강민 |
-| 회원·인증 API | F107, F108 | ✅ 백엔드 완료 / 프론트 연동 예정 | 마예은 (연동) |
-| ERD·DDL | DB PJT | ⏳ 진행 예정 | 공동 |
-| 관광지 조회 | F101~F103 | ⏳ | 김강민 |
-| 여행계획·찜 | F104 | ⏳ | 김강민 |
-| 동행 모집·참가 | 추가 기능 | ⏳ | 김강민 |
-| 게시판·공지사항·댓글 | F109, F110 | ⏳ | 마예은 |
-| 핫플레이스 | F105 | ⏳ | 마예은 |
-| 전기차 충전소 | F114 | 프론트 직접 호출 유지 (선택: 서버 캐시) | 마예은 |
+## 카카오맵과 외부 API
 
-자세한 단계별 분담과 의존 관계는 [업무 분담 문서](./docs/WORK_SPLIT.md)를 참고하세요.
+루트 `.env`에 로컬 키를 넣습니다. `.env`는 커밋하지 않습니다.
 
-## 팀
+```dotenv
+MAPMATES_KAKAO_JS_KEY=발급받은_JavaScript_키
+MAPMATES_KAKAO_REST_KEY=발급받은_모빌리티_REST_키
+MAPMATES_WEATHER_API_KEY=기상청_키
+MAPMATES_EV_CHARGER_API_KEY=충전소_키
+```
 
-| GitHub 프로필 사진 | 이름 | 이번 단계 담당 |
-| --- | --- | --- |
-| <a href="https://github.com/77romin"><img src="https://github.com/77romin.png?size=160" width="80" height="80" alt="김강민 GitHub 프로필 사진"></a> | [김강민](https://github.com/77romin) | **관광지·여행계획·동행·공통 연동** — 백엔드 공통 기반, ERD 병합, 관광지·여행계획·찜·동행 API, 프론트 API 연동 공통 모듈, 길찾기 프록시 |
-| <a href="https://github.com/yeeunma"><img src="https://github.com/yeeunma.png?size=160" width="80" height="80" alt="마예은 GitHub 프로필 사진"></a> | [마예은](https://github.com/yeeunma) | **회원 연동·커뮤니티·핫플레이스·충전소** — 회원 API 프론트 연동, 게시판·공지사항·댓글 API, 핫플레이스 사진 업로드, 충전소 |
+설정 변경 후 `docker compose up -d web`으로 반영합니다. 카카오 JavaScript SDK 도메인에는 **`http://localhost:8080`**, **`http://127.0.0.1:8080`**을 등록합니다. `https://`와 `http://`는 다르며 `/mapmates` 경로는 도메인 등록에 넣지 않습니다. 카카오맵 서비스 활성화도 필요합니다.
 
-## 실행 방법
+`/mapmates/config.js`는 브라우저용 설정만 제공합니다. 모빌리티 REST 키는 서버에서만 사용합니다. 관광지 검색은 동봉한 관광정보 DB를 사용하므로 TourAPI 키 없이 동작합니다. 지도·날씨·충전 현황 등 외부 서비스는 해당 키와 API 사용 권한이 필요합니다.
 
-1. MySQL에 회원 임시 테이블 생성: [`back/docs/sql/members-draft.sql`](./back/docs/sql/members-draft.sql) (정식 스키마는 `db/`에 작성 예정)
-2. `back/src/main/resources/application.properties.example`을 `application.properties`로 복사하고 DB 계정 입력
-3. STS 또는 IntelliJ에서 `back/`을 Maven 프로젝트로 Import → Tomcat 10.1에 추가 → 실행
-4. `http://localhost:8080/mapmates/index.html` 접속 (API 확인: `/mapmates/api/auth/me`)
+## 주요 기능
 
-## 산출물
+- 지역·유형·검색어·주변 관광지 조회와 찜
+- 회원가입·로그인·프로필·비밀번호 변경·탈퇴
+- 1~14일 여행계획, 방문 시각·메모·예산, 일정 저장·수정·삭제
+- 계획 공유와 참가·취소·정원 검사·모집 마감 및 재개
+- 여행 게시판·공지·뉴스, 댓글·대댓글, 작성자·관리자 권한
+- 전체 회원 계획의 지도 범위별 인기 장소 TOP 10
+- 기존 동선 최적화, 지도 비교, 날씨·충전소·로드뷰 화면
 
-| 산출물 | 위치 |
-| --- | --- |
-| 개선된 요구사항 목록 | 작성 예정 |
-| Usecase Diagram, Class Diagram | 작성 예정 |
-| ER 다이어그램, DB Schema (DDL) | `db/` (작성 예정) |
-| 소스코드, 실행 화면 캡처 | `back/`, `front/`, 캡처는 작성 예정 |
+필수 요구사항은 관광지 조회(F101~F103), 회원·인증(F107~F108)입니다. 선택 기능의 사진 등록형 핫플은 현재 서비스의 계획 기반 인기 장소로 변경했습니다. 뉴스 자동 크롤링은 제외하며 운영자가 직접 뉴스 게시글을 작성합니다.
+
+## 구조와 수동 실행
+
+```text
+back/       Java 17 · Servlet 6 · JDBC · Maven WAR
+front/      기존 HTML/CSS/JavaScript 화면과 단독 데모
+db/         13개 테이블 DDL · 관광정보 덤프 · 초기 데이터 · 검증
+docs/       설계 · 검증 · 화면 캡처
+scripts/    HTTP·브라우저 통합 테스트
+```
+
+Docker 없이 실행하려면 새 MySQL 8 DB에 `db/schema.sql`, `USE ssafy_trip;`를 `USE mapmates;`로 바꾼 관광지 덤프, `db/init/03-clean.sql`, `db/seed.sql` 순으로 적재합니다. **schema.sql은 새 DB 구축용이며 기존 서비스 DB에 재실행하지 않습니다.**
+
+환경변수 `MAPMATES_DB_URL`, `MAPMATES_DB_USER`, `MAPMATES_DB_PASSWORD`를 설정하거나 `back/src/main/resources/application.properties.example`을 복사해 설정합니다. Java 17 이상과 Maven으로 `mvn -f back/pom.xml verify` 후 `back/target/mapmates.war`를 Tomcat 10.1에 배포합니다.
+
+프론트만 확인하려면 `node front/dev-server.js`를 사용합니다. 이 경우 브라우저 데모 모드이며 서버에 데이터를 저장하지 않습니다. 서버 모드는 DB 장애를 데모 데이터로 숨기지 않습니다.
+
+## 검증
+
+```sh
+python3 scripts/test_api.py
+# 별도 Playwright 설치 필요. 기존 모듈은 PLAYWRIGHT_MODULE로 지정 가능
+node scripts/test_browser.cjs
+node scripts/test_map.cjs
+node front/tests/algorithms.cjs
+```
+
+API 테스트는 별도 검증 계정을 만들고 종료 시 삭제합니다. 브라우저 테스트는 시연 계정으로 생성한 계획·게시글을 정리합니다. 기존 DB 검증은 별도 `mapmates_erd_check` 스키마에서 실행합니다.

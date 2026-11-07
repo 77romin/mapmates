@@ -1,4 +1,6 @@
-# MapMates 백엔드 설계
+# MapMates 백엔드 초기 설계
+
+> 이 문서는 초기 계획 기록입니다. 최종 구현·변경된 범위와 다이어그램은 [최종 설계](../../docs/DESIGN.md), 현재 API는 [API 문서](../../docs/API.md)를 따릅니다.
 
 > Web(Backend) PJT 5회차 명세(Servlet MVC)와 DB PJT 6회차 명세(Service·DAO + MySQL)를 한 번에 만족하도록 설계했다.
 > 프론트(`../front`)는 지금 모든 데이터를 브라우저 `localStorage`에 저장한다. 이 백엔드는 그 저장소를 MySQL과 JSON API로 대체한다.

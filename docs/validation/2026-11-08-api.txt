@@ -1,0 +1,12 @@
+test_01_auth (__main__.Integration) ... ok
+test_02_catalog (__main__.Integration) ... ok
+test_03_plan_transaction_and_permission (__main__.Integration) ... ok
+test_04_concurrent_join_and_closure (__main__.Integration) ... ok
+test_05_posts_and_comments (__main__.Integration) ... ok
+test_06_favorites_and_popularity (__main__.Integration) ... ok
+test_07_password_and_logout (__main__.Integration) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 1.060s
+
+OK
