@@ -13,6 +13,7 @@ public record PlanWrite(
     String region,
     String theme,
     String description,
-    List<Stop> items) {
+    List<Stop> items, Long version) {
+  public PlanWrite(String title,LocalDate startDate,LocalDate endDate,Integer capacity,Integer budget,String region,String theme,String description,List<Stop> items){this(title,startDate,endDate,capacity,budget,region,theme,description,items,null);}
   public record Stop(Integer day, String time, String memo, PlaceWrite place) {}
 }

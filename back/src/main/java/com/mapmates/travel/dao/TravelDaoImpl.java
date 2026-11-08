@@ -9,7 +9,7 @@ import java.util.*;
 public final class TravelDaoImpl implements TravelDao {
   private static final String FIELDS =
       "id,owner_id AS ownerId,title,start_date AS startDate,end_date AS"
-          + " endDate,capacity,budget,region,theme,description";
+          + " endDate,capacity,budget,region,theme,description,version";
 
   public Map<String, Object> plan(Connection c, long id, boolean lock) throws SQLException {
     return Sql.one(
@@ -44,7 +44,7 @@ public final class TravelDaoImpl implements TravelDao {
       Sql.update(
           c,
           "UPDATE plans SET"
-              + " title=?,start_date=?,end_date=?,capacity=?,budget=?,region=?,theme=?,description=?"
+              + " version=version+1,title=?,start_date=?,end_date=?,capacity=?,budget=?,region=?,theme=?,description=?"
               + " WHERE id=?",
           p.title().trim(),
           p.startDate(),

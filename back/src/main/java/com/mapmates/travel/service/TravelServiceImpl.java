@@ -139,6 +139,8 @@ public final class TravelServiceImpl implements TravelService {
           if (id != 0) {
             var old = required(dao.plan(c, id, true));
             owner(old, user);
+            if(p.version()==null)throw ApiException.badRequest("저장한 계획의 버전이 필요해요. 새로고침해주세요.");
+            if(p.version()!=Sql.number(old,"version"))throw ApiException.conflict("다른 화면에서 계획이 변경됐어요. 새로고침 후 다시 수정해주세요.");
             com.mapmates.companion.service.TripLifecycle.editable(c,id);
             long n =
                 Sql.number(
@@ -279,6 +281,9 @@ public final class TravelServiceImpl implements TravelService {
           var v = lock(c, id);
           owner(v, user);
           com.mapmates.companion.service.TripLifecycle.editable(c,Sql.number(v,"tripId"));
+          var currentPlan=dao.plan(c,Sql.number(v,"tripId"),false);
+          boolean metadata=p.title()!=null||p.description()!=null||p.capacity()!=null;
+          if(metadata&&(p.expectedVersion()==null||p.expectedVersion()!=Sql.number(currentPlan,"version")))throw ApiException.conflict("여행계획이 변경됐어요. 새로고침해주세요.");
           int n = dao.participants(c, id).size();
           if (p.capacity() != null) {
             if (p.capacity() < n || p.capacity() < 2 || p.capacity() > 10)
@@ -298,6 +303,7 @@ public final class TravelServiceImpl implements TravelService {
                 Validator.requireText(p.description(), 1000, "소개"),
                 v.get("tripId"));
           if(p.joinPolicy()!=null){Validator.requireOneOf(p.joinPolicy(),"참가 방식","instant","approval");Sql.update(c,"UPDATE companions SET join_policy=? WHERE id=?",p.joinPolicy(),id);}
+          if(metadata)Sql.update(c,"UPDATE plans SET version=version+1 WHERE id=?",v.get("tripId"));
           if (p.closed() != null)
             Sql.update(
                 c, "UPDATE companions SET status=? WHERE id=?", p.closed() ? "closed" : "open", id);

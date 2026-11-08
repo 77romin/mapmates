@@ -39,5 +39,5 @@ export function placePayload(place){
  return {id:Number(place.contentId || place.id),title:place.title,lat:Number(place.lat),lng:Number(place.lng),image:place.image||'',address:place.address||place.region||'',contentTypeId:Number(place.contentTypeId)||types[place.category || place.type]||12};
 }
 export function planPayload(state){
- return {title:state.trip.title,startDate:state.trip.startDate,endDate:state.trip.endDate,capacity:Number(state.trip.people),budget:Number(state.trip.budget||0),region:state.trip.region,theme:state.trip.theme,description:state.trip.description,items:state.tripSchedule.map(s=>({day:Number(s.day),time:s.time||null,memo:s.memo||'',place:placePayload(state.itineraryPlaces[s.placeId])}))};
+ return {version:state.trip.version??null,title:state.trip.title,startDate:state.trip.startDate,endDate:state.trip.endDate,capacity:Number(state.trip.people),budget:Number(state.trip.budget||0),region:state.trip.region,theme:state.trip.theme,description:state.trip.description,items:state.tripSchedule.map(s=>({day:Number(s.day),time:s.time||null,memo:s.memo||'',place:placePayload(state.itineraryPlaces[s.placeId])}))};
 }

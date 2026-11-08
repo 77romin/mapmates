@@ -124,7 +124,7 @@ async function saveOwnerEdit(event) {
   else if (capacity < item.participants.length) message = "현재 참가자 수보다 적게 설정할 수 없어요.";
   $("#owner-error").textContent = message;
   if (message) return;
-  if(serverMode){try{Object.assign(item,await request(`companions/${item.id}`,'PUT',{title,description,capacity,closed:$('#owner-closed').checked,joinPolicy:$('#owner-join-policy').value}));render();}catch(e){$('#owner-error').textContent=e.message;}return;}
+  if(serverMode){try{Object.assign(item,await request(`companions/${item.id}`,'PUT',{title,description,capacity,expectedVersion:item.version,closed:$('#owner-closed').checked,joinPolicy:$('#owner-join-policy').value}));render();}catch(e){$('#owner-error').textContent=e.message;}return;}
   Object.assign(item, {
     title,
     description,

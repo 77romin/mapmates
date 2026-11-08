@@ -19,6 +19,7 @@ class Features(unittest.TestCase):
   code,p=self.a.call('plans','POST',body);self.assertEqual(code,201,p)
   code,c=self.a.call('companions','POST',{'planId':int(p['id'])});self.assertEqual(code,201,c)
   self.assertEqual(self.a.call(f'companions/{c["id"]}','PUT',{'joinPolicy':policy})[0],200)
+  body['version']=p['trip']['version']
   return p,c,body
  def test_01_approval(self):
   p,cp,_=self.trip('approval');cid=cp['id']
@@ -63,5 +64,14 @@ class Features(unittest.TestCase):
    self.assertEqual(self.a.call(f'companions/{cid}/lifecycle','PUT',{'lifecycle':'cancelled'})[0],200)
    self.assertEqual(self.c.call(f'companions/{cid}/participants','POST',{})[0],409)
    self.assertEqual(self.a.call('plans/'+p['id'],'PUT',body)[0],409)
+  finally:self.a.call('plans/'+p['id'],'DELETE')
+ def test_04_plan_version_conflict(self):
+  p,cp,body=self.trip()
+  try:
+   updated={**body,'title':'먼저 저장'}
+   code,result=self.a.call('plans/'+p['id'],'PUT',updated);self.assertEqual(code,200,result)
+   self.assertEqual(result['trip']['version'],body['version']+1)
+   self.assertEqual(self.a.call('plans/'+p['id'],'PUT',body)[0],409)
+   self.assertEqual(self.a.call('plans/'+p['id'])[1]['trip']['title'],'먼저 저장')
   finally:self.a.call('plans/'+p['id'],'DELETE')
 if __name__=='__main__':unittest.main(verbosity=2)

@@ -321,7 +321,7 @@ async function savePlan(notify = true) {
   if (!readTripForm()) return false;
   if (!ensureLoggedIn(state, '여행계획을 저장하려면 로그인해주세요.')) return false;
   if(serverMode){
-    try{const payload=planPayload({...state,itineraryPlaces:Object.fromEntries(state.tripSchedule.map(e=>[e.placeId,placeById(e.placeId)]))});const old=state.plans.find(p=>p.id===state.trip.id);const saved=await request(old?`plans/${old.id}`:'plans',old?'PUT':'POST',payload);state.trip.id=saved.id;state.plans=state.plans.filter(p=>p.id!==saved.id);state.plans.unshift(saved);saveState(state);renderPlanHeader();if(notify)showToast('여행계획을 저장했어요.');return true;}catch(e){showToast(e.message);return false;}
+    try{const payload=planPayload({...state,itineraryPlaces:Object.fromEntries(state.tripSchedule.map(e=>[e.placeId,placeById(e.placeId)]))});const old=state.plans.find(p=>p.id===state.trip.id);const saved=await request(old?`plans/${old.id}`:'plans',old?'PUT':'POST',payload);state.trip.id=saved.id;state.trip.version=saved.trip.version;state.plans=state.plans.filter(p=>p.id!==saved.id);state.plans.unshift(saved);saveState(state);renderPlanHeader();if(notify)showToast('여행계획을 저장했어요.');return true;}catch(e){showToast(e.message);return false;}
   }
   const snapshot = structuredClone({id:state.trip.id,ownerId:state.user.id,trip:state.trip,tripSchedule:state.tripSchedule,itinerary:state.itinerary,itineraryPlaces:state.itineraryPlaces});
   const index = state.plans.findIndex(plan => plan.id === snapshot.id && plan.ownerId === state.user.id);

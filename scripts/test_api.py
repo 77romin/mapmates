@@ -48,7 +48,7 @@ class Integration(unittest.TestCase):
   current=self.a.call(f'companions/{cid}')[1];self.assertEqual(len(current['participants']),2)
   winner=self.b if results[0][0]==200 else self.c
   self.assertEqual(winner.call('plans/'+p['id'])[0],200)
-  self.assertEqual(self.a.call('plans/'+p['id'],'PUT',self.plan)[0],200)
+  self.assertEqual(self.a.call('plans/'+p['id'],'PUT',{**self.plan,'version':p['trip']['version']})[0],200)
   self.assertEqual(self.a.call(f'companions/{cid}/close','POST',{})[0],200)
   self.assertEqual(winner.call(f'companions/{cid}/participants/me','DELETE')[0],200)
   self.assertEqual(winner.call(f'companions/{cid}/participants','POST',{})[0],409)
