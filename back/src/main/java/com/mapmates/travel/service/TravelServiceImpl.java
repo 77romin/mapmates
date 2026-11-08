@@ -139,6 +139,7 @@ public final class TravelServiceImpl implements TravelService {
           if (id != 0) {
             var old = required(dao.plan(c, id, true));
             owner(old, user);
+            com.mapmates.companion.service.TripLifecycle.editable(c,id);
             long n =
                 Sql.number(
                     Sql.one(
@@ -150,6 +151,12 @@ public final class TravelServiceImpl implements TravelService {
             if (p.capacity() < n) throw ApiException.conflict("참가 인원보다 정원을 줄일 수 없어요.");
           }
           long key = dao.save(c, id, user, p);
+          if(id!=0){
+            var cp=Sql.one(c,"SELECT id FROM companions WHERE plan_id=?",id);
+            String summary="여행계획 변경: "+p.title()+" · "+p.startDate()+" ~ "+p.endDate()+" · "+p.items().size()+"개 방문 일정";
+            Sql.update(c,"INSERT INTO plan_revisions(plan_id,actor_id,summary,snapshot) VALUES(?,?,?,?)",id,user,summary,com.mapmates.common.web.JsonUtil.stringify(p));
+            if(cp!=null)com.mapmates.notification.Notifications.participants(c,Sql.number(cp,"id"),user,"plan_changed",summary);
+          }
           return decorate(c, dao.plan(c, key, false));
         });
   }
@@ -168,6 +175,7 @@ public final class TravelServiceImpl implements TravelService {
     var full = decorate(c, p);
     var host = Sql.one(c, "SELECT nickname,photo FROM members WHERE id=?", p.get("ownerId"));
     item.putAll(p);
+    item.put("lifecycle",com.mapmates.companion.service.TripLifecycle.effective(item));
     item.put("id", id);
     item.put("tripId", String.valueOf(p.get("id")));
     item.put("ownerId", String.valueOf(p.get("ownerId")));
@@ -182,7 +190,7 @@ public final class TravelServiceImpl implements TravelService {
     item.put("closed", closed);
     item.put(
         "status",
-        closed || n >= Sql.number(p, "capacity")
+        closed || java.util.Set.of("completed","cancelled").contains(item.get("lifecycle")) || n >= Sql.number(p, "capacity")
             ? "closed"
             : Sql.number(p, "capacity") - n <= 1 ? "soon" : "open");
     item.put("dates", p.get("startDate") + " — " + p.get("endDate"));
@@ -270,6 +278,7 @@ public final class TravelServiceImpl implements TravelService {
         c -> {
           var v = lock(c, id);
           owner(v, user);
+          com.mapmates.companion.service.TripLifecycle.editable(c,Sql.number(v,"tripId"));
           int n = dao.participants(c, id).size();
           if (p.capacity() != null) {
             if (p.capacity() < n || p.capacity() < 2 || p.capacity() > 10)

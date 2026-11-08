@@ -76,6 +76,7 @@ function renderOwnerForm() {
 function render() {
   syncCompanion(item);
   const isOwner = isCompanionOwner(state, item);
+  if(serverMode&&item.lifecycle){let badge=$('#lifecycle-label');if(!badge){badge=document.createElement('p');badge.id='lifecycle-label';$('#companion-hero').before(badge);}badge.textContent='여행 상태: '+({scheduled:'출발 예정',ongoing:'여행 중',completed:'여행 종료',cancelled:'여행 취소'})[item.lifecycle];}
   const joined = hasJoined(state, item);
   document.title = `${item.title} | 너랑 갈.지도`;
   $("#companion-hero").style.backgroundImage = `url(${JSON.stringify(item.image || "")})`;
@@ -180,3 +181,12 @@ async function loadRequests(){
  }else{requestStatus=(await request(`companions/${item.id}/requests/me`)).status;}
 }
 if(serverMode&&item){const label=document.createElement('label');label.className='field';label.innerHTML='<span>참가 방식</span><select id="owner-join-policy"><option value="instant">즉시 참가</option><option value="approval">모집자 승인 후 참가</option></select>';$('#owner-closed').closest('label').before(label);$('#owner-join-policy').value=item.joinPolicy||'instant';await loadRequests();render();}
+
+if(serverMode&&item){
+ const history=document.createElement('section');history.className='subpage-card';history.id='trip-history';$('#owner-edit').after(history);
+ if(isCompanionOwner(state,item)||hasJoined(state,item)){const revisions=await request(`plans/${item.tripId}/revisions`);history.innerHTML='<h2>공유 일정 변경 이력</h2>'+ (revisions.map(r=>`<p>${escapeHtml(r.summary)}<br><small>${escapeHtml(r.createdAt)}</small></p>`).join('')||'<p>변경 이력이 없어요.</p>');}else history.hidden=true;
+ if(isCompanionOwner(state,item)){
+  const actions=document.createElement('div');actions.className='subpage-actions';actions.innerHTML='<button type="button" class="button" data-trip-state="completed">여행 종료</button><button type="button" class="button" data-trip-state="cancelled">여행 취소</button>';$('#owner-edit').append(actions);
+  actions.querySelectorAll('button').forEach(b=>{b.disabled=['completed','cancelled'].includes(item.lifecycle);b.onclick=async()=>{if(!confirm(b.textContent+' 처리할까요? 참가자에게 알려드려요.'))return;try{await request(`companions/${item.id}/lifecycle`,'PUT',{lifecycle:b.dataset.tripState});location.reload();}catch(e){showToast(e.message);}};});
+ }
+}

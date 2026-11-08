@@ -50,4 +50,18 @@ class Features(unittest.TestCase):
    self.assertEqual(self.b.call('notifications/read-all','PUT',{})[0],204)
    self.assertEqual(self.b.call('notifications')[1]['unread'],0)
   finally:self.a.call('plans/'+p['id'],'DELETE')
+ def test_03_lifecycle_and_revisions(self):
+  p,cp,body=self.trip();cid=cp['id']
+  try:
+   self.b.call(f'companions/{cid}/participants','POST',{})
+   self.assertEqual(self.a.call(f'companions/{cid}/lifecycle','PUT',{'lifecycle':'completed'})[0],409)
+   self.assertEqual(self.b.call(f'companions/{cid}/lifecycle','PUT',{'lifecycle':'cancelled'})[0],403)
+   body['title']='바뀐 일정';self.assertEqual(self.a.call('plans/'+p['id'],'PUT',body)[0],200)
+   self.assertEqual(len(self.b.call('plans/'+p['id']+'/revisions')[1]),1)
+   self.assertEqual(self.c.call('plans/'+p['id']+'/revisions')[0],403)
+   self.assertTrue(any(n['kind']=='plan_changed' for n in self.b.call('notifications')[1]['items']))
+   self.assertEqual(self.a.call(f'companions/{cid}/lifecycle','PUT',{'lifecycle':'cancelled'})[0],200)
+   self.assertEqual(self.c.call(f'companions/{cid}/participants','POST',{})[0],409)
+   self.assertEqual(self.a.call('plans/'+p['id'],'PUT',body)[0],409)
+  finally:self.a.call('plans/'+p['id'],'DELETE')
 if __name__=='__main__':unittest.main(verbosity=2)

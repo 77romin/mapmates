@@ -26,7 +26,7 @@ export function syncCompanion(item) {
   if (!Array.isArray(item.participants) || !item.participants.length) item.participants = seedParticipants(item);
   const maximum = Math.max(companionCapacity(item), item.participants.length);
   item.people = `${item.participants.length}/${maximum}명`;
-  if (item.closed || item.participants.length >= maximum) item.status = "closed";
+  if (item.lifecycle==='cancelled'||item.lifecycle==='completed'||item.closed || item.participants.length >= maximum) item.status = "closed";
   else item.status = maximum - item.participants.length <= 1 ? "soon" : "open";
   return item;
 }

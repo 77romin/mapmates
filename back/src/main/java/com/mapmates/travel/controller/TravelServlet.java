@@ -25,7 +25,7 @@ public class TravelServlet extends BaseApiServlet {
         path == null
             ? 0
             : (int) java.util.Arrays.stream(path.split("/")).filter(v -> !v.isBlank()).count();
-    if ((plans(q) && n > 1)
+    if ((plans(q) && n > 1 && !(q.raw().getMethod().equals("GET")&&path.matches("/[0-9]+/revisions")))
         || (favorites(q) && (n > 1 || (n == 1 && !q.raw().getMethod().equals("DELETE")))))
       throw com.mapmates.common.exception.ApiException.notFound("요청한 API를 찾을 수 없어요.");
   }
@@ -35,6 +35,8 @@ public class TravelServlet extends BaseApiServlet {
     r.get("/{id}/requests",q->approval.requests(q.pathLong("id"),q.requireLogin().id()));
     r.get("/{id}/requests/me",q->approval.mine(q.pathLong("id"),q.requireLogin().id()));
     r.put("/{id}/requests/{member}",q->{approval.decide(q.pathLong("id"),q.pathLong("member"),q.requireLogin().id(),q.body(com.mapmates.companion.service.ApprovalService.Decision.class).status());return null;});
+    r.put("/{id}/lifecycle",q->{new com.mapmates.companion.service.TripLifecycle().change(q.pathLong("id"),q.requireLogin().id(),q.body(com.mapmates.companion.service.TripLifecycle.Change.class).lifecycle());return service.companion(q.pathLong("id"));});
+    r.get("/{id}/revisions",q->{if(!plans(q))throw com.mapmates.common.exception.ApiException.notFound("요청을 찾을 수 없어요.");service.plan(q.pathLong("id"),q.requireLogin().id());return com.mapmates.common.db.Tx.read(c->com.mapmates.common.db.Sql.rows(c,"SELECT id,summary,created_at AS createdAt FROM plan_revisions WHERE plan_id=? ORDER BY id DESC LIMIT 50",q.pathLong("id")));});
     var comments = new com.mapmates.community.service.CommunityServiceImpl();
     r.get("/{id}/comments", q -> comments.comments(true, q.pathLong("id")));
     r.post(

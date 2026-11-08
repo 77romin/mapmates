@@ -12,6 +12,7 @@ public final class ApprovalService {
  }
  public static void host(Map<String,Object> v,long user){if(Sql.number(v,"owner_id")!=user)throw ApiException.forbidden("모집자만 처리할 수 있어요.");}
  public static void available(Connection c,Map<String,Object> v,long id)throws SQLException {
+  TripLifecycle.joinable(v);
   long count=Sql.number(Sql.one(c,"SELECT 1+COUNT(*) n FROM companion_participants WHERE companion_id=?",id),"n");
   if(!"open".equals(v.get("status"))||count>=Sql.number(v,"capacity"))throw ApiException.conflict("모집이 마감되었어요.");
  }

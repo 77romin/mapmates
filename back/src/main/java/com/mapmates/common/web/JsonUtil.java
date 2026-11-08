@@ -20,6 +20,7 @@ public final class JsonUtil {
     private JsonUtil() {
     }
 
+    public static String stringify(Object value){try{return MAPPER.writeValueAsString(value);}catch(com.fasterxml.jackson.core.JsonProcessingException e){throw new IllegalArgumentException("JSON 직렬화 실패",e);}}
     public static <T> T read(InputStream in, Class<T> type) throws IOException {
         return MAPPER.readValue(in, type);
     }

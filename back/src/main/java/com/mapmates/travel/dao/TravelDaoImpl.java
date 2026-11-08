@@ -88,7 +88,7 @@ public final class TravelDaoImpl implements TravelDao {
   public Map<String, Object> companion(Connection c, long id) throws SQLException {
     return Sql.one(
         c,
-        "SELECT c.id,c.plan_id AS tripId,c.status='closed' AS closed,c.join_policy AS joinPolicy,p.owner_id AS ownerId FROM"
+        "SELECT c.id,c.plan_id AS tripId,c.status='closed' AS closed,c.join_policy AS joinPolicy,c.lifecycle,p.owner_id AS ownerId FROM"
             + " companions c JOIN plans p ON p.id=c.plan_id WHERE c.id=?",
         id);
   }
