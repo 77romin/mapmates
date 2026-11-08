@@ -292,14 +292,14 @@ DAY를 선택하고 **동선 최적화**를 누르면 첫 장소와 마지막 �
 | 화면 상태 | 서버 API 데이터 초기화, 작성 초안·지도 설정용 Web Storage |
 | 백엔드 | Java 17, Jakarta Servlet 6.0, Tomcat 10.1, MVC 구조 |
 | API·직렬화 | JSON API, Jackson, Java Time |
-| DB 접근 | JDBC, PreparedStatement, Service 트랜잭션 |
+| DB 접근 | JDBC, HikariCP 연결 풀, PreparedStatement, Service 트랜잭션 |
 | 데이터베이스 | MySQL 8.0.46, InnoDB, utf8mb4, PK·FK·UNIQUE·CHECK·INDEX |
 | 인증 | HttpSession, HttpOnly·SameSite 쿠키, PBKDF2-HmacSHA256 |
 | 지도·경로 | Kakao Maps JavaScript SDK, Kakao Mobility Directions API·서버 프록시 |
 | 관광 데이터 | 한국관광공사 관광정보 덤프 50,915행, 단독 데모의 TourAPI 연동 |
 | 날씨·기타 | 기상청 단기·중기예보, 전기차 충전소 API, Sunrise-Sunset API |
 | 빌드·실행 | Maven WAR, Docker 다단계 빌드, Docker Compose |
-| 검증 | JUnit 5, 실제 HTTP 통합 테스트, Playwright·Chrome, MySQL 검증 SQL |
+| 검증 | JUnit, 실제 HTTP 통합 테스트, Playwright·Chrome, MySQL 검증 SQL |
 
 ## 백엔드와 DB에 추가한 내용
 
@@ -314,13 +314,30 @@ DAY를 선택하고 **동선 최적화**를 누르면 첫 장소와 마지막 �
 | 인기 장소 | 전체 회원의 계획을 관광지별로 집계해 현 지도 범위 TOP 10 반환 |
 | 외부 API 설정 | 브라우저용 `/config.js`와 서버용 REST 키 분리, 길찾기 프록시 |
 
-사진 등록형 핫플은 현재 서비스의 계획 기반 인기 장소로 변경했습니다. 뉴스 자동 크롤링은 이번 범위에서 제외하고 운영자 수동 작성을 지원합니다. 비밀번호 찾기는 기존 설계의 이름·생년월일 확인 방식이며 이메일 발송 서버는 포함하지 않습니다. 요청·응답 형식은 [API 명세](./docs/API.md)에 정리했습니다.
+사진 등록형 핫플은 현재 서비스의 계획 기반 인기 장소로 변경했습니다. 뉴스 자동 크롤링은 이번 범위에서 제외하고 운영자 수동 작성을 지원합니다. 비밀번호 찾기는 이메일로 받은 20분 유효 일회용 링크를 사용합니다. 로컬에서는 Mailpit에서 메일을 확인하고, 운영에서는 인증된 SMTP를 설정합니다. 요청·응답 형식은 [API 명세](./docs/API.md)에 정리했습니다.
+
+### 추가 기능과 기술 보완
+
+- 모집자가 **즉시 참가 / 승인제**를 선택합니다. 승인제에서는 참가 소개를 보내고 모집자가 승인·거절합니다. 마지막 자리의 동시 승인도 정원을 초과하지 않습니다.
+- 신청·승인·댓글·일정 변경은 상단 알림함에서 확인하고 읽음 처리합니다. 여행의 진행·종료·취소 상태와 공유 일정 변경 이력을 제공합니다.
+- 여러 탭에서 같은 계획을 수정하면 버전 충돌을 알려 이전 저장 내용을 보호합니다. 종료된 여행의 참가 기록은 유지합니다.
+- 게시글·동행·댓글을 신고하고 회원을 차단할 수 있습니다. 마이페이지에서 차단을 해제하고 신고 결과를 확인하며, 운영자는 별도 관리 화면에서 처리 사유를 기록합니다.
+- DB 연결 풀, 목록 일괄 조회와 서버 페이지 검색을 적용했습니다. 비밀번호 복구·로그인 요청을 제한하고 비밀번호 변경 시 기존 세션을 무효화합니다.
+- GitHub/GitLab CI, 상태 확인 API, 백업·분리 DB 복구, Caddy HTTPS 배포 구성을 추가했습니다. **현재는 로컬 실행이며 공개 서버에 배포하지 않았습니다.**
+
+![동행 승인 관리](./docs/screenshots/features/01-approval.png)
+
+![알림함](./docs/screenshots/features/02-notifications.png)
+
+![운영자 신고 처리](./docs/screenshots/features/03-moderation.png)
+
+[운영·마이그레이션·백업·CI 안내](./docs/OPERATIONS.md)
 
 ## 데이터베이스 설계 — ERD
 
-![관광정보 회원 계획 동행 게시판 댓글의 13개 테이블 관계와 주요 키](./docs/diagrams/erd.png)
+![업무 테이블 19개와 마이그레이션 이력 테이블의 관계와 주요 키](./docs/diagrams/erd.png)
 
-[ERD 크게 보기](./docs/diagrams/erd.png) · [편집 가능한 ERD 원본](./docs/diagrams/erd.excalidraw) · [전체 컬럼·자료형·제약조건 DDL](./db/schema.sql)
+[ERD 크게 보기](./docs/diagrams/erd.png) · [편집 가능한 ERD 원본](./docs/diagrams/erd.excalidraw) · [전체 컬럼·자료형·제약조건 DDL](./db/schema-current.sql)
 
 그림은 주요 컬럼과 FK 관계를 도메인별로 나누어 보여줍니다. 점선의 참조 카드는 같은 테이블을 다른 패널에서 다시 표시한 것이며 테이블이 추가되는 것은 아닙니다. `hotplaces`는 기존 설계·검증 이력과 호환되는 예약 테이블로 현재 사진 등록 API·화면은 연결하지 않습니다. 관계의 NULL 허용 여부와 전체 컬럼·인덱스는 DDL이 최종 기준입니다.
 
@@ -330,6 +347,9 @@ DAY를 선택하고 **동선 최적화**를 누르면 첫 장소와 마지막 �
 | 회원·계획·찜 | `members`, `plans`, `plan_items`, `favorites` |
 | 동행 | `companions`, `companion_participants` |
 | 커뮤니티 | `posts`, `comments` |
+| 승인·알림·변경 이력 | `companion_requests`, `notifications`, `plan_revisions` |
+| 복구·신고·차단 | `password_reset_tokens`, `reports`, `member_blocks` |
+| 스키마 이력 | `schema_migrations` |
 | 예약 | `hotplaces` |
 
 시도·구군은 복합 FK로 올바른 지역 조합을 검증하고, 계획당 모집글은 UNIQUE로 제한합니다. 참가·찜은 복합 PK로 중복을 막고, 댓글은 게시글 또는 동행 중 한 대상만 참조하도록 CHECK를 둡니다. 여행 기간은 1~14일, 동행 정원은 모집자 포함 2~10명입니다. [AI 검토·개선 기록](./db/AI_REVIEW.md)과 [SQL 검증 결과](./docs/validation/2026-11-08-sql.txt)를 함께 제공합니다.
@@ -382,7 +402,7 @@ Docker Desktop 실행 후 저장소 루트에서:
 docker compose up -d --build
 ```
 
-http://localhost:8080/mapmates/index.html 에 접속합니다. 첫 빌드는 이미지·Maven 의존성을 다운로드하며 DB 초기화에는 관광지 50,915행을 적재합니다. 기존 MySQL이 필요하지 않고 호스트에 DB 포트를 공개하지 않습니다. 데이터는 Docker 볼륨에 보존됩니다. 종료는 `docker compose down`으로 합니다.
+http://localhost:8080/mapmates/index.html 에 접속합니다. 첫 빌드는 이미지·Maven 의존성을 다운로드하며 DB 초기화에는 관광지 50,915행을 적재합니다. 기존 MySQL이 필요하지 않고 호스트에 DB 포트를 공개하지 않습니다. 데이터는 Docker 볼륨에 보존됩니다. 로컬 복구 이메일은 http://localhost:8026 에서 확인합니다. 종료는 `docker compose down`으로 합니다.
 
 시연 계정은 `traveler1@mapmates.test` ~ `traveler10@mapmates.test`, 비밀번호는 `travel1234`입니다. 10번은 운영자입니다. 초기 데이터는 회원 10명, 계획·동행 각 1개, 게시글 2개, 댓글 1개입니다. 프론트 단독 실행의 체험 데이터와 별개입니다.
 
@@ -403,7 +423,7 @@ MAPMATES_EV_CHARGER_API_KEY=충전소_키
 
 ### Docker 없이 실행하기
 
-Docker 없이 실행하려면 새 MySQL 8 DB에 `db/schema.sql`, `USE ssafy_trip;`를 `USE mapmates;`로 바꾼 관광지 덤프, `db/init/03-clean.sql`, `db/seed.sql` 순으로 적재합니다. **schema.sql은 새 DB 구축용이며 기존 서비스 DB에 재실행하지 않습니다.**
+Docker 없이 실행하려면 새 MySQL 8 DB에 `db/schema-current.sql`, `USE ssafy_trip;`를 `USE mapmates;`로 바꾼 관광지 덤프, `db/init/03-clean.sql`, `db/seed.sql` 순으로 적재합니다. **스키마 전체 파일은 새 DB 구축용이며 기존 서비스 DB에 재실행하지 않습니다.** 기존 Docker DB는 `python3 scripts/migrate.py`로 미적용 변경만 반영한 뒤 웹 이미지를 다시 빌드합니다. 전체 DDL은 기준 스키마와 변경 SQL에서 생성한 파일입니다.
 
 환경변수 `MAPMATES_DB_URL`, `MAPMATES_DB_USER`, `MAPMATES_DB_PASSWORD`를 설정하거나 `back/src/main/resources/application.properties.example`을 복사해 설정합니다. Java 17 이상과 Maven으로 `mvn -f back/pom.xml verify` 후 `back/target/mapmates.war`를 Tomcat 10.1에 배포합니다.
 
@@ -437,15 +457,18 @@ node front/dev-server.js
 
 ```sh
 python3 scripts/test_api.py
+python3 scripts/test_features.py
+python3 scripts/schema_snapshot.py --check
 # 별도 Playwright 설치 필요. 기존 모듈은 PLAYWRIGHT_MODULE로 지정 가능
 node scripts/test_browser.cjs
+node scripts/test_features_browser.cjs
 node scripts/test_map.cjs
 node front/tests/algorithms.cjs
 ```
 
 API 테스트는 별도 검증 계정을 만들고 종료 시 삭제합니다. 브라우저 테스트는 시연 계정으로 생성한 계획·게시글을 정리합니다. 기존 DB 검증은 별도 `mapmates_erd_check` 스키마에서 실행합니다.
 
-Java 단위 테스트 4개, SQL 33개, HTTP 통합 7개 시나리오, 브라우저 12개 항목이 통과했으며 실제 카카오 SDK·지도 타일·DB 관광지 표시도 확인했습니다. [통합 검증 보고서](./docs/VALIDATION.md)에 결과와 화면을 정리했습니다. 외부 날씨·충전소·차량 경로는 각 서비스의 키와 사용 권한이 필요합니다.
+Java 단위 테스트 4개, SQL 33개, HTTP 통합 7개 시나리오, 브라우저 12개 항목이 통과했습니다. 추가 기능 API 8개 시나리오와 기능 브라우저 8개 항목도 통과했으며 실제 카카오 SDK·지도 타일·DB 관광지 표시도 확인했습니다. [통합 검증 보고서](./docs/VALIDATION.md)에 결과와 화면을 정리했습니다. 외부 날씨·충전소·차량 경로는 각 서비스의 키와 사용 권한이 필요합니다.
 
 프론트 단계의 기존 검증과 문제 해결 과정도 보존합니다. [기능 검증 보고서](./front/docs/FEATURE_AUDIT.md), [트러블슈팅](./front/docs/TROUBLE_SHOOTING.md), [알고리즘 검증](./front/docs/ALGORITHM_IMPROVEMENTS.md)을 참고하세요.
 

@@ -7,7 +7,7 @@
 | 요구사항 | 구현 |
 |---|---|
 | F101~F103 필수 | 시도·구군·콘텐츠별 관광지 조회, 검색, 페이지 처리, 좌표 범위+거리 기반 주변 조회 |
-| F107~F108 필수 | 가입·중복 확인·프로필·탈퇴, 서버 세션 로그인·로그아웃·정보 확인식 비밀번호 재설정 |
+| F107~F108 필수 | 가입·중복 확인·프로필·탈퇴, 서버 세션 로그인·로그아웃·이메일 일회용 링크 비밀번호 재설정 |
 | F104 추가 | 기간·예산·정원·일정 CRUD, 찜, 일정 변경 트랜잭션 |
 | 동행 확장 | 계획 공유·일정 갱신·모집 마감/재개·참가/취소, 동시 참가 정원 검사 |
 | F109~F110 심화 | 공지·뉴스 관리자 작성, 여행 게시판, 댓글·대댓글·검색·정렬·페이지 처리 |
@@ -78,9 +78,9 @@ classDiagram
 
 ## ER Diagram
 
-![13개 테이블의 도메인별 ERD](diagrams/erd.png)
+![업무 테이블 19개와 스키마 이력의 ERD](diagrams/erd.png)
 
-[큰 이미지](diagrams/erd.png) · [편집 원본](diagrams/erd.excalidraw) · [전체 DDL](../db/schema.sql)
+[큰 이미지](diagrams/erd.png) · [편집 원본](diagrams/erd.excalidraw) · [전체 DDL](../db/schema-current.sql)
 
 ```mermaid
 erDiagram
@@ -101,6 +101,13 @@ erDiagram
  posts o|--o{ comments : receives
  companions o|--o{ comments : receives
  comments o|--o{ comments : replies
+ companions ||--o{ companion_requests : receives
+ members ||--o{ companion_requests : requests
+ members ||--o{ notifications : receives
+ plans ||--o{ plan_revisions : records
+ members ||--o{ password_reset_tokens : recovers
+ members ||--o{ member_blocks : blocks
+ members o|--o{ reports : reports
  members ||--o{ hotplaces : reserved
  contenttypes ||--o{ hotplaces : reserved
  members {
@@ -144,7 +151,7 @@ erDiagram
  }
 ```
 
-DDL의 13개 테이블과 제약조건이 최종 기준이다. 구군은 `(sido_code,gugun_code)` 복합 키로 참조한다. 회원 이메일·닉네임과 계획당 모집글은 UNIQUE, 참가·찜은 복합 PK다. 댓글은 게시글 또는 동행 중 정확히 하나를 CHECK로 강제한다. 기간은 1~14일, 정원은 본인 포함 2~10명이며 실제 여행 기간 안의 일차인지 Service에서도 검사한다.
+전체 DDL의 업무 테이블 19개와 스키마 이력 테이블 1개 및 제약조건이 최종 기준이다. 구군은 `(sido_code,gugun_code)` 복합 키로 참조한다. 회원 이메일·닉네임과 계획당 모집글은 UNIQUE, 참가·찜은 복합 PK다. 댓글은 게시글 또는 동행 중 정확히 하나를 CHECK로 강제한다. 기간은 1~14일, 정원은 본인 포함 2~10명이며 실제 여행 기간 안의 일차인지 Service에서도 검사한다.
 
 모집자 정보는 `plans.owner_id`에서 유도하며 참가자 테이블에는 모집자를 중복 저장하지 않는다. 현재 인원은 모집자 1명+참가자 수다. 장소는 관광지 테이블에 존재해야 하며 덤프에 없는 장소만 검증 후 등록한다. 기존 공공 관광지 데이터는 클라이언트 입력으로 덮어쓰지 않는다.
 
@@ -162,4 +169,16 @@ DDL의 13개 테이블과 제약조건이 최종 기준이다. 구군은 `(sido_
 
 PBKDF2 해시, HttpOnly 세션 쿠키, 로그인 시 세션 재발급, 서버의 작성자·관리자 검사, Origin 및 JSON 쓰기 요청 검사, 허용 출처 CORS를 사용한다. 길찾기 REST 키와 DB 비밀번호는 서버 환경변수에만 둔다. `/config.js`는 지도 JavaScript 키 등 브라우저용 설정만 제공한다.
 
-현재 비밀번호 찾기는 기존 명세 설계의 이름·생년월일 확인 방식이다. 이메일 인증 토큰과 발송 서버는 이번 과제 범위에 포함하지 않았다. 공개 운영으로 전환할 때는 계정 복구·요청 제한·HTTPS·백업·개인정보 보존 정책을 별도로 설계해야 한다.
+계정 복구는 암호학적 난수 32바이트 토큰을 이메일로 보내고 DB에는 SHA-256 해시만 저장한다. 만료는 20분이며 한 번만 사용할 수 있다. 이름·생년월일만으로 비밀번호를 바꾸는 방식은 서버에서 제거했다. SMTP는 제한된 비동기 큐와 재시도를 사용한다. 비밀번호 변경·복구는 `auth_version`을 증가시켜 기존 세션을 무효화한다. 로그인·복구의 IP/계정별 요청 제한은 단일 JVM 메모리 기준이며 여러 서버 운영 시 공유 저장소가 필요하다.
+
+## 확장 기능의 데이터와 처리
+
+`companion_requests`는 신청 상태와 소개를 보관하며 승인도 참가와 동일한 계획 행 잠금을 사용한다. `join_policy`는 즉시 참가/승인제를 구분한다. `lifecycle`과 여행 날짜로 예정·진행·종료·취소를 판단하며 출발 후 신규 모집을 막는다. 종료·취소된 여행은 참가 기록을 보존한다.
+
+`plans.version`을 수정 요청의 버전과 비교해 오래된 탭의 덮어쓰기를 409로 거절한다. 동행 수정은 `expectedVersion`을 보낸다. 공유 일정 변경은 `plan_revisions`에 변경자와 스냅샷을 저장한다. 신청·승인·댓글·일정·여행 상태 알림은 원래 작업과 같은 트랜잭션에 저장한다.
+
+`member_blocks`는 양방향의 신규 상호작용을 제한하고 목록에서 차단한 작성자를 숨긴다. 기존 참가를 자동 삭제하지 않는다. `reports`는 신고 대상 식별자·표시 스냅샷·사유·처리자·처리 의견을 보존하며 콘텐츠를 자동 삭제하지 않는다. 관리자 처리 API는 서버에서 역할을 검사한다.
+
+DBUtil은 HikariCP 연결 풀(최대 10, 최소 유휴 1)을 공유하고 종료 시 해제한다. 동행 목록은 건수·기본 정보·일정·참가자를 페이지 단위로 일괄 조회하므로 페이지 항목 수에 따라 쿼리가 늘지 않는다. 프론트는 서버 필터와 페이지를 사용하며 모든 페이지를 시작 시 미리 받지 않는다.
+
+`schema_migrations`와 `db/migrations/101~106`으로 기존 데이터의 순차 갱신을 관리한다. `schema-current.sql`은 기준 스키마와 변경 파일에서 생성하며 CI가 동기화를 검사한다. [운영 안내](OPERATIONS.md)에 기존 DB 갱신, 백업·복구, HTTPS와 CI 조건을 정리했다.

@@ -1,0 +1,8 @@
+PASS owner selects approval policy
+PASS applicant submits introduction and waits
+PASS owner approves actual participant
+PASS approval notification appears
+PASS report submitted from post UI
+PASS administrator records review
+PASS reporter sees review result
+PASS no JavaScript errors

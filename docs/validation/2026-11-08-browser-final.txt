@@ -1,0 +1,16 @@
+PASS server login and Korean profile
+PASS plan update survives reload
+PASS publish persisted plan
+PASS second browser joins shared trip
+PASS companion comment shared across browsers
+PASS post creation navigates after server success
+PASS post and comment persist across browsers
+PASS browser storage contains no passwords
+PASS mobile companion list loads
+PASS map workspace toggles server participation twice
+PASS server logout clears session
+PASS no browser JavaScript errors
+{
+  "checks": 12,
+  "errors": []
+}
