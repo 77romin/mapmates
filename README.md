@@ -1,3 +1,5 @@
+[프로젝트 발표자료 PDF 바로 보기](./docs/presentation/MapMates_SSAFY16_발표용.pdf)
+
 <p align="center">
   <img src="./front/assets/mapMates-logo-v1.png" width="160" height="160" alt="MapMates · 너랑 갈.지도 logo">
 </p>
