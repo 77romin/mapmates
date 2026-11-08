@@ -141,4 +141,18 @@ class Features(unittest.TestCase):
    self.assertEqual(self.b.call(f'companions/{cid}/participants','POST',{})[0],409)
    self.assertEqual(self.a.call(f'companions/{cid}/lifecycle','PUT',{'lifecycle':'completed'})[0],200)
   finally:self.a.call('plans/'+p['id'],'DELETE')
+ def test_09_batched_plan_isolation(self):
+  day=str(datetime.date.today()+datetime.timedelta(days=10));created=[]
+  try:
+   for client,count in [(self.a,0),(self.a,3),(self.b,2)]:
+    body=dict(title='Batch isolation',startDate=day,endDate=day,capacity=2,budget=0,region='서울',theme='문화',description='',items=[dict(day=1,time=f'{11-i:02}:00',memo=f'item-{i}',place=self.place) for i in range(count)])
+    code,p=client.call('plans','POST',body);self.assertEqual(code,201,p);created.append((client,p['id']))
+   listed=self.a.call('plans')[1];by_id={p['id']:p for p in listed}
+   self.assertNotIn(created[2][1],by_id)
+   for client,pid in created[:2]:
+    self.assertEqual(by_id[pid],client.call('plans/'+pid)[1])
+   self.assertEqual(by_id[created[0][1]]['tripSchedule'],[])
+   self.assertEqual([s['memo'] for s in by_id[created[1][1]]['tripSchedule']],['item-2','item-1','item-0'])
+  finally:
+   for client,pid in created:client.call('plans/'+pid,'DELETE')
 if __name__=='__main__':unittest.main(verbosity=2)

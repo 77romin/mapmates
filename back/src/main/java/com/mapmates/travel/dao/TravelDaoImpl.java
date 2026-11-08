@@ -93,6 +93,30 @@ public final class TravelDaoImpl implements TravelDao {
         id);
   }
 
+  public Map<Long, List<Map<String, Object>>> itemsByPlan(Connection c, List<Long> ids)
+      throws SQLException {
+    var grouped = new HashMap<Long, List<Map<String, Object>>>();
+    // Chunk large accounts to keep the IN list and bind count bounded.
+    for (int from = 0; from < ids.size(); from += 500) {
+      var chunk = ids.subList(from, Math.min(from + 500, ids.size()));
+      String marks = String.join(",", Collections.nCopies(chunk.size(), "?"));
+      var rows = Sql.rows(c,
+          "SELECT pi.plan_id AS planId,pi.content_id AS placeId,pi.day_no AS day,"
+              + "pi.visit_time AS time,pi.memo,a.title,a.latitude AS lat,a.longitude AS lng,"
+              + "a.first_image1 AS image,a.addr1 AS address,a.content_type_id AS contentTypeId "
+              + "FROM plan_items pi JOIN attractions a ON a.content_id=pi.content_id "
+              + "WHERE pi.plan_id IN (" + marks + ") "
+              + "ORDER BY pi.plan_id,pi.day_no,pi.visit_time,pi.sort_order",
+          chunk.toArray());
+      for (var row : rows) {
+        long planId = Sql.number(row, "planId");
+        row.remove("planId");
+        grouped.computeIfAbsent(planId, key -> new ArrayList<>()).add(row);
+      }
+    }
+    return grouped;
+  }
+
   public List<Map<String, Object>> participants(Connection c, long id) throws SQLException {
     return Sql.rows(
         c,

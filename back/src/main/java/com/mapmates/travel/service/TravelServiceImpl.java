@@ -26,8 +26,11 @@ public final class TravelServiceImpl implements TravelService {
   }
 
   private Map<String, Object> decorate(Connection c, Map<String, Object> p) throws SQLException {
+    return decorate(p, dao.items(c, Sql.number(p, "id")));
+  }
+
+  private Map<String, Object> decorate(Map<String, Object> p, List<Map<String, Object>> items) {
     long id = Sql.number(p, "id");
-    var items = dao.items(c, id);
     var places = new LinkedHashMap<String, Object>();
     var schedule = new ArrayList<Map<String, Object>>();
     for (var item : items) {
@@ -60,7 +63,10 @@ public final class TravelServiceImpl implements TravelService {
     return Tx.read(
         c -> {
           var out = new ArrayList<Object>();
-          for (var p : dao.plans(c, user)) out.add(decorate(c, p));
+          var plans = dao.plans(c, user);
+          var items = dao.itemsByPlan(c, plans.stream().map(p -> Sql.number(p, "id")).toList());
+          for (var p : plans)
+            out.add(decorate(p, items.getOrDefault(Sql.number(p, "id"), List.of())));
           return out;
         });
   }

@@ -13,6 +13,8 @@ public interface TravelDao {
 
   List<Map<String, Object>> items(Connection c, long id) throws SQLException;
 
+  Map<Long, List<Map<String, Object>>> itemsByPlan(Connection c, List<Long> ids) throws SQLException;
+
   Map<String, Object> companion(Connection c, long id) throws SQLException;
 
   List<Map<String, Object>> participants(Connection c, long id) throws SQLException;
