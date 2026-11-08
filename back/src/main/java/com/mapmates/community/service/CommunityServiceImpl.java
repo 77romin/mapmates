@@ -33,6 +33,7 @@ public final class CommunityServiceImpl implements CommunityService {
         c -> {
           String where = "1=1";
           var args = new ArrayList<Object>();
+          if("me".equals(r.query("owner"))){where+=" AND p.owner_id=?";args.add(r.requireLogin().id());}
           if (r.query("board") != null) {
             where += " AND p.board=?";
             args.add(Validator.requireOneOf(r.query("board"), "게시판", "travel", "notice", "news"));

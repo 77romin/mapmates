@@ -12,15 +12,18 @@ export async function request(path, method = 'GET', body) {
   return data;
 }
 const member = value => value ? {...value,id:String(value.id)} : {id:'',name:'',nickname:'',photo:''};
-async function all(path) {
-  const first=await request(`${path}${path.includes('?')?'&':'?'}size=100`);
-  if(Array.isArray(first))return first;
-  const out=[...first.items];for(let page=2;out.length<first.total;page++){const next=await request(`${path}${path.includes('?')?'&':'?'}size=100&page=${page}`);if(!next.items.length)break;out.push(...next.items);}return out;
-}
 export async function refresh() {
   const auth=await request('auth/me');
-  const [posts,companions,plans,favorites]=await Promise.all([all('posts'),all('companions'),auth.loggedIn?request('plans'):[],auth.loggedIn?request('favorites'):[]]);
-  snapshot={loggedIn:auth.loggedIn,user:member(auth.member),members:auth.member?[member(auth.member)]:[],posts,companions,plans,favorites:favorites.map(p=>Number(p.id)),favoritePlaces:Object.fromEntries(favorites.map(p=>[p.id,p])),postComments:{},companionComments:{},joinedCompanions:companions.filter(p=>p.participants.some(v=>v.id===String(auth.member?.id))).map(p=>p.id)};
+  const page=location.pathname.split('/').pop();
+  const empty={items:[],total:0,page:1,size:20};
+  const [postPage,companionPage,plans,favorites,activity]=await Promise.all([
+    auth.loggedIn&&page==='mypage.html'?request('posts?owner=me&size=100'):Promise.resolve(empty),
+    ['index.html','companions.html','planner.html','mypage.html',''].includes(page)?request('companions?size=20'+(['planner.html','mypage.html'].includes(page)&&auth.loggedIn?'&related=me':'')):Promise.resolve(empty),
+    auth.loggedIn&&['planner.html','index.html',''].includes(page)?request('plans'):Promise.resolve([]),
+    auth.loggedIn&&['planner.html','index.html',''].includes(page)?request('favorites'):Promise.resolve([]),
+    auth.loggedIn&&page==='mypage.html'?request('members/me/activity'):Promise.resolve(null)]);
+  const posts=postPage.items,companions=companionPage.items;
+  snapshot={postPage,companionPage,activity,loggedIn:auth.loggedIn,user:member(auth.member),members:auth.member?[member(auth.member)]:[],posts,companions,plans,favorites:favorites.map(p=>Number(p.id)),favoritePlaces:Object.fromEntries(favorites.map(p=>[p.id,p])),postComments:{},companionComments:{},joinedCompanions:companions.filter(p=>p.participants.some(v=>v.id===String(auth.member?.id))).map(p=>p.id)};
   const params=new URLSearchParams(location.search),id=params.get('id'),edit=params.get('edit');
   if(location.pathname.endsWith('post-detail.html')&&id){try{const post=await request(`posts/${id}`);snapshot.posts=snapshot.posts.filter(p=>String(p.id)!==id);snapshot.posts.push(post);snapshot.postComments[id]=await request(`posts/${id}/comments`);}catch(e){if(!snapshot.posts.some(p=>String(p.id)===id))return snapshot;throw e;}}
   if(location.pathname.endsWith('post-write.html')&&edit&&!snapshot.posts.some(p=>String(p.id)===edit))snapshot.posts.push(await request(`posts/${edit}`));

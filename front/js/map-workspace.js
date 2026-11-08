@@ -67,6 +67,7 @@ export function mountWorkspace(state, getMap, onChange) {
     if(serverMode)await refresh();
     Object.assign(state, loadState());
     selected = state.companions.find(item => String(item.id) === String(id));
+    if(!selected&&serverMode){try{selected=await request(`companions/${id}`);state.companions.push(selected);}catch{}}
     if (!selected) { render(); draw(); showToast('삭제된 모집글이에요.'); return; }
     syncCompanion(selected);
     const joined = hasJoined(state, selected);
@@ -112,6 +113,7 @@ export function mountWorkspace(state, getMap, onChange) {
       });
       content.querySelector('#workspace-resume')?.addEventListener('click', () => openPlanner());
       content.querySelectorAll('img').forEach(img => img.addEventListener('error', () => { if (!img.dataset.fallback) { img.dataset.fallback = '1'; img.src = './assets/sunset-clouds.png'; } }));
+      if(serverMode&&tab==='browse'&&state.companions.length<(state.companionPage?.total||0)){const more=document.createElement('button');more.className='button full-width';more.textContent='동행 더 보기';content.append(more);more.onclick=async()=>{try{const page=(state.companionPage.page||1)+1;const data=await request(`companions?page=${page}&size=20`);state.companionPage=data;state.companions.push(...data.items);render();}catch(e){showToast(e.message);}};}
       return;
     }
     content.innerHTML = `<button class="text-button workspace-back" id="workspace-back" type="button">← ${heading} 목록</button>

@@ -201,7 +201,7 @@ public final class TravelServiceImpl implements TravelService {
         List.of(Objects.toString(p.get("region"), "여행"), Objects.toString(p.get("theme"), "자유")));
     item.put("schedule", full.get("tripSchedule"));
     item.put("places", full.get("itineraryPlaces"));
-    var stops = dao.items(c, Sql.number(p, "id"));
+    var stops = (List<Map<String,Object>>)full.get("tripSchedule");
     item.put(
         "image",
         stops.isEmpty()
@@ -215,41 +215,32 @@ public final class TravelServiceImpl implements TravelService {
   }
 
   public Object companions(ApiRequest r) {
-    return Tx.read(
-        c -> {
-          String where = "1=1";
-          var args = new ArrayList<Object>();
-          for (String[] f : new String[][] {{"region", "p.region"}, {"theme", "p.theme"}})
-            if (r.query(f[0]) != null) {
-              where += " AND " + f[1] + "=?";
-              args.add(r.query(f[0]));
-            }
-          if (r.query("status") != null) {
-            where += " AND c.status=?";
-            args.add(Validator.requireOneOf(r.query("status"), "모집 상태", "open", "closed"));
-          }
-          int size = r.queryInt("size", 20, 1, 100), page = r.queryInt("page", 1, 1, 100000);
-          long total =
-              Sql.number(
-                  Sql.one(
-                      c,
-                      "SELECT COUNT(*) AS n FROM companions c JOIN plans p ON p.id=c.plan_id WHERE "
-                          + where,
-                      args.toArray()),
-                  "n");
-          args.add(size);
-          args.add((page - 1) * size);
-          var ids =
-              Sql.rows(
-                  c,
-                  "SELECT c.id FROM companions c JOIN plans p ON p.id=c.plan_id WHERE "
-                      + where
-                      + " ORDER BY c.created_at DESC,c.id DESC LIMIT ? OFFSET ?",
-                  args.toArray());
-          var out = new ArrayList<Object>();
-          for (var v : ids) out.add(detail(c, Sql.number(v, "id")));
-          return Map.of("items", out, "total", total, "page", page, "size", size);
-        });
+    var viewer=r.loginUser();long user=viewer==null?0:viewer.id();
+    if("me".equals(r.query("related"))&&user==0)throw ApiException.unauthorized("로그인이 필요해요.");
+    return Tx.read(c->{
+      String where="1=1";var args=new ArrayList<Object>();
+      for(String[] f:new String[][]{{"region","p.region"},{"theme","p.theme"}})if(r.query(f[0])!=null){where+=" AND "+f[1]+"=?";args.add(r.query(f[0]));}
+      if(r.query("keyword")!=null){where+=" AND (p.title LIKE ? OR p.description LIKE ? OR m.nickname LIKE ?)";for(int i=0;i<3;i++)args.add("%"+Validator.requireText(r.query("keyword"),100,"검색어")+"%");}
+      if("me".equals(r.query("related"))){where+=" AND (p.owner_id=? OR EXISTS(SELECT 1 FROM companion_participants mine WHERE mine.companion_id=c.id AND mine.member_id=?))";args.add(user);args.add(user);}
+      String open="(c.status='open' AND c.lifecycle='scheduled' AND p.start_date>=CURDATE() AND (SELECT COUNT(*)+1 FROM companion_participants cap WHERE cap.companion_id=c.id)<p.capacity)";
+      if(r.query("status")!=null){String status=Validator.requireOneOf(r.query("status"),"모집 상태","open","closed","soon");where+=" AND "+(status.equals("closed")?"NOT "+open:status.equals("soon")?open+" AND (SELECT COUNT(*)+1 FROM companion_participants cap WHERE cap.companion_id=c.id)=p.capacity-1":open);}
+      int size=r.queryInt("size",20,1,100),page=r.queryInt("page",1,1,100000);
+      String from=" FROM companions c JOIN plans p ON p.id=c.plan_id JOIN members m ON m.id=p.owner_id WHERE ";
+      long total=Sql.number(Sql.one(c,"SELECT COUNT(*) n"+from+where,args.toArray()),"n");args.add(size);args.add((page-1)*size);
+      var rows=Sql.rows(c,"SELECT c.id,c.plan_id AS planKey,c.status='closed' AS closed,c.join_policy AS joinPolicy,c.lifecycle,p.owner_id AS ownerId,p.title,p.start_date AS startDate,p.end_date AS endDate,p.capacity,p.budget,p.region,p.theme,p.description,p.version,m.nickname AS author,m.photo AS hostPhoto,m.gender AS hostGender"+from+where+" ORDER BY c.created_at DESC,c.id DESC LIMIT ? OFFSET ?",args.toArray());
+      if(rows.isEmpty())return Map.of("items",List.of(),"page",page,"size",size,"total",total);
+      String marks=String.join(",",Collections.nCopies(rows.size(),"?"));Object[] planIds=rows.stream().map(v->v.get("planKey")).toArray(),ids=rows.stream().map(v->v.get("id")).toArray();
+      var stops=Sql.rows(c,"SELECT pi.plan_id AS planKey,pi.content_id AS placeId,pi.day_no AS day,pi.visit_time AS time,pi.memo,a.title,a.latitude AS lat,a.longitude AS lng,a.first_image1 AS image,a.addr1 AS address,a.content_type_id AS contentTypeId FROM plan_items pi JOIN attractions a ON a.content_id=pi.content_id WHERE pi.plan_id IN ("+marks+") ORDER BY pi.plan_id,pi.day_no,pi.visit_time,pi.sort_order",planIds);
+      var people=Sql.rows(c,"SELECT cp.companion_id AS companionId,CAST(m.id AS CHAR) AS id,m.nickname,m.photo,m.gender FROM companion_participants cp JOIN members m ON m.id=cp.member_id WHERE cp.companion_id IN ("+marks+") ORDER BY cp.joined_at,cp.member_id",ids);
+      var byPlan=new HashMap<Long,List<Map<String,Object>>>();for(var stop:stops)byPlan.computeIfAbsent(Sql.number(stop,"planKey"),k->new ArrayList<>()).add(stop);
+      var byCompanion=new HashMap<Long,List<Map<String,Object>>>();for(var person:people)byCompanion.computeIfAbsent(Sql.number(person,"companionId"),k->new ArrayList<>()).add(person);
+      var out=new ArrayList<Map<String,Object>>();for(var v:rows){long id=Sql.number(v,"id"),plan=Sql.number(v,"planKey"),owner=Sql.number(v,"ownerId");
+       var entries=byPlan.getOrDefault(plan,List.of());var places=new LinkedHashMap<String,Object>();for(var stop:entries){var place=new LinkedHashMap<>(stop);place.put("id",stop.get("placeId"));places.put(stop.get("placeId").toString(),place);}
+       var participants=new ArrayList<Map<String,Object>>();var host=new LinkedHashMap<String,Object>();host.put("id",String.valueOf(owner));host.put("nickname",v.get("author"));host.put("photo",v.get("hostPhoto"));host.put("gender",v.get("hostGender"));participants.add(host);participants.addAll(byCompanion.getOrDefault(id,List.of()));
+       v.put("ownerId",String.valueOf(owner));v.put("tripId",String.valueOf(plan));v.put("schedule",entries);v.put("places",places);v.put("participants",participants);v.put("people",participants.size()+"/"+v.get("capacity")+"명");v.put("sourceTrip",v.get("title"));v.put("avatar",v.get("author"));v.put("dates",v.get("startDate")+" — "+v.get("endDate"));v.put("tags",List.of(Objects.toString(v.get("region"),"여행"),Objects.toString(v.get("theme"),"자유")));v.put("image",entries.isEmpty()?"":Objects.toString(entries.get(0).get("image"),""));v.put("lifecycle",com.mapmates.companion.service.TripLifecycle.effective(v));
+       boolean closed=Boolean.TRUE.equals(v.get("closed"))||Integer.valueOf(1).equals(v.get("closed"));v.put("closed",closed);v.put("status",closed||Set.of("completed","cancelled").contains(v.get("lifecycle"))||participants.size()>=Sql.number(v,"capacity")?"closed":Sql.number(v,"capacity")-participants.size()<=1?"soon":"open");out.add(v);
+      }return Map.of("items",out,"page",page,"size",size,"total",total);
+    });
   }
 
   public Object publish(long user, CompanionWrite p) {

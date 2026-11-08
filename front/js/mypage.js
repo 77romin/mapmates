@@ -25,9 +25,9 @@ function renderActivity() {
   const joined = state.companions.filter((item) => item.ownerId !== state.user.id && item.participants.some((person) => person.id === state.user.id));
   const posts = state.posts.filter((post) => post.ownerId === state.user.id);
   const companionLink = (item) => `<li><a href="./companion-detail.html?id=${item.id}"><span class="status-badge ${item.status}">${STATUS_LABELS[item.status]}</span>${escapeHtml(item.title)}</a></li>`;
-  $("#owned-count").textContent = owned.length;
-  $("#joined-count").textContent = joined.length;
-  $("#post-count").textContent = posts.length;
+  $("#owned-count").textContent = state.activity?.owned??owned.length;
+  $("#joined-count").textContent = state.activity?.joined??joined.length;
+  $("#post-count").textContent = state.activity?.posts??posts.length;
   $("#owned-companions").innerHTML = activityItems(owned.map(companionLink), "여행계획에서 동행을 모집해보세요.");
   $("#joined-companions").innerHTML = activityItems(joined.map(companionLink), "아직 참가한 동행이 없어요.");
   $("#my-posts").innerHTML = activityItems(posts.map((post) => `<li><a href="./post-detail.html?id=${post.id}">${escapeHtml(post.title)}<time>${escapeHtml(post.date)}</time></a></li>`), "커뮤니티에 첫 글을 남겨보세요.");

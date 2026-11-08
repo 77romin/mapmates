@@ -1,3 +1,4 @@
+import {serverMode,request} from './server-api.js';
 import { places } from "./data.js";
 import { escapeHtml, initShell, loadState, userAvatar } from "./shared.js";
 import { STATUS_LABELS, hasJoined, isCompanionOwner, syncCompanion } from "./companion-utils.js";
@@ -44,10 +45,13 @@ function card(item) {
   </a>`;
 }
 
-function render() {
-  const items = state.companions.filter(matches);
-  $("#companion-count").textContent = items.length;
+let serverPage=1,renderToken=0;
+async function render(append=false) {
+  let items = state.companions.filter(matches);
+  if(serverMode){if(!append)$('#companion-list').textContent='동행을 불러오는 중이에요.';const token=++renderToken;try{if(!append)serverPage=1;const query=new URLSearchParams({page:serverPage,size:20,keyword:$('#companion-keyword').value.trim()});for(const f of ['region','theme','status'])if($('#companion-'+f).value!=='all')query.set(f,$('#companion-'+f).value);if($('#companion-mine').checked)query.set('related','me');const data=await request('companions?'+query);if(token!==renderToken)return;items=append?[...state.companions,...data.items]:data.items;state.companions=items;state.companionPage=data;}catch(e){$('#companion-list').textContent=e.message;return;}}
+  $("#companion-count").textContent = serverMode?state.companionPage.total:items.length;
   $("#companion-list").innerHTML = items.map(card).join("") || `<div class="empty-state"><div><strong>조건에 맞는 동행이 없어요.</strong><span>필터를 바꾸거나 내 여행계획에서 모집해보세요.</span></div></div>`;
+  if(serverMode){let more=$('#companions-more');if(!more){more=document.createElement('button');more.id='companions-more';more.className='button';more.textContent='더 보기';$('#companion-list').after(more);more.onclick=()=>{serverPage++;render(true);};}more.hidden=items.length>=state.companionPage.total;}
   $('#companion-list').querySelectorAll('.companion-link-card > img').forEach(image => image.addEventListener('error', () => {
     if (!image.dataset.fallback) { image.dataset.fallback = '1'; image.src = './assets/sunset-clouds.png'; }
   }));

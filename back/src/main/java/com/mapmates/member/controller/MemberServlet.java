@@ -28,6 +28,7 @@ public class MemberServlet extends BaseApiServlet {
         r.get("/check-email", this::checkEmail);
         r.get("/check-nickname", this::checkNickname);
         r.get("/me", this::me);
+        r.get("/me/activity",q->{long user=q.requireLogin().id();return com.mapmates.common.db.Tx.read(c->Map.of("owned",com.mapmates.common.db.Sql.number(com.mapmates.common.db.Sql.one(c,"SELECT COUNT(*) n FROM companions cp JOIN plans p ON p.id=cp.plan_id WHERE p.owner_id=?",user),"n"),"joined",com.mapmates.common.db.Sql.number(com.mapmates.common.db.Sql.one(c,"SELECT COUNT(*) n FROM companion_participants WHERE member_id=?",user),"n"),"posts",com.mapmates.common.db.Sql.number(com.mapmates.common.db.Sql.one(c,"SELECT COUNT(*) n FROM posts WHERE owner_id=?",user),"n")));});
         r.put("/me", this::update);
         r.delete("/me", this::withdraw);
         r.put("/me/password", this::changePassword);

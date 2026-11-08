@@ -1,10 +1,10 @@
 """HTTP integration scenarios against a running MapMates/MySQL instance; cleans own accounts."""
-import concurrent.futures, http.cookiejar, json, os, time, unittest, urllib.error, urllib.request
+import concurrent.futures, http.cookiejar, json, os, time, unittest, urllib.error, urllib.request, urllib.parse
 BASE=os.environ.get('TEST_URL','http://localhost:8080/mapmates')+'/api/'
 class Client:
  def __init__(self): self.jar=http.cookiejar.CookieJar();self.opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.jar))
  def call(self,path,method='GET',body=None,headers=None):
-  req=urllib.request.Request(BASE+path,method=method,data=None if body is None else json.dumps(body).encode(),headers={'Content-Type':'application/json',**(headers or {})})
+  req=urllib.request.Request(BASE+urllib.parse.quote(path,safe="/?=&%"),method=method,data=None if body is None else json.dumps(body).encode(),headers={'Content-Type':'application/json',**(headers or {})})
   try:
    with self.opener.open(req,timeout=20) as r:return r.status,json.loads(r.read() or b'null')
   except urllib.error.HTTPError as e:return e.code,json.loads(e.read() or b'null')

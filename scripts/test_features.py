@@ -74,4 +74,17 @@ class Features(unittest.TestCase):
    self.assertEqual(self.a.call('plans/'+p['id'],'PUT',body)[0],409)
    self.assertEqual(self.a.call('plans/'+p['id'])[1]['trip']['title'],'먼저 저장')
   finally:self.a.call('plans/'+p['id'],'DELETE')
+ def test_05_pagination(self):
+  ids=[]
+  try:
+   for n in range(3):
+    code,p=self.a.call('posts','POST',dict(board='travel',category='검증',title=f'페이징검증{n}',content='검색과 페이지 검증'));self.assertEqual(code,201,p);ids.append(p['id'])
+   one=self.a.call('posts?keyword=페이징검증&size=2&page=1')[1];two=self.a.call('posts?keyword=페이징검증&size=2&page=2')[1]
+   self.assertEqual(one['total'],3);self.assertEqual(len(one['items']),2);self.assertEqual(len(two['items']),1)
+   self.assertFalse(set(p['id'] for p in one['items'])&set(p['id'] for p in two['items']))
+   cp=self.a.call('companions?size=1')[1];self.assertLessEqual(len(cp['items']),1)
+   if cp['items']:
+    detail=self.a.call('companions/'+str(cp['items'][0]['id']))[1];self.assertEqual(detail['people'],cp['items'][0]['people']);self.assertEqual(len(detail['schedule']),len(cp['items'][0]['schedule']))
+  finally:
+   for pid in ids:self.a.call('posts/'+str(pid),'DELETE')
 if __name__=='__main__':unittest.main(verbosity=2)
