@@ -64,3 +64,14 @@ HTTP 시나리오는 인증·중복 가입·비밀번호 비노출·공지 권�
 ![실제 카카오 지도와 DB 관광지 핀](screenshots/backend/06-live-map.png)
 
 외부 날씨·충전소·모빌리티의 실제 응답은 각각의 API 키와 서비스 권한에 의존한다. 이번 실행에서 실제 SDK·타일을 확인한 것은 카카오맵이며, 외부 기능 전체를 새로 실검증했다고 주장하지 않는다. 프론트 단독 데모 테스트의 과거 결과는 `front/docs/FEATURE_AUDIT.md`에 별도로 보존한다.
+
+
+## 성능·모바일 추가 검증
+
+2026-11-08 후속 변경에서 계획 일괄 조회의 빈 일정·정렬·소유자 격리를 추가해 기능 API 9개 시나리오가 통과했다. [실행 기록](validation/2026-11-08-performance-api.txt)을 보존한다.
+
+320px·390px Chrome 모바일 에뮬레이션 각각 승인·알림·신고 10개 항목이 통과했고, 320px 계정 복구는 8개 항목이 통과했다. 알림함의 화면 경계, Escape/닫기 버튼, 지연 요청의 중복 제출 방지, 오류 안내·재시도, 실제 로컬 SMTP와 새 비밀번호 로그인을 확인했다. 실제 휴대전화 기기 검증은 아니다.
+
+[320px 기록](validation/2026-11-08-mobile-320.txt) · [390px 기록](validation/2026-11-08-mobile-390.txt) · [복구 기록](validation/2026-11-08-mobile-recovery.txt) · [실측 그래프·원시 표본](benchmarks/README.md)
+
+GitLab의 verify 작업은 활성 Runner가 없어 실행 전 대기 상태임을 웹에서 확인했다. GitHub CI 결과와 혼동하지 않는다. 상세 상태와 링크는 [운영 안내](OPERATIONS.md)에 기록했다.

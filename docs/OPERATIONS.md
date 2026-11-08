@@ -65,3 +65,10 @@ node front/tests/algorithms.cjs
 ```
 
 브라우저 테스트는 `PLAYWRIGHT_MODULE`로 설치된 Playwright 모듈 경로를 지정하고 Chrome을 사용한다. 기능 테스트는 개발 Mailpit과 시연 관리자 계정을 사용하므로 운영 데이터에 실행하지 않는다. 요청 제한은 단일 JVM 기준이다. 여러 웹 인스턴스로 확장할 때는 세션·요청 제한 공유 저장소와 운영 로그·백업 보존 정책을 추가로 구성한다.
+
+
+## GitLab 실행 상태 확인 — 2026-11-08
+
+[파이프라인 #278164](https://lab.ssafy.com/s16/a11/project/6.database/3-kkm-mye/-/pipelines/278164)의 [verify 작업 #876093](https://lab.ssafy.com/s16/a11/project/6.database/3-kkm-mye/-/jobs/876093)은 `pending / stuck` 상태였다. 작업 화면에 활성 Runner가 없다는 안내가 표시됐다. 설정에서 이 프로젝트의 연결된 Runner 0개, 그룹 Runner 0개, 인스턴스 Runner 0개를 확인했다.
+
+다른 프로젝트의 Runner를 임의 연결하거나 새 상주 Runner를 설치하지 않았다. 현재 GitLab은 코드 제출·동기화 용도로 유지하며 검증은 로컬과 GitHub Actions에서 실행한다. GitLab에서 직접 실행하려면 담당자가 이 프로젝트용 Docker Runner를 연결해야 한다. YAML이 통과했다는 것과 실제 작업 실행 성공은 구분한다. 공개 배포는 진행하지 않는다.

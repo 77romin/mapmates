@@ -346,7 +346,9 @@ DAY를 선택하고 **동선 최적화**를 누르면 첫 장소와 마지막 �
 
 ![운영자 신고 처리](./docs/screenshots/features/03-moderation.png)
 
-[운영·마이그레이션·백업·CI 안내](./docs/OPERATIONS.md)
+320px·390px 모바일에서 승인·알림·신고와 이메일 복구 흐름을 검증했습니다. 알림함의 화면 경계·닫기 동작·터치 영역과 요청 중 중복 제출 방지를 보완했습니다. [모바일 화면](./docs/screenshots/mobile/02-notifications.png) · [모바일 복구 검증](./docs/validation/2026-11-08-mobile-recovery.txt)
+
+GitLab 파이프라인은 프로젝트에 활성 Runner가 없어 대기 중입니다. 로컬과 GitHub Actions에서 검증하며 공개 배포는 진행하지 않습니다. [운영·마이그레이션·백업·CI 안내](./docs/OPERATIONS.md)
 
 ## 데이터베이스 설계 — ERD
 
@@ -483,7 +485,7 @@ node front/tests/algorithms.cjs
 
 API 테스트는 별도 검증 계정을 만들고 종료 시 삭제합니다. 브라우저 테스트는 시연 계정으로 생성한 계획·게시글을 정리합니다. 기존 DB 검증은 별도 `mapmates_erd_check` 스키마에서 실행합니다.
 
-Java 단위 테스트 4개, SQL 33개, HTTP 통합 7개 시나리오, 브라우저 12개 항목이 통과했습니다. 추가 기능 API 8개 시나리오와 기능 브라우저 8개 항목도 통과했으며 실제 카카오 SDK·지도 타일·DB 관광지 표시도 확인했습니다. [통합 검증 보고서](./docs/VALIDATION.md)에 결과와 화면을 정리했습니다. 외부 날씨·충전소·차량 경로는 각 서비스의 키와 사용 권한이 필요합니다.
+Java 단위 테스트 4개, SQL 33개, HTTP 통합 7개 시나리오, 브라우저 12개 항목이 통과했습니다. 추가 기능 API 9개 시나리오와 기능 브라우저 8개 항목도 통과했으며 실제 카카오 SDK·지도 타일·DB 관광지 표시도 확인했습니다. [통합 검증 보고서](./docs/VALIDATION.md)에 결과와 화면을 정리했습니다. 외부 날씨·충전소·차량 경로는 각 서비스의 키와 사용 권한이 필요합니다.
 
 프론트 단계의 기존 검증과 문제 해결 과정도 보존합니다. [기능 검증 보고서](./front/docs/FEATURE_AUDIT.md), [트러블슈팅](./front/docs/TROUBLE_SHOOTING.md), [알고리즘 검증](./front/docs/ALGORITHM_IMPROVEMENTS.md)을 참고하세요.
 

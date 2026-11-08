@@ -32,6 +32,8 @@ jobs:
           npm install --prefix /tmp/mapmates-playwright playwright@1.49.1
           PLAYWRIGHT_MODULE=/tmp/mapmates-playwright/node_modules/playwright node scripts/test_browser.cjs
           PLAYWRIGHT_MODULE=/tmp/mapmates-playwright/node_modules/playwright node scripts/test_features_browser.cjs
+          PLAYWRIGHT_MODULE=/tmp/mapmates-playwright/node_modules/playwright MOBILE_WIDTH=320 SCREENSHOT_DIR=/tmp/mapmates-mobile node scripts/test_features_browser.cjs
+          PLAYWRIGHT_MODULE=/tmp/mapmates-playwright/node_modules/playwright node scripts/test_mobile_recovery.cjs
       - name: Database backup and isolated restore
         run: |
           python3 scripts/backup.py --output /tmp/mapmates-ci.sql

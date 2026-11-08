@@ -1,0 +1,14 @@
+test_01_approval (__main__.Features) ... ok
+test_02_notifications (__main__.Features) ... ok
+test_03_lifecycle_and_revisions (__main__.Features) ... ok
+test_04_plan_version_conflict (__main__.Features) ... ok
+test_05_pagination (__main__.Features) ... ok
+test_06_email_recovery (__main__.Features) ... ok
+test_07_moderation (__main__.Features) ... ok
+test_08_departed_trip (__main__.Features) ... ok
+test_09_batched_plan_isolation (__main__.Features) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 1.487s
+
+OK
