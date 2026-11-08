@@ -1,3 +1,4 @@
+import {mountNotifications} from './notifications.js';
 import { serverMode, ready, serverSnapshot, request, refresh } from "./server-api.js";
 await ready;
 import { addDemoExpansion } from './demo-expansion.js';
@@ -175,6 +176,7 @@ export function ensureLoggedIn(state, message = "로그인이 필요한 기능�
 }
 
 export function initShell(page, state = loadState()) {
+  mountNotifications(state.loggedIn);
   document.querySelectorAll("[data-page-link]").forEach((link) => link.classList.toggle("is-active", link.dataset.pageLink === page));
   document.querySelectorAll("[data-user-name]").forEach((node) => { node.textContent = state.loggedIn ? state.user.name : "로그인"; });
   document.querySelectorAll("[data-user-avatar]").forEach((node) => {

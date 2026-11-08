@@ -510,3 +510,5 @@ h1, h2, h3, p { margin-top: 0; }
 .place-category-marker svg { transform: rotate(45deg); flex-shrink: 0; }
 .place-category-marker:hover, .place-category-marker:focus-visible, .place-category-marker.is-active { outline: 3px solid var(--marker-color); outline-offset: 2px; }
 .map-marker-pin svg { display: block; }
+
+.notification-menu{position:relative;margin-left:12px;font-size:14px;z-index:1500}.notification-menu summary{cursor:pointer;padding:8px;white-space:nowrap}.notification-panel{position:absolute;right:0;top:100%;width:min(360px,90vw);max-height:65vh;overflow:auto;background:#fffaf6;border:1px solid #ddcfca;border-radius:14px;box-shadow:0 8px 28px #30202025;padding:16px}.notification-panel h2{font-size:18px}.notification-panel a{display:block;padding:12px 4px;border-bottom:1px solid #eee}.notification-panel small{display:block;color:#777;font-size:11px}.notification-panel .is-unread{font-weight:700}.notification-panel button{margin:8px 0}

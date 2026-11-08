@@ -37,4 +37,17 @@ class Features(unittest.TestCase):
    for c in [self.b,self.c]:self.assertEqual(c.call(f'companions/{cid}/participants/me','DELETE')[0],200)
    self.assertEqual(self.b.call(f'companions/{cid}/requests/me')[1]['status'],'cancelled')
   finally:self.a.call('plans/'+p['id'],'DELETE')
+ def test_02_notifications(self):
+  p,cp,_=self.trip('approval');cid=cp['id']
+  try:
+   self.b.call(f'companions/{cid}/participants','POST',{'introduction':'신청합니다'})
+   data=self.a.call('notifications')[1];self.assertGreater(data['unread'],0)
+   n=next(x for x in data['items'] if x['link']==f'companion-detail.html?id={cid}')
+   self.assertEqual(self.c.call(f'notifications/{n["id"]}/read','PUT',{})[0],404)
+   self.assertEqual(self.a.call(f'notifications/{n["id"]}/read','PUT',{})[0],204)
+   self.a.call(f'companions/{cid}/requests/{self.profiles[1]["id"]}','PUT',{'status':'approved'})
+   self.assertTrue(any(x['kind']=='request_decided' for x in self.b.call('notifications')[1]['items']))
+   self.assertEqual(self.b.call('notifications/read-all','PUT',{})[0],204)
+   self.assertEqual(self.b.call('notifications')[1]['unread'],0)
+  finally:self.a.call('plans/'+p['id'],'DELETE')
 if __name__=='__main__':unittest.main(verbosity=2)

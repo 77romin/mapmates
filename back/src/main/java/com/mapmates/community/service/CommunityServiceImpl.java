@@ -175,6 +175,10 @@ public final class CommunityServiceImpl implements CommunityService {
               root,
               reply,
               content);
+          var targetOwner=companion?Sql.one(c,"SELECT p.owner_id owner FROM companions cp JOIN plans p ON p.id=cp.plan_id WHERE cp.id=?",id):Sql.one(c,"SELECT owner_id owner FROM posts WHERE id=?",id);
+          long targetUser=Sql.number(targetOwner,"owner");String link=(companion?"companion-detail.html?id=":"post-detail.html?id=")+id;
+          com.mapmates.notification.Notifications.emit(c,targetUser,u.id(),"comment","내 글에 새 댓글이 달렸어요.",link);
+          if(reply!=null&&reply!=targetUser)com.mapmates.notification.Notifications.emit(c,reply,u.id(),"reply","내 댓글에 답글이 달렸어요.",link);
           return dao.comments(c, column(companion), id);
         });
   }
