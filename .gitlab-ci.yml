@@ -22,6 +22,7 @@ verify:
     - docker info
   script:
     - docker compose -f compose.yaml -f compose.ci.yaml up -d --build --wait
+    - python3 scripts/schema_snapshot.py --check
     - python3 scripts/check_config.py
     - python3 scripts/test_api.py
     - python3 scripts/test_features.py

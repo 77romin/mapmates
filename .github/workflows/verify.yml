@@ -1,5 +1,6 @@
 name: Verify MapMates
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
@@ -21,6 +22,7 @@ jobs:
         run: docker compose up -d --build --wait
       - name: API and feature tests
         run: |
+          python3 scripts/schema_snapshot.py --check
           python3 scripts/check_config.py
           python3 scripts/test_api.py
           python3 scripts/test_features.py
