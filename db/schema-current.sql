@@ -403,4 +403,3 @@ CREATE TABLE reports (
  FOREIGN KEY(reviewer_id) REFERENCES members(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 INSERT INTO schema_migrations(version) VALUES('106_moderation');
-
