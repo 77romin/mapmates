@@ -160,7 +160,7 @@ if (!item) {
   $('#close-recruitment').addEventListener('click', async () => {
     if (!isCompanionOwner(state,item)) return;
     if (item.closed && item.participants.length >= companionCapacity(item)) return showToast('정원을 늘린 다음 모집을 다시 열 수 있어요.');
-    if(serverMode){try{Object.assign(item,await request(`companions/${item.id}`,'PUT',{closed:!item.closed}));render();}catch(e){showToast(e.message);}return;}
+    if(serverMode){try{Object.assign(item,await request(`companions/${item.id}`,'PUT',{closed:!item.closed,expectedVersion:item.version}));render();}catch(e){showToast(e.message);}return;}
     item.closed = !item.closed; syncCompanion(item);
     if (!persist(state)) return; render(); showToast(item.closed ? '참여를 마감했어요. 기존 참가자는 일정을 확인할 수 있어요.' : '동행 모집을 다시 열었어요.');
   });
