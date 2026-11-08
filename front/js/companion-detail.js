@@ -97,7 +97,17 @@ function render() {
 async function toggleJoin() {
   if (!ensureLoggedIn(state, "동행에 참가하려면 로그인이 필요해요.")) return;
   if (isCompanionOwner(state, item)) return;
-  if(serverMode){try{const joined=hasJoined(state,item)||requestStatus==='pending';const introduction=!joined&&item.joinPolicy==='approval'?prompt('함께 여행하고 싶은 이유를 소개해주세요.'):'';if(introduction===null)return;Object.assign(item,await request(`companions/${item.id}/participants${joined?'/me':''}`,joined?'DELETE':'POST',joined?undefined:{introduction}));await loadRequests();render();}catch(e){showToast(e.message);}return;}
+  if(serverMode){
+    const button=$('#join-companion');if(button.disabled)return;
+    const joined=hasJoined(state,item)||requestStatus==='pending';
+    const introduction=!joined&&item.joinPolicy==='approval'?prompt('함께 여행하고 싶은 이유를 소개해주세요.'):'';
+    if(introduction===null)return;
+    button.disabled=true;button.setAttribute('aria-busy','true');button.textContent='처리 중…';
+    try{Object.assign(item,await request(`companions/${item.id}/participants${joined?'/me':''}`,joined?'DELETE':'POST',joined?undefined:{introduction}));await loadRequests();}
+    catch(e){showToast(e.message);}
+    finally{button.removeAttribute('aria-busy');render();}
+    return;
+  }
   const index = item.participants.findIndex((person) => person.id === state.user.id);
   if (index >= 0) {
     if (!confirm("동행 참가를 취소할까요?")) return;

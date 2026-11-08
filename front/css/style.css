@@ -512,3 +512,14 @@ h1, h2, h3, p { margin-top: 0; }
 .map-marker-pin svg { display: block; }
 
 .notification-menu{position:relative;margin-left:12px;font-size:14px;z-index:1500}.notification-menu summary{cursor:pointer;padding:8px;white-space:nowrap}.notification-panel{position:absolute;right:0;top:100%;width:min(360px,90vw);max-height:65vh;overflow:auto;background:#fffaf6;border:1px solid #ddcfca;border-radius:14px;box-shadow:0 8px 28px #30202025;padding:16px}.notification-panel h2{font-size:18px}.notification-panel a{display:block;padding:12px 4px;border-bottom:1px solid #eee}.notification-panel small{display:block;color:#777;font-size:11px}.notification-panel .is-unread{font-weight:700}.notification-panel button{margin:8px 0}
+
+.notification-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.notification-heading h2{margin:0}
+.notification-panel{overflow-wrap:anywhere;overscroll-behavior:contain}
+.notification-menu summary,.notification-panel button{min-height:44px;min-width:44px}
+button[aria-busy="true"],form[aria-busy="true"] button{cursor:progress}
+@media(max-width:600px){
+ .notification-panel{position:fixed;left:12px;right:12px;top:calc(var(--topbar-height) + 8px);width:auto;max-height:calc(100svh - var(--topbar-height) - 96px)}
+ .notification-menu{margin-left:0}
+ .notification-panel a{min-height:44px}
+}

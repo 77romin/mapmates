@@ -207,3 +207,11 @@
 .comparison-pin { display: grid; place-items: center; width: 26px; height: 26px; border: 2px solid white; border-radius: 50%; background: #dc3545; color: white; font-weight: 700; box-shadow: 0 2px 5px #0003; }
 .comparison-pin.recommended { background: #0872ef; }
 @media (max-width: 700px) { .comparison-grid { grid-template-columns: 1fr; } }
+
+@media(max-width:600px){
+ .owner-actions{flex-wrap:wrap}
+ .owner-actions button,#request-management button,#report-status,#reports button{min-height:44px;min-width:44px;font-size:14px}
+ #reports textarea{width:100%;min-height:96px}
+ #request-management article,#reports article{overflow-wrap:anywhere}
+ .recovery-card input{font-size:16px}
+}

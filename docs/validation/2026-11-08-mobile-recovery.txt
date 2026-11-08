@@ -1,0 +1,8 @@
+PASS 320px recovery form has no horizontal overflow
+PASS slow recovery request prevents duplicate submission
+PASS recovery error is visible and retry is enabled
+PASS recovery email arrives through local SMTP
+PASS mobile reset form saves new password
+PASS new password signs in on mobile
+PASS server demo instructions describe server storage
+PASS no mobile JavaScript errors

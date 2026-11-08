@@ -1,3 +1,4 @@
+import {pendingForm} from './pending.js';
 import { serverMode, request, refresh, serverSnapshot } from "./server-api.js";
 import { escapeHtml, initShell, loadState, showToast, logoutAccount, switchAccount } from "./shared.js";
 import { MIN_SIGNUP_AGE, ageOf, persist, readProfileImage, safeNextUrl } from "./account.js";
@@ -130,7 +131,7 @@ showMode(params.get("mode") === "signup" ? "signup" : "login");
 // Frontend demo recovery: identity fields are only a local simulation, not email verification.
 $("#recover-form").addEventListener("submit", async event => {
   event.preventDefault();
-  if(serverMode){try{const token=new URLSearchParams(location.search).get('reset');if(token){await request('auth/password-reset','POST',{token,newPassword:$('#recover-password').value});$('#recover-error').textContent='비밀번호를 변경했어요. 새 비밀번호로 로그인해주세요.';location.href='./signup.html?mode=login&resetDone=1';}else{const result=await request('auth/password-reset/request','POST',{email:$('#recover-email').value});$('#recover-error').textContent=result.message;}}catch(e){$('#recover-error').textContent=e.message;}return;}
+  if(serverMode){await pendingForm(event.currentTarget,async()=>{try{const token=new URLSearchParams(location.search).get('reset');if(token){await request('auth/password-reset','POST',{token,newPassword:$('#recover-password').value});$('#recover-error').textContent='비밀번호를 변경했어요. 새 비밀번호로 로그인해주세요.';location.href='./signup.html?mode=login&resetDone=1';}else{const result=await request('auth/password-reset/request','POST',{email:$('#recover-email').value});$('#recover-error').textContent=result.message;}}catch(e){$('#recover-error').textContent=e.message;}});return;}
   const member = state.members.find(user => user.email.toLowerCase() === $("#recover-email").value.trim().toLowerCase() && user.name === $("#recover-name").value.trim() && user.birthDate === $("#recover-birth").value);
   const password = $("#recover-password").value;
   if (!member) return $("#recover-error").textContent = "입력한 회원정보를 확인해주세요.";
@@ -146,7 +147,7 @@ $("#demo-accounts").addEventListener('click', event => {
   $("#login-email").value = member.email; $("#login-password").value = member.password; showMode('login'); $("#login-email").focus();
 });
 
-if(serverMode){$('#demo-accounts').innerHTML='<p class="helper-text">시연 계정: traveler1@mapmates.test ~ traveler10@mapmates.test / travel1234 (10번은 운영자)</p>'; }
+if(serverMode){document.querySelector('.demo-card > .helper-text').textContent='아래 시연 계정으로 서버 기능을 체험할 수 있어요. 작성한 데이터는 서버에 저장됩니다.';$('#demo-accounts').innerHTML='<p class="helper-text">시연 계정: traveler1@mapmates.test ~ traveler10@mapmates.test / travel1234 (10번은 운영자)</p>'; }
 
 if(serverMode){
  const form=$('#recover-form');const token=new URLSearchParams(location.search).get('reset');

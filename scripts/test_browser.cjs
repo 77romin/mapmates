@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');const path=require('node:path');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base=process.env.TEST_URL || 'http://localhost:8080/mapmates';
-const output=path.resolve('docs/screenshots/backend');fs.mkdirSync(output,{recursive:true});
+const output=path.resolve(process.env.SCREENSHOT_DIR||'docs/screenshots/backend');fs.mkdirSync(output,{recursive:true});
 (async()=>{
  const browser=await chromium.launch({channel:'chrome',headless:true});const errors=[];const checks=[];const contexts=[];
  async function context(){const c=await browser.newContext({viewport:{width:1440,height:1000}});contexts.push(c);await c.addInitScript(()=>localStorage.setItem('neorang-intro-seen-v1','1'));await c.route('**/config.js',r=>r.fulfill({contentType:'text/javascript',body:'window.APP_CONFIG={};'}));return c;}

@@ -1,0 +1,10 @@
+PASS owner selects approval policy
+PASS applicant submits introduction and waits
+PASS owner approves actual participant
+PASS approval notification appears
+PASS notification panel stays inside mobile viewport
+PASS notification closes by keyboard and touch
+PASS report submitted from post UI
+PASS administrator records review
+PASS reporter sees review result
+PASS no JavaScript errors
