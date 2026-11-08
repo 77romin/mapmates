@@ -33,6 +33,7 @@ public final class CommunityServiceImpl implements CommunityService {
         c -> {
           String where = "1=1";
           var args = new ArrayList<Object>();
+          var viewer=r.loginUser();if(viewer!=null){where+=" AND NOT EXISTS(SELECT 1 FROM member_blocks b WHERE b.blocker_id=? AND b.blocked_id=p.owner_id)";args.add(viewer.id());}
           if("me".equals(r.query("owner"))){where+=" AND p.owner_id=?";args.add(r.requireLogin().id());}
           if (r.query("board") != null) {
             where += " AND p.board=?";
@@ -155,6 +156,8 @@ public final class CommunityServiceImpl implements CommunityService {
     return Tx.write(
         c -> {
           target(c, companion, id);
+          var interactionTarget=companion?Sql.one(c,"SELECT p.owner_id owner FROM companions cp JOIN plans p ON p.id=cp.plan_id WHERE cp.id=?",id):Sql.one(c,"SELECT owner_id owner FROM posts WHERE id=?",id);
+          com.mapmates.moderation.SafetyService.interaction(c,u.id(),Sql.number(interactionTarget,"owner"));
           Long root = null, reply = null;
           if (p.parentId() != null) {
             var parent =
@@ -166,6 +169,7 @@ public final class CommunityServiceImpl implements CommunityService {
             root = parent.get("parent_id") == null ? p.parentId() : Sql.number(parent, "parent_id");
             reply = Sql.number(parent, "owner_id");
           }
+          if(reply!=null)com.mapmates.moderation.SafetyService.interaction(c,u.id(),reply);
           Sql.insert(
               c,
               "INSERT INTO comments(owner_id,"

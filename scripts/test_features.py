@@ -117,4 +117,18 @@ class Features(unittest.TestCase):
    self.assertEqual(user.call('auth/password-reset/request','POST',{'email':account['email']})[0],200)
    self.assertEqual(user.call('auth/password-reset/request','POST',{'email':account['email']})[0],429)
   finally:user.call('members/me','DELETE',{'currentPassword':'changed1234'})
+ def test_07_moderation(self):
+  p,cp,_=self.trip();post=self.b.call('posts','POST',dict(board='travel',category='후기',title='신고 대상',content='검토할 콘텐츠'))[1];admin=Client();self.assertEqual(admin.call('auth/login','POST',{'email':'traveler10@mapmates.test','password':'travel1234'})[0],200)
+  try:
+   code,report=self.a.call('reports','POST',dict(targetType='post',targetId=post['id'],reason='검토 요청'));self.assertEqual(code,201,report)
+   self.assertEqual(self.b.call('reports')[0],403)
+   self.assertEqual(admin.call('reports/'+str(report['id']),'PUT',dict(status='reviewed',note='내용 검토와 안내 완료'))[0],204)
+   self.assertTrue(any(r['status']=='reviewed' for r in self.a.call('reports/mine')[1]))
+   self.assertEqual(self.a.call('blocks/'+str(self.profiles[1]['id']),'PUT',{})[0],204)
+   self.assertEqual(self.a.call(f'posts/{post["id"]}/comments','POST',{'content':'댓글'})[0],403)
+   self.assertEqual(self.b.call(f'companions/{cp["id"]}/participants','POST',{})[0],403)
+   self.assertFalse(any(r['id']==post['id'] for r in self.a.call('posts?size=100')[1]['items']))
+   self.assertEqual(self.a.call('blocks/'+str(self.profiles[1]['id']),'DELETE')[0],204)
+   self.assertEqual(self.b.call(f'companions/{cp["id"]}/participants','POST',{})[0],200)
+  finally:self.b.call('posts/'+str(post['id']),'DELETE');self.a.call('plans/'+p['id'],'DELETE')
 if __name__=='__main__':unittest.main(verbosity=2)

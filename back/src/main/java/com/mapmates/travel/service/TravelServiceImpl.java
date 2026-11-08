@@ -219,6 +219,7 @@ public final class TravelServiceImpl implements TravelService {
     if("me".equals(r.query("related"))&&user==0)throw ApiException.unauthorized("로그인이 필요해요.");
     return Tx.read(c->{
       String where="1=1";var args=new ArrayList<Object>();
+      if(user!=0){where+=" AND NOT EXISTS(SELECT 1 FROM member_blocks blocked WHERE blocked.blocker_id=? AND blocked.blocked_id=p.owner_id)";args.add(user);}
       for(String[] f:new String[][]{{"region","p.region"},{"theme","p.theme"}})if(r.query(f[0])!=null){where+=" AND "+f[1]+"=?";args.add(r.query(f[0]));}
       if(r.query("keyword")!=null){where+=" AND (p.title LIKE ? OR p.description LIKE ? OR m.nickname LIKE ?)";for(int i=0;i<3;i++)args.add("%"+Validator.requireText(r.query("keyword"),100,"검색어")+"%");}
       if("me".equals(r.query("related"))){where+=" AND (p.owner_id=? OR EXISTS(SELECT 1 FROM companion_participants mine WHERE mine.companion_id=c.id AND mine.member_id=?))";args.add(user);args.add(user);}

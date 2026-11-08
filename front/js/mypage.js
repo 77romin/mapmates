@@ -1,3 +1,4 @@
+import {mountMySafety} from './moderation.js';
 import { serverMode, request, refresh, serverSnapshot } from "./server-api.js";
 import { escapeHtml, initShell, loadState, showToast, logoutAccount } from "./shared.js";
 import { GENDER_LABELS, clearUserContent, emptyUser, persist, readProfileImage, syncUserProfile } from "./account.js";
@@ -130,3 +131,5 @@ $("#withdraw-form").addEventListener("submit", async (event) => {
 });
 
 if (state.loggedIn) render();
+
+if(serverMode&&state.loggedIn)await mountMySafety(document.querySelector("main .subpage-container")||document.querySelector("main"));

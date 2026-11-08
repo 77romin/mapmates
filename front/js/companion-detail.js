@@ -1,3 +1,4 @@
+import {mountSafety} from './moderation.js';
 import { serverMode, request, refresh, serverSnapshot } from "./server-api.js";
 import { initComments } from './comments.js';
 import { TripRoute, tripDays, dayDate, renderDayWeather, applyType, bindRoadview } from './trip-map.js';
@@ -82,6 +83,7 @@ function render() {
   $("#companion-hero").style.backgroundImage = `url(${JSON.stringify(item.image || "")})`;
   $("#companion-hero").innerHTML = `<div><span class="status-badge ${item.status}">${STATUS_LABELS[item.status]}</span><h1>${escapeHtml(item.title)}</h1><p>${escapeHtml(item.author)} · ${escapeHtml(item.dates)} · ${escapeHtml(item.people)}</p></div>`;
   $("#companion-content").innerHTML = `<h2>여행 소개</h2><p class="detail-description">${escapeHtml(item.description)}</p><div class="tag-row">${(item.tags || []).map((tag) => `<span class="tag"># ${escapeHtml(tag)}</span>`).join("")}</div>${scheduleMarkup(isOwner || joined)}`;
+  mountSafety($("#companion-content"),"companion",item.id,item.ownerId,state);
   $("#participant-count").textContent = item.people;
   $("#participant-list").innerHTML = item.participants.map(participantMarkup).join("");
   renderJoinButton(isOwner, joined);
@@ -190,3 +192,5 @@ if(serverMode&&item){
   actions.querySelectorAll('button').forEach(b=>{b.disabled=['completed','cancelled'].includes(item.lifecycle);b.onclick=async()=>{if(!confirm(b.textContent+' 처리할까요? 참가자에게 알려드려요.'))return;try{await request(`companions/${item.id}/lifecycle`,'PUT',{lifecycle:b.dataset.tripState});location.reload();}catch(e){showToast(e.message);}};});
  }
 }
+
+

@@ -177,6 +177,7 @@ export function ensureLoggedIn(state, message = "로그인이 필요한 기능�
 
 export function initShell(page, state = loadState()) {
   mountNotifications(state.loggedIn);
+  if(state.loggedIn&&state.user.role==='admin'&&!document.querySelector('#admin-link')){const link=document.createElement('a');link.id='admin-link';link.href='./moderation.html';link.className='text-button';link.textContent='신고 관리';document.querySelector('.profile-button')?.before(link);}
   document.querySelectorAll("[data-page-link]").forEach((link) => link.classList.toggle("is-active", link.dataset.pageLink === page));
   document.querySelectorAll("[data-user-name]").forEach((node) => { node.textContent = state.loggedIn ? state.user.name : "로그인"; });
   document.querySelectorAll("[data-user-avatar]").forEach((node) => {

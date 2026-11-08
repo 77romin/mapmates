@@ -1,3 +1,4 @@
+import {mountSafety} from './moderation.js';
 import { serverMode, request, refresh, serverSnapshot } from "./server-api.js";
 import { initComments } from './comments.js';
 import { escapeHtml, initShell, loadState, showToast } from "./shared.js";
@@ -55,5 +56,6 @@ if (!post) {
   state.postComments[post.id] ||= [];
   countView();
   renderArticle();
+  mountSafety($("#post-article"),"post",post.id,post.ownerId,state);
   initComments({ state, collection: "postComments", id: post.id, ownerId: post.ownerId, next: `post-detail.html?id=${post.id}` });
 }

@@ -1,3 +1,4 @@
+import {reportTarget} from './moderation.js';
 import { serverMode, request, refresh, serverSnapshot } from "./server-api.js";
 import { ensureLoggedIn, escapeHtml, loadState, showToast, userAvatar } from './shared.js';
 import { persist } from './account.js';
@@ -16,7 +17,7 @@ export function initComments({ state, collection, id, ownerId, next }) {
   const sendIcon = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z M22 2 11 13"/></svg>';
   function markup(comment, reply = false) {
     const key = escapeHtml(String(comment.id));
-    const actions = comment.deleted ? '' : `<div class="owner-actions"><button type="button" data-action="reply" data-id="${key}">답글</button>${mine(comment) ? `<button type="button" data-action="edit" data-id="${key}">수정</button>` : ''}${canDelete(comment) ? `<button type="button" data-action="delete" data-id="${key}">삭제</button>` : ''}</div>`;
+    const actions = comment.deleted ? '' : `<div class="owner-actions">${serverMode&&!mine(comment)?`<button type="button" data-action="report" data-id="${key}">신고</button>`:''}<button type="button" data-action="reply" data-id="${key}">답글</button>${mine(comment) ? `<button type="button" data-action="edit" data-id="${key}">수정</button>` : ''}${canDelete(comment) ? `<button type="button" data-action="delete" data-id="${key}">삭제</button>` : ''}</div>`;
     const body = comment.deleted ? '<p class="helper-text">삭제된 댓글입니다.</p>' : editingId === comment.id ? `<form class="comment-edit-form" data-id="${key}"><textarea aria-label="댓글 수정" maxlength="500" required>${escapeHtml(comment.content)}</textarea><div class="owner-actions"><button type="submit">저장</button><button type="button" data-action="cancel">취소</button></div></form>` : `<p>${comment.replyTo ? `<span class="reply-mention">@${escapeHtml(comment.replyTo)} </span>` : ''}${escapeHtml(comment.content)}</p>`;
     const replyForm = replyingId === comment.id ? `<form class="comment-form reply-form" data-parent="${key}"><label class="field"><span class="sr-only">${escapeHtml(comment.nickname)}에게 답글</span><textarea aria-label="답글 내용" maxlength="500" required placeholder="답글을 입력하세요"></textarea></label><button class="button button-primary comment-send" type="submit" aria-label="답글 등록">${sendIcon}</button><button class="text-button" type="button" data-action="cancel">취소</button></form>` : '';
     return `<article class="comment-item${reply ? ' is-reply' : ''}" data-comment-id="${key}"><div class="comment-head"><div class="comment-author">${comment.deleted ? '' : userAvatar(comment, 'is-small')}<strong>${comment.deleted ? '삭제된 댓글' : escapeHtml(comment.nickname)}</strong>${!comment.deleted && comment.ownerId === ownerId ? '<small class="writer-badge">작성자</small>' : ''}<time>${formatDateTime(comment.createdAt || comment.id)}${comment.updatedAt ? ' · 수정됨' : ''}</time></div>${actions}</div>${body}${replyForm}</article>`;
@@ -63,6 +64,7 @@ export function initComments({ state, collection, id, ownerId, next }) {
     if (action === 'cancel') { editingId = replyingId = null; render(); return; }
     const comment = find(button.dataset.id);
     if (!comment || comment.deleted) return;
+    if(action==='report'){if(ensureLoggedIn(state))await reportTarget('comment',comment.id);return;}
     if (action === 'reply') {
       if (!ensureLoggedIn(state, '답글을 쓰려면 로그인이 필요해요.')) return;
       editingId = null; replyingId = comment.id; render();
