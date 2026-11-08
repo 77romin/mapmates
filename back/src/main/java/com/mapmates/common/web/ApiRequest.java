@@ -83,7 +83,11 @@ public final class ApiRequest {
 
     public SessionUser loginUser() {
         HttpSession session = raw.getSession(false);
-        return session == null ? null : (SessionUser) session.getAttribute(SessionUser.SESSION_KEY);
+        if(session==null)return null;
+        SessionUser user=(SessionUser)session.getAttribute(SessionUser.SESSION_KEY);if(user==null)return null;
+        var current=com.mapmates.common.db.Tx.read(c->com.mapmates.common.db.Sql.one(c,"SELECT auth_version,role FROM members WHERE id=?",user.id()));
+        if(current==null||com.mapmates.common.db.Sql.number(current,"auth_version")!=user.authVersion()){session.invalidate();return null;}
+        return new SessionUser(user.id(),user.email(),user.nickname(),current.get("role").toString(),user.authVersion());
     }
 
     public SessionUser requireLogin() {
@@ -100,7 +104,8 @@ public final class ApiRequest {
         if (old != null) {
             old.invalidate();
         }
-        raw.getSession(true).setAttribute(SessionUser.SESSION_KEY, user);
+        long version=com.mapmates.common.db.Tx.read(c->com.mapmates.common.db.Sql.number(com.mapmates.common.db.Sql.one(c,"SELECT auth_version FROM members WHERE id=?",user.id()),"auth_version"));
+        raw.getSession(true).setAttribute(SessionUser.SESSION_KEY,new SessionUser(user.id(),user.email(),user.nickname(),user.role(),version));
     }
 
     public void logout() {

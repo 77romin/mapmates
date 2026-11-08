@@ -64,12 +64,13 @@ public class MemberServlet extends BaseApiServlet {
         MemberResponse member = memberService.updateProfile(user.id(), req.body(MemberUpdateRequest.class));
         // 닉네임이 바뀌었을 수 있으니 세션 정보도 갱신한다.
         req.raw().getSession().setAttribute(SessionUser.SESSION_KEY,
-                new SessionUser(member.id(), member.email(), member.nickname(), member.role()));
+                new SessionUser(member.id(), member.email(), member.nickname(), member.role(),user.authVersion()));
         return member;
     }
 
     private Object changePassword(ApiRequest req) {
         memberService.changePassword(req.requireLogin().id(), req.body(PasswordChangeRequest.class));
+        req.logout();
         return null;
     }
 

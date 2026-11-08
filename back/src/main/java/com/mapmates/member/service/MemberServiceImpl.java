@@ -128,23 +128,12 @@ public class MemberServiceImpl implements MemberService {
             throw ApiException.badRequest("현재 비밀번호가 일치하지 않아요.");
         }
         String hash = PasswordHasher.hash(req.newPassword());
-        Tx.write(conn -> memberDao.updatePassword(conn, memberId, hash));
+        Tx.write(conn -> com.mapmates.common.db.Sql.update(conn,"UPDATE members SET password_hash=?,auth_version=auth_version+1 WHERE id=?",hash,memberId));
     }
 
     @Override
     public void resetPassword(PasswordResetRequest req) {
-        String email = Validator.requireEmail(req.email());
-        String name = Validator.requireText(req.name(), 30, "이름");
-        if (req.birthDate() == null) {
-            throw ApiException.badRequest("생년월일을 입력해주세요.");
-        }
-        Validator.requirePassword(req.newPassword());
-        Member m = Tx.read(conn -> memberDao.findByEmail(conn, email)).orElse(null);
-        if (m == null || !m.getName().equals(name) || !m.getBirthDate().equals(req.birthDate())) {
-            throw ApiException.badRequest("입력한 회원정보를 확인해주세요.");
-        }
-        String hash = PasswordHasher.hash(req.newPassword());
-        Tx.write(conn -> memberDao.updatePassword(conn, m.getId(), hash));
+        throw ApiException.badRequest("이메일의 일회용 재설정 링크를 사용해주세요.");
     }
 
     @Override

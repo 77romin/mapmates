@@ -130,7 +130,7 @@ showMode(params.get("mode") === "signup" ? "signup" : "login");
 // Frontend demo recovery: identity fields are only a local simulation, not email verification.
 $("#recover-form").addEventListener("submit", async event => {
   event.preventDefault();
-  if(serverMode){try{await request('auth/password-reset','POST',{email:$('#recover-email').value,name:$('#recover-name').value,birthDate:$('#recover-birth').value,newPassword:$('#recover-password').value});$('#recover-error').textContent='비밀번호를 변경했어요.';}catch(e){$('#recover-error').textContent=e.message;}return;}
+  if(serverMode){try{const token=new URLSearchParams(location.search).get('reset');if(token){await request('auth/password-reset','POST',{token,newPassword:$('#recover-password').value});$('#recover-error').textContent='비밀번호를 변경했어요. 새 비밀번호로 로그인해주세요.';location.href='./signup.html?mode=login&resetDone=1';}else{const result=await request('auth/password-reset/request','POST',{email:$('#recover-email').value});$('#recover-error').textContent=result.message;}}catch(e){$('#recover-error').textContent=e.message;}return;}
   const member = state.members.find(user => user.email.toLowerCase() === $("#recover-email").value.trim().toLowerCase() && user.name === $("#recover-name").value.trim() && user.birthDate === $("#recover-birth").value);
   const password = $("#recover-password").value;
   if (!member) return $("#recover-error").textContent = "입력한 회원정보를 확인해주세요.";
@@ -147,3 +147,14 @@ $("#demo-accounts").addEventListener('click', event => {
 });
 
 if(serverMode){$('#demo-accounts').innerHTML='<p class="helper-text">시연 계정: traveler1@mapmates.test ~ traveler10@mapmates.test / travel1234 (10번은 운영자)</p>'; }
+
+if(serverMode){
+ const form=$('#recover-form');const token=new URLSearchParams(location.search).get('reset');
+ document.querySelector('.recovery-card .helper-text').textContent=token?'메일 링크는 20분 동안 한 번만 사용할 수 있어요.':'가입한 이메일로 비밀번호 재설정 링크를 보내드려요.';
+ for(const id of ['recover-name','recover-birth']){const field=$('#'+id);field.required=false;field.closest('label').hidden=true;}
+ $('#recover-email').required=!token;$('#recover-email').closest('label').hidden=!!token;$('#recover-password').required=!!token;$('#recover-password').closest('label').hidden=!token;
+ form.querySelector('button').textContent=token?'새 비밀번호 저장':'재설정 메일 받기';
+ if(token){document.querySelector('.recovery-card').open=true;const meta=document.createElement('meta');meta.name='referrer';meta.content='no-referrer';document.head.append(meta);}
+}
+
+if(serverMode&&new URLSearchParams(location.search).has("resetDone"))showToast("비밀번호를 변경했어요. 새 비밀번호로 로그인해주세요.");

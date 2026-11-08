@@ -24,11 +24,15 @@ public class AuthServlet extends BaseApiServlet {
         r.post("/login", this::login);
         r.post("/logout", this::logout);
         r.get("/me", this::me);
-        r.post("/password-reset", this::resetPassword);
+        r.post("/password-reset/request",q->{com.mapmates.common.security.RequestLimits.check("recovery-ip:"+q.raw().getRemoteAddr(),20,900000);com.mapmates.member.service.PasswordRecovery.start(q.body(com.mapmates.member.service.PasswordRecovery.Start.class).email());return Map.of("message","가입된 이메일이라면 재설정 메일을 보내드렸어요.");});
+        r.post("/password-reset",q->{com.mapmates.common.security.RequestLimits.check("reset-ip:"+q.raw().getRemoteAddr(),30,900000);var body=q.body(com.mapmates.member.service.PasswordRecovery.Finish.class);com.mapmates.member.service.PasswordRecovery.finish(body.token(),body.newPassword());q.logout();return null;});
     }
 
     private Object login(ApiRequest req) {
-        MemberResponse member = memberService.login(req.body(LoginRequest.class));
+        var body=req.body(LoginRequest.class);
+        com.mapmates.common.security.RequestLimits.check("login-ip:"+req.raw().getRemoteAddr(),100,900000);
+        com.mapmates.common.security.RequestLimits.check("login-account:"+com.mapmates.member.service.PasswordRecovery.hash(body.email()==null?"":body.email().trim().toLowerCase(java.util.Locale.ROOT)),20,900000);
+        MemberResponse member = memberService.login(body);
         req.login(new SessionUser(member.id(), member.email(), member.nickname(), member.role()));
         return member;
     }

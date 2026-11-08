@@ -21,6 +21,13 @@ services:
     ports: ["127.0.0.1:8080:8080"]
     environment:
       TZ: Asia/Seoul
+      MAPMATES_SMTP_HOST: ${MAPMATES_SMTP_HOST:-mail}
+      MAPMATES_SMTP_PORT: ${MAPMATES_SMTP_PORT:-1025}
+      MAPMATES_SMTP_STARTTLS: ${MAPMATES_SMTP_STARTTLS:-false}
+      MAPMATES_SMTP_USER: ${MAPMATES_SMTP_USER:-}
+      MAPMATES_SMTP_PASSWORD: ${MAPMATES_SMTP_PASSWORD:-}
+      MAPMATES_SMTP_FROM: ${MAPMATES_SMTP_FROM:-no-reply@mapmates.test}
+      MAPMATES_PUBLIC_URL: ${MAPMATES_PUBLIC_URL:-http://localhost:8080/mapmates}
       MAPMATES_DB_URL: jdbc:mysql://db:3306/mapmates?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useSSL=false
       MAPMATES_DB_USER: mapmates
       MAPMATES_DB_PASSWORD: ${MAPMATES_DB_PASSWORD:-local-mapmates-only}
@@ -31,5 +38,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+  mail:
+    image: axllent/mailpit:v1
+    ports: ["127.0.0.1:8026:8025"]
 volumes:
   mapmates-data:

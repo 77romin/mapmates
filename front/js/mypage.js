@@ -106,7 +106,7 @@ $("#password-form").addEventListener("submit", async (event) => {
   else if (nextPassword === state.user.password) message = "기존 비밀번호와 다른 비밀번호를 입력해주세요.";
   $("#password-error").textContent = message;
   if (message) return;
-  if(serverMode){try{await request('members/me/password','PUT',{currentPassword:current,newPassword:nextPassword});event.target.reset();showToast('비밀번호를 변경했어요.');}catch(e){$('#password-error').textContent=e.message;}return;}
+  if(serverMode){try{await request('members/me/password','PUT',{currentPassword:current,newPassword:nextPassword});event.target.reset();location.href='./signup.html?mode=login';}catch(e){$('#password-error').textContent=e.message;}return;}
   state.user.password = nextPassword;
   persist(state);
   event.target.reset();
