@@ -13,6 +13,7 @@ const item = state.companions.find((entry) => Number(entry.id) === id);
 const $ = (selector) => document.querySelector(selector);
 const MAX_CAPACITY = 10;
 const placeForEntry = entry => item.places?.[Number(entry.placeId)] || places.find(place => place.id === Number(entry.placeId)) || state.itineraryPlaces?.[Number(entry.placeId)];
+let requestStatus="none";
 let routeMap = null, selectedDay=1, routeMode='straight', mapType='roadmap';
 const route = new TripRoute(()=>routeMap,$('#companion-route-map'),$('#companion-route-status'));
 function drawCompanionRoute() {
@@ -52,6 +53,7 @@ function participantMarkup(person) {
 function renderJoinButton(isOwner, joined) {
   const button = $("#join-companion");
   const closed = item.status === "closed";
+  if(serverMode && item.joinPolicy==='approval' && !joined && !isOwner){button.hidden=false;button.disabled=closed;button.textContent=requestStatus==='pending'?'신청 취소':closed?'모집 마감':'참가 신청 (승인 대기)';$('#join-help').textContent=requestStatus==='pending'?'모집자의 승인을 기다리고 있어요.':'간단한 자기소개와 함께 신청해주세요.';return;}
   button.hidden = isOwner;
   button.disabled = closed && !joined;
   button.classList.toggle("button-secondary", joined);
@@ -91,7 +93,7 @@ function render() {
 async function toggleJoin() {
   if (!ensureLoggedIn(state, "동행에 참가하려면 로그인이 필요해요.")) return;
   if (isCompanionOwner(state, item)) return;
-  if(serverMode){try{const joined=hasJoined(state,item);Object.assign(item,await request(`companions/${item.id}/participants${joined?'/me':''}`,joined?'DELETE':'POST',joined?undefined:{}));render();}catch(e){showToast(e.message);}return;}
+  if(serverMode){try{const joined=hasJoined(state,item)||requestStatus==='pending';const introduction=!joined&&item.joinPolicy==='approval'?prompt('함께 여행하고 싶은 이유를 소개해주세요.'):'';if(introduction===null)return;Object.assign(item,await request(`companions/${item.id}/participants${joined?'/me':''}`,joined?'DELETE':'POST',joined?undefined:{introduction}));await loadRequests();render();}catch(e){showToast(e.message);}return;}
   const index = item.participants.findIndex((person) => person.id === state.user.id);
   if (index >= 0) {
     if (!confirm("동행 참가를 취소할까요?")) return;
@@ -121,7 +123,7 @@ async function saveOwnerEdit(event) {
   else if (capacity < item.participants.length) message = "현재 참가자 수보다 적게 설정할 수 없어요.";
   $("#owner-error").textContent = message;
   if (message) return;
-  if(serverMode){try{Object.assign(item,await request(`companions/${item.id}`,'PUT',{title,description,capacity,closed:$('#owner-closed').checked}));render();}catch(e){$('#owner-error').textContent=e.message;}return;}
+  if(serverMode){try{Object.assign(item,await request(`companions/${item.id}`,'PUT',{title,description,capacity,closed:$('#owner-closed').checked,joinPolicy:$('#owner-join-policy').value}));render();}catch(e){$('#owner-error').textContent=e.message;}return;}
   Object.assign(item, {
     title,
     description,
@@ -167,3 +169,14 @@ if (!item) {
 }
 
 if(serverMode){$('#owner-dates').readOnly=true;$('#owner-dates').title='여행 기간은 내 여행에서 변경해주세요.';$('#owner-tags').readOnly=true;$('#owner-tags').title='태그는 여행 지역과 테마를 사용해요.';}
+
+async function loadRequests(){
+ if(!serverMode||!item||!state.loggedIn)return;
+ if(isCompanionOwner(state,item)){
+  let section=$('#request-management');if(!section){section=document.createElement('section');section.id='request-management';section.className='subpage-card';$('#owner-edit').after(section);}
+  const requests=await request(`companions/${item.id}/requests`);
+  section.innerHTML='<h2>참가 신청 관리</h2>'+ (requests.map(r=>`<article><strong>${escapeHtml(r.nickname)}</strong> · ${escapeHtml(({pending:'대기',approved:'승인',rejected:'거절',cancelled:'취소'})[r.status])}<p>${escapeHtml(r.introduction)}</p>${r.status==='pending'?`<button class="button" data-decision="approved" data-member="${r.memberId}">승인</button> <button class="button" data-decision="rejected" data-member="${r.memberId}">거절</button>`:''}</article>`).join('')||'<p>신청이 없어요.</p>');
+  section.querySelectorAll('[data-decision]').forEach(b=>b.onclick=async()=>{try{await request(`companions/${item.id}/requests/${b.dataset.member}`,'PUT',{status:b.dataset.decision});Object.assign(item,await request(`companions/${item.id}`));await loadRequests();render();}catch(e){showToast(e.message);}});
+ }else{requestStatus=(await request(`companions/${item.id}/requests/me`)).status;}
+}
+if(serverMode&&item){const label=document.createElement('label');label.className='field';label.innerHTML='<span>참가 방식</span><select id="owner-join-policy"><option value="instant">즉시 참가</option><option value="approval">모집자 승인 후 참가</option></select>';$('#owner-closed').closest('label').before(label);$('#owner-join-policy').value=item.joinPolicy||'instant';await loadRequests();render();}

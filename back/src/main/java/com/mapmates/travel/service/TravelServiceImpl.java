@@ -288,6 +288,7 @@ public final class TravelServiceImpl implements TravelService {
                 "UPDATE plans SET description=? WHERE id=?",
                 Validator.requireText(p.description(), 1000, "소개"),
                 v.get("tripId"));
+          if(p.joinPolicy()!=null){Validator.requireOneOf(p.joinPolicy(),"참가 방식","instant","approval");Sql.update(c,"UPDATE companions SET join_policy=? WHERE id=?",p.joinPolicy(),id);}
           if (p.closed() != null)
             Sql.update(
                 c, "UPDATE companions SET status=? WHERE id=?", p.closed() ? "closed" : "open", id);

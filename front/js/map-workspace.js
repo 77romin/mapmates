@@ -73,6 +73,7 @@ export function mountWorkspace(state, getMap, onChange) {
     if (isCompanionOwner(state, selected) || (selected.status === 'closed' && !joined)) { render(); draw(); return; }
     if (!state.loggedIn) sessionStorage.setItem('neorang-browse-return', String(id));
     if (!ensureLoggedIn(state, '동행에 참가하려면 로그인해주세요.')) return;
+    if(serverMode&&selected.joinPolicy==='approval'&&!joined){location.href=`./companion-detail.html?id=${selected.id}`;return;}
     if(serverMode){try{Object.assign(selected,await request(`companions/${selected.id}/participants${joined?'/me':''}`,joined?'DELETE':'POST',joined?undefined:{}));render();draw();}catch(e){showToast(e.message);}return;}
     const previousParticipants = [...selected.participants], previousJoined = [...state.joinedCompanions];
     if (joined) {

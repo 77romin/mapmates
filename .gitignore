@@ -13,3 +13,5 @@ db/verify/00_base.sql
 
 .env
 .artifacts/
+
+__pycache__/

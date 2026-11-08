@@ -31,6 +31,10 @@ public class TravelServlet extends BaseApiServlet {
   }
 
   protected void routes(Routes r) {
+    var approval=new com.mapmates.companion.service.ApprovalService();
+    r.get("/{id}/requests",q->approval.requests(q.pathLong("id"),q.requireLogin().id()));
+    r.get("/{id}/requests/me",q->approval.mine(q.pathLong("id"),q.requireLogin().id()));
+    r.put("/{id}/requests/{member}",q->{approval.decide(q.pathLong("id"),q.pathLong("member"),q.requireLogin().id(),q.body(com.mapmates.companion.service.ApprovalService.Decision.class).status());return null;});
     var comments = new com.mapmates.community.service.CommunityServiceImpl();
     r.get("/{id}/comments", q -> comments.comments(true, q.pathLong("id")));
     r.post(
@@ -86,10 +90,10 @@ public class TravelServlet extends BaseApiServlet {
         });
     r.post(
         "/{id}/participants",
-        q -> service.participate(q.pathLong("id"), q.requireLogin().id(), true));
+        q -> {approval.apply(q.pathLong("id"),q.requireLogin().id(),q.body(com.mapmates.companion.service.ApprovalService.Apply.class).introduction());return service.companion(q.pathLong("id"));});
     r.delete(
         "/{id}/participants/me",
-        q -> service.participate(q.pathLong("id"), q.requireLogin().id(), false));
+        q -> {approval.cancel(q.pathLong("id"),q.requireLogin().id());return service.companion(q.pathLong("id"));});
     r.post(
         "/{id}/close",
         q ->
