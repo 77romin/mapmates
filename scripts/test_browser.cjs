@@ -13,7 +13,7 @@ const output=path.resolve('docs/screenshots/backend');fs.mkdirSync(output,{recur
  let planId,postId;
  try{
   await login(page,'traveler1@mapmates.test');check('server login and Korean profile',(await page.locator('#profile-heading').innerText()).includes('여행친구1'));
-  const payload={title:'브라우저 통합 검증',startDate:'2026-11-14',endDate:'2026-11-14',capacity:3,budget:20000,region:'서울',theme:'문화',description:'DB와 연결된 여행계획',items:[{day:1,time:'10:00',memo:'출발',place:{id:125452,title:'청계산',lat:37.4416867721,lng:127.0543676446,image:'',address:'서울',contentTypeId:12}}]};
+  const payload={title:'브라우저 통합 검증',startDate:new Date(Date.now()+10*86400000).toISOString().slice(0,10),endDate:new Date(Date.now()+10*86400000).toISOString().slice(0,10),capacity:3,budget:20000,region:'서울',theme:'문화',description:'DB와 연결된 여행계획',items:[{day:1,time:'10:00',memo:'출발',place:{id:125452,title:'청계산',lat:37.4416867721,lng:127.0543676446,image:'',address:'서울',contentTypeId:12}}]};
   const response=await owner.request.post(base+'/api/plans',{data:payload});assert.equal(response.status(),201);const plan=await response.json();planId=plan.id;
   await go(page,'planner.html');await page.locator(`[data-plan-id="${planId}"]`).click();await page.locator('#plan-title').fill('서버에 저장한 여행');await page.locator('#save-plan').click();await page.getByText('여행계획을 저장했어요.',{exact:true}).waitFor();
   await page.reload();await page.locator(`[data-plan-id="${planId}"]`).click();check('plan update survives reload',await page.locator('#plan-title').inputValue()==='서버에 저장한 여행');

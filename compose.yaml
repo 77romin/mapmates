@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.mysql
+      args:
+        SEED_DEMO: ${MAPMATES_SEED_DEMO:-true}
     environment:
       TZ: Asia/Seoul
       MYSQL_ROOT_PASSWORD: ${MAPMATES_ROOT_PASSWORD:-local-root-only}
@@ -35,6 +37,11 @@ services:
       MAPMATES_WEATHER_API_KEY: ${MAPMATES_WEATHER_API_KEY:-}
       MAPMATES_EV_CHARGER_API_KEY: ${MAPMATES_EV_CHARGER_API_KEY:-}
       MAPMATES_KAKAO_REST_KEY: ${MAPMATES_KAKAO_REST_KEY:-}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/mapmates/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
     depends_on:
       db:
         condition: service_healthy

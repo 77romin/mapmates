@@ -15,3 +15,5 @@ db/verify/00_base.sql
 .artifacts/
 
 __pycache__/
+
+.backups/

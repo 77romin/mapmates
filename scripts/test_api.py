@@ -1,5 +1,5 @@
 """HTTP integration scenarios against a running MapMates/MySQL instance; cleans own accounts."""
-import concurrent.futures, http.cookiejar, json, os, time, unittest, urllib.error, urllib.request, urllib.parse
+import datetime, concurrent.futures, http.cookiejar, json, os, time, unittest, urllib.error, urllib.request, urllib.parse
 BASE=os.environ.get('TEST_URL','http://localhost:8080/mapmates')+'/api/'
 class Client:
  def __init__(self): self.jar=http.cookiejar.CookieJar();self.opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.jar))
@@ -17,7 +17,7 @@ class Integration(unittest.TestCase):
    code,user=client.call('members','POST',payload);assert code==201,(code,user);cls.users.append(payload)
   code,places=cls.a.call('attractions?areaCode=1&size=5');assert code==200,places
   cls.place=next(p for p in places['items'] if p['lat'] and p['lng'])
-  cls.plan=dict(title='통합 검증 여행',startDate='2026-11-14',endDate='2026-11-14',capacity=2,budget=30000,region='서울',theme='문화',description='설명',items=[dict(day=1,time='10:00',memo='메모',place=cls.place)])
+  cls.plan=dict(title='통합 검증 여행',startDate=str(datetime.date.today()+datetime.timedelta(days=10)),endDate=str(datetime.date.today()+datetime.timedelta(days=10)),capacity=2,budget=30000,region='서울',theme='문화',description='설명',items=[dict(day=1,time='10:00',memo='메모',place=cls.place)])
  @classmethod
  def tearDownClass(cls):
   for c in [cls.a,cls.b,cls.c]:c.call('members/me','DELETE',{'currentPassword':'travel1234'})

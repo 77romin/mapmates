@@ -1,0 +1,42 @@
+name: Verify MapMates
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build WAR, unit tests and fresh MySQL
+        run: docker compose up -d --build --wait
+      - name: API and feature tests
+        run: |
+          python3 scripts/check_config.py
+          python3 scripts/test_api.py
+          python3 scripts/test_features.py
+          node front/tests/algorithms.cjs
+      - name: Browser tests
+        run: |
+          npm install --prefix /tmp/mapmates-playwright playwright@1.49.1
+          PLAYWRIGHT_MODULE=/tmp/mapmates-playwright/node_modules/playwright node scripts/test_browser.cjs
+          PLAYWRIGHT_MODULE=/tmp/mapmates-playwright/node_modules/playwright node scripts/test_features_browser.cjs
+      - name: Database backup and isolated restore
+        run: |
+          python3 scripts/backup.py --output /tmp/mapmates-ci.sql
+          python3 scripts/restore.py /tmp/mapmates-ci.sql --database mapmates_restore_ci
+      - name: Logs
+        if: always()
+        run: docker compose logs --no-color
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v

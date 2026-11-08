@@ -1,0 +1,37 @@
+# Use with compose.yaml on a new production volume. Requires a real domain and SMTP.
+services:
+  db:
+    build:
+      args:
+        SEED_DEMO: "false"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MAPMATES_ROOT_PASSWORD:?Set a production root password}
+      MYSQL_PASSWORD: ${MAPMATES_DB_PASSWORD:?Set a production database password}
+  web:
+    ports: !reset []
+    environment:
+      MAPMATES_DB_PASSWORD: ${MAPMATES_DB_PASSWORD:?Set a production database password}
+      MAPMATES_PUBLIC_URL: https://${MAPMATES_DOMAIN:?Set the public domain}/mapmates
+      MAPMATES_SMTP_HOST: ${MAPMATES_SMTP_HOST:?Set your SMTP host}
+      MAPMATES_SMTP_PORT: ${MAPMATES_SMTP_PORT:-587}
+      MAPMATES_SMTP_STARTTLS: "true"
+      MAPMATES_SMTP_USER: ${MAPMATES_SMTP_USER:?Set your SMTP user}
+      MAPMATES_SMTP_PASSWORD: ${MAPMATES_SMTP_PASSWORD:?Set your SMTP password}
+      MAPMATES_SMTP_FROM: ${MAPMATES_SMTP_FROM:?Set your sender address}
+  mail:
+    profiles: [development]
+  proxy:
+    image: caddy:2
+    ports: ["80:80", "443:443"]
+    environment:
+      MAPMATES_DOMAIN: ${MAPMATES_DOMAIN:?Set the public domain}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+volumes:
+  caddy-data:
+  caddy-config:

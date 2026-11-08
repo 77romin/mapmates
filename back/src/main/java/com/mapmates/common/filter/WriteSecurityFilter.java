@@ -16,6 +16,7 @@ public class WriteSecurityFilter implements Filter {
     var s = (HttpServletResponse) response;
     if (!Set.of("GET", "HEAD", "OPTIONS").contains(r.getMethod())) {
       String origin = r.getHeader("Origin"), own = r.getScheme() + "://" + r.getHeader("Host");
+      String configured=AppConfig.get("public.url","");if(configured.startsWith("https://")){var uri=java.net.URI.create(configured);own=uri.getScheme()+"://"+uri.getRawAuthority();}
       var allowed = Arrays.asList(AppConfig.get("cors.allowed-origins", "").split(","));
       boolean invalid = origin != null && !origin.equals(own) && !allowed.contains(origin);
       String type = Objects.toString(r.getContentType(), "").toLowerCase(Locale.ROOT);

@@ -1,0 +1,33 @@
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - when: never
+stages: [verify]
+verify:
+  stage: verify
+  image: docker:27.5.1-cli
+  services:
+    - name: docker:27.5.1-dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: /certs
+    DOCKER_TLS_VERIFY: "1"
+    DOCKER_CERT_PATH: /certs/client
+    TEST_URL: http://docker:8080/mapmates
+    MAILPIT_URL: http://docker:8026
+  before_script:
+    - apk add --no-cache python3 nodejs
+    - docker info
+  script:
+    - docker compose -f compose.yaml -f compose.ci.yaml up -d --build --wait
+    - python3 scripts/check_config.py
+    - python3 scripts/test_api.py
+    - python3 scripts/test_features.py
+    - node front/tests/algorithms.cjs
+    - python3 scripts/backup.py --output /tmp/mapmates-ci.sql
+    - python3 scripts/restore.py /tmp/mapmates-ci.sql --database mapmates_restore_ci
+  after_script:
+    - docker compose -f compose.yaml -f compose.ci.yaml logs --no-color
+    - docker compose -f compose.yaml -f compose.ci.yaml down -v
