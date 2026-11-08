@@ -7,7 +7,7 @@ public final class ApprovalService {
  public static Map<String,Object> lock(Connection c,long id)throws SQLException {
   var v=Sql.one(c,"SELECT plan_id FROM companions WHERE id=?",id);if(v==null)throw ApiException.notFound("동행을 찾을 수 없어요.");
   Sql.one(c,"SELECT id FROM plans WHERE id=? FOR UPDATE",v.get("plan_id"));
-  var row=Sql.one(c,"SELECT c.*,p.owner_id,p.capacity,p.start_date FROM companions c JOIN plans p ON p.id=c.plan_id WHERE c.id=?",id);
+  var row=Sql.one(c,"SELECT c.*,p.owner_id,p.capacity,p.start_date,p.end_date FROM companions c JOIN plans p ON p.id=c.plan_id WHERE c.id=?",id);
   if(row==null)throw ApiException.notFound("동행을 찾을 수 없어요.");return row;
  }
  public static void host(Map<String,Object> v,long user){if(Sql.number(v,"owner_id")!=user)throw ApiException.forbidden("모집자만 처리할 수 있어요.");}
@@ -32,5 +32,5 @@ public final class ApprovalService {
  public void decide(long id,long member,long host,String status){Validator.requireOneOf(status,"처리 결과","approved","rejected");Tx.write(c->{var v=lock(c,id);host(v,host);var r=Sql.one(c,"SELECT status FROM companion_requests WHERE companion_id=? AND member_id=?",id,member);if(r==null)throw ApiException.notFound("신청을 찾을 수 없어요.");if(!"pending".equals(r.get("status")))throw ApiException.conflict("이미 처리한 신청이에요.");
   if(status.equals("approved")){com.mapmates.moderation.SafetyService.interaction(c,host,member);available(c,v,id);Sql.update(c,"INSERT INTO companion_participants(companion_id,member_id) VALUES(?,?)",id,member);}
   Sql.update(c,"UPDATE companion_requests SET status=? WHERE companion_id=? AND member_id=?",status,id,member);com.mapmates.notification.Notifications.emit(c,member,host,"request_decided",status.equals("approved")?"동행 참가 신청이 승인됐어요.":"동행 참가 신청이 거절됐어요.","companion-detail.html?id="+id);return null;});}
- public void cancel(long id,long user){Tx.write(c->{lock(c,id);Sql.update(c,"UPDATE companion_requests SET status='cancelled' WHERE companion_id=? AND member_id=?",id,user);Sql.update(c,"DELETE FROM companion_participants WHERE companion_id=? AND member_id=?",id,user);return null;});}
+ public void cancel(long id,long user){Tx.write(c->{var trip=lock(c,id);if(java.util.Set.of("completed","cancelled").contains(trip.get("lifecycle"))||java.time.LocalDate.parse(trip.get("end_date").toString()).isBefore(java.time.LocalDate.now()))throw ApiException.conflict("종료·취소된 여행의 참가 기록은 유지돼요.");Sql.update(c,"UPDATE companion_requests SET status='cancelled' WHERE companion_id=? AND member_id=?",id,user);Sql.update(c,"DELETE FROM companion_participants WHERE companion_id=? AND member_id=?",id,user);return null;});}
 }

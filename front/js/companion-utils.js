@@ -23,6 +23,7 @@ function seedParticipants(item) {
 }
 
 export function syncCompanion(item) {
+  if(item.lifecycle)return item; // Server responses already include authoritative counts and state.
   if (!Array.isArray(item.participants) || !item.participants.length) item.participants = seedParticipants(item);
   const maximum = Math.max(companionCapacity(item), item.participants.length);
   item.people = `${item.participants.length}/${maximum}명`;

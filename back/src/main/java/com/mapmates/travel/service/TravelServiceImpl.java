@@ -153,13 +153,14 @@ public final class TravelServiceImpl implements TravelService {
             if (p.capacity() < n) throw ApiException.conflict("참가 인원보다 정원을 줄일 수 없어요.");
           }
           long key = dao.save(c, id, user, p);
+          var saved=decorate(c,dao.plan(c,key,false));
           if(id!=0){
             var cp=Sql.one(c,"SELECT id FROM companions WHERE plan_id=?",id);
             String summary="여행계획 변경: "+p.title()+" · "+p.startDate()+" ~ "+p.endDate()+" · "+p.items().size()+"개 방문 일정";
-            Sql.update(c,"INSERT INTO plan_revisions(plan_id,actor_id,summary,snapshot) VALUES(?,?,?,?)",id,user,summary,com.mapmates.common.web.JsonUtil.stringify(p));
+            Sql.update(c,"INSERT INTO plan_revisions(plan_id,actor_id,summary,snapshot) VALUES(?,?,?,?)",id,user,summary,com.mapmates.common.web.JsonUtil.stringify(saved));
             if(cp!=null)com.mapmates.notification.Notifications.participants(c,Sql.number(cp,"id"),user,"plan_changed",summary);
           }
-          return decorate(c, dao.plan(c, key, false));
+          return saved;
         });
   }
 
@@ -192,7 +193,7 @@ public final class TravelServiceImpl implements TravelService {
     item.put("closed", closed);
     item.put(
         "status",
-        closed || java.util.Set.of("completed","cancelled").contains(item.get("lifecycle")) || n >= Sql.number(p, "capacity")
+        closed || java.time.LocalDate.parse(p.get("startDate").toString()).isBefore(java.time.LocalDate.now()) || java.util.Set.of("completed","cancelled").contains(item.get("lifecycle")) || n >= Sql.number(p, "capacity")
             ? "closed"
             : Sql.number(p, "capacity") - n <= 1 ? "soon" : "open");
     item.put("dates", p.get("startDate") + " — " + p.get("endDate"));
@@ -239,7 +240,7 @@ public final class TravelServiceImpl implements TravelService {
        var entries=byPlan.getOrDefault(plan,List.of());var places=new LinkedHashMap<String,Object>();for(var stop:entries){var place=new LinkedHashMap<>(stop);place.put("id",stop.get("placeId"));places.put(stop.get("placeId").toString(),place);}
        var participants=new ArrayList<Map<String,Object>>();var host=new LinkedHashMap<String,Object>();host.put("id",String.valueOf(owner));host.put("nickname",v.get("author"));host.put("photo",v.get("hostPhoto"));host.put("gender",v.get("hostGender"));participants.add(host);participants.addAll(byCompanion.getOrDefault(id,List.of()));
        v.put("ownerId",String.valueOf(owner));v.put("tripId",String.valueOf(plan));v.put("schedule",entries);v.put("places",places);v.put("participants",participants);v.put("people",participants.size()+"/"+v.get("capacity")+"명");v.put("sourceTrip",v.get("title"));v.put("avatar",v.get("author"));v.put("dates",v.get("startDate")+" — "+v.get("endDate"));v.put("tags",List.of(Objects.toString(v.get("region"),"여행"),Objects.toString(v.get("theme"),"자유")));v.put("image",entries.isEmpty()?"":Objects.toString(entries.get(0).get("image"),""));v.put("lifecycle",com.mapmates.companion.service.TripLifecycle.effective(v));
-       boolean closed=Boolean.TRUE.equals(v.get("closed"))||Integer.valueOf(1).equals(v.get("closed"));v.put("closed",closed);v.put("status",closed||Set.of("completed","cancelled").contains(v.get("lifecycle"))||participants.size()>=Sql.number(v,"capacity")?"closed":Sql.number(v,"capacity")-participants.size()<=1?"soon":"open");out.add(v);
+       boolean closed=Boolean.TRUE.equals(v.get("closed"))||Integer.valueOf(1).equals(v.get("closed"));v.put("closed",closed);v.put("status",closed||java.time.LocalDate.parse(v.get("startDate").toString()).isBefore(java.time.LocalDate.now())||Set.of("completed","cancelled").contains(v.get("lifecycle"))||participants.size()>=Sql.number(v,"capacity")?"closed":Sql.number(v,"capacity")-participants.size()<=1?"soon":"open");out.add(v);
       }return Map.of("items",out,"page",page,"size",size,"total",total);
     });
   }
@@ -295,7 +296,7 @@ public final class TravelServiceImpl implements TravelService {
                 Validator.requireText(p.description(), 1000, "소개"),
                 v.get("tripId"));
           if(p.joinPolicy()!=null){Validator.requireOneOf(p.joinPolicy(),"참가 방식","instant","approval");Sql.update(c,"UPDATE companions SET join_policy=? WHERE id=?",p.joinPolicy(),id);}
-          if(metadata)Sql.update(c,"UPDATE plans SET version=version+1 WHERE id=?",v.get("tripId"));
+          if(metadata){Sql.update(c,"UPDATE plans SET version=version+1 WHERE id=?",v.get("tripId"));String summary="공유 여행 정보가 변경됐어요: "+Objects.toString(p.title(),currentPlan.get("title").toString());Sql.update(c,"INSERT INTO plan_revisions(plan_id,actor_id,summary,snapshot) VALUES(?,?,?,?)",v.get("tripId"),user,summary,com.mapmates.common.web.JsonUtil.stringify(decorate(c,dao.plan(c,Sql.number(v,"tripId"),false))));com.mapmates.notification.Notifications.participants(c,id,user,"plan_changed",summary);}
           if (p.closed() != null)
             Sql.update(
                 c, "UPDATE companions SET status=? WHERE id=?", p.closed() ? "closed" : "open", id);

@@ -54,7 +54,8 @@ function participantMarkup(person) {
 function renderJoinButton(isOwner, joined) {
   const button = $("#join-companion");
   const closed = item.status === "closed";
-  if(serverMode && item.joinPolicy==='approval' && !joined && !isOwner){button.hidden=false;button.disabled=closed;button.textContent=requestStatus==='pending'?'신청 취소':closed?'모집 마감':'참가 신청 (승인 대기)';$('#join-help').textContent=requestStatus==='pending'?'모집자의 승인을 기다리고 있어요.':'간단한 자기소개와 함께 신청해주세요.';return;}
+  if(serverMode&&['completed','cancelled'].includes(item.lifecycle)&&joined){button.hidden=isOwner;button.disabled=true;button.textContent='참가 기록';$('#join-help').textContent='종료·취소된 여행의 참가 기록이에요.';return;}
+  if(serverMode && item.joinPolicy==='approval' && !joined && !isOwner){button.hidden=false;button.disabled=closed&&requestStatus!=='pending';button.textContent=requestStatus==='pending'?'신청 취소':closed?'모집 마감':'참가 신청 (승인 대기)';$('#join-help').textContent=requestStatus==='pending'?'모집자의 승인을 기다리고 있어요.':'간단한 자기소개와 함께 신청해주세요.';return;}
   button.hidden = isOwner;
   button.disabled = closed && !joined;
   button.classList.toggle("button-secondary", joined);
@@ -192,5 +193,3 @@ if(serverMode&&item){
   actions.querySelectorAll('button').forEach(b=>{b.disabled=['completed','cancelled'].includes(item.lifecycle);b.onclick=async()=>{if(!confirm(b.textContent+' 처리할까요? 참가자에게 알려드려요.'))return;try{await request(`companions/${item.id}/lifecycle`,'PUT',{lifecycle:b.dataset.tripState});location.reload();}catch(e){showToast(e.message);}};});
  }
 }
-
-

@@ -64,6 +64,7 @@ class Features(unittest.TestCase):
    self.assertEqual(self.a.call(f'companions/{cid}/lifecycle','PUT',{'lifecycle':'cancelled'})[0],200)
    self.assertEqual(self.c.call(f'companions/{cid}/participants','POST',{})[0],409)
    self.assertEqual(self.a.call('plans/'+p['id'],'PUT',body)[0],409)
+   self.assertEqual(self.b.call(f'companions/{cid}/participants/me','DELETE')[0],409)
   finally:self.a.call('plans/'+p['id'],'DELETE')
  def test_04_plan_version_conflict(self):
   p,cp,body=self.trip()
@@ -131,4 +132,13 @@ class Features(unittest.TestCase):
    self.assertEqual(self.a.call('blocks/'+str(self.profiles[1]['id']),'DELETE')[0],204)
    self.assertEqual(self.b.call(f'companions/{cp["id"]}/participants','POST',{})[0],200)
   finally:self.b.call('posts/'+str(post['id']),'DELETE');self.a.call('plans/'+p['id'],'DELETE')
+ def test_08_departed_trip(self):
+  p,cp,body=self.trip();cid=cp['id']
+  try:
+   body['startDate']=str(datetime.date.today()-datetime.timedelta(days=1));body['endDate']=str(datetime.date.today()+datetime.timedelta(days=1))
+   self.assertEqual(self.a.call('plans/'+p['id'],'PUT',body)[0],200)
+   trip=self.a.call(f'companions/{cid}')[1];self.assertEqual(trip['lifecycle'],'ongoing');self.assertEqual(trip['status'],'closed')
+   self.assertEqual(self.b.call(f'companions/{cid}/participants','POST',{})[0],409)
+   self.assertEqual(self.a.call(f'companions/{cid}/lifecycle','PUT',{'lifecycle':'completed'})[0],200)
+  finally:self.a.call('plans/'+p['id'],'DELETE')
 if __name__=='__main__':unittest.main(verbosity=2)
