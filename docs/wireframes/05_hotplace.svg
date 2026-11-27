@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" font-family="Pretendard, Malgun Gothic, sans-serif" font-size="13">
+<rect width="960" height="560" fill="#ffffff" stroke="#9aa3b2"/>
+<rect width="960" height="44" fill="#f1f3f7" stroke="#9aa3b2"/>
+<text x="16" y="28" font-weight="700" font-size="15">너랑 갈.지도</text>
+<text x="130" y="28" fill="#555">지도 탐색 | 내 플랜 | 메이트 | 핫플 | 커뮤니티 | 뉴스</text>
+<text x="770" y="28" fill="#555">[담은 장소] [로그인]</text>
+<rect x="0" y="44" width="340" height="516" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="10" y="64" fill="#333"></text>
+<rect x="12" y="56" width="316" height="30" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="76" fill="#333">핫플 등록                                        [취소]</text>
+<rect x="12" y="92" width="316" height="30" fill="#e6f6ec" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="112" fill="#333">📍 위치 선택됨 (35.1532, 129.1186)</text>
+<rect x="12" y="128" width="316" height="30" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="148" fill="#333">장소 이름 [                             ]</text>
+<rect x="12" y="164" width="316" height="30" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="184" fill="#333">유형 [카페 ▼]      다녀온 날짜 [날짜]</text>
+<rect x="12" y="200" width="316" height="30" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="220" fill="#333">사진 [파일 선택]</text>
+<rect x="12" y="236" width="316" height="90" fill="#eef1f6" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="256" fill="#333">사진 미리보기</text>
+<rect x="12" y="332" width="316" height="70" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="352" fill="#333">상세 설명 [                              ]</text>
+<rect x="12" y="410" width="316" height="34" fill="#ffe8e1" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="430" fill="#333">[            등록하기            ]</text>
+<rect x="340" y="44" width="620" height="516" fill="#e3ecf7" stroke="#9aa3b2" rx="6"/>
+<text x="350" y="64" fill="#333">지도</text>
+<text x="350" y="82" fill="#333"></text>
+<text x="350" y="100" fill="#333">  ● 지도를 클릭하면 등록 위치 마커 표시</text>
+<text x="350" y="118" fill="#333">  ● 등록된 핫플은 코랄 핀으로 표시, 클릭 시 좌측 목록에서 선택</text>
+<circle cx="920" cy="520" r="22" fill="#1f2a44"/><text x="911" y="525" fill="#fff" font-size="12">AI</text>
+<text x="16" y="550" fill="#888" font-size="12">S-06 핫플레이스 (등록 모드)</text></svg>

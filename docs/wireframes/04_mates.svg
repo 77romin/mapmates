@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" font-family="Pretendard, Malgun Gothic, sans-serif" font-size="13">
+<rect width="960" height="560" fill="#ffffff" stroke="#9aa3b2"/>
+<rect width="960" height="44" fill="#f1f3f7" stroke="#9aa3b2"/>
+<text x="16" y="28" font-weight="700" font-size="15">너랑 갈.지도</text>
+<text x="130" y="28" fill="#555">지도 탐색 | 내 플랜 | 메이트 | 핫플 | 커뮤니티 | 뉴스</text>
+<text x="770" y="28" fill="#555">[담은 장소] [로그인]</text>
+<rect x="30" y="60" width="620" height="34" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="40" y="80" fill="#333">메이트 찾기                                                         [📣 메이트 모집하기]</text>
+<rect x="30" y="104" width="200" height="170" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="40" y="124" fill="#333">(모집 중)      ♥ 취향 일치 82%</text>
+<text x="40" y="142" fill="#333">부산 맛집 투어 같이 가요</text>
+<text x="40" y="160" fill="#333">플랜: 부산 1박2일</text>
+<text x="40" y="178" fill="#333">12/05 ~ 12/06</text>
+<text x="40" y="196" fill="#333">#맛집 #바다</text>
+<text x="40" y="214" fill="#333">김메이트            2 / 3명</text>
+<rect x="240" y="104" width="200" height="170" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="250" y="124" fill="#333">(모집 중)      ♥ 취향 일치 41%</text>
+<text x="250" y="142" fill="#333">제주 오름 등산</text>
+<text x="250" y="160" fill="#333">...</text>
+<rect x="450" y="104" width="200" height="170" fill="#eef1f6" stroke="#9aa3b2" rx="6"/>
+<text x="460" y="124" fill="#333">(마감)</text>
+<text x="460" y="142" fill="#333">경주 역사 여행</text>
+<text x="460" y="160" fill="#333">...</text>
+<rect x="680" y="60" width="260" height="460" fill="#fff7f2" stroke="#9aa3b2" rx="6"/>
+<text x="690" y="80" fill="#333">[모집글 상세 모달]</text>
+<text x="690" y="98" fill="#333"></text>
+<text x="690" y="116" fill="#333">제목 / 작성자 / 기간 / 인원</text>
+<text x="690" y="134" fill="#333">소개 글</text>
+<text x="690" y="152" fill="#333"></text>
+<text x="690" y="170" fill="#333">여행 경로</text>
+<text x="690" y="188" fill="#333"> 1. 1일차 · 가덕도</text>
+<text x="690" y="206" fill="#333"> 2. 1일차 · 등대</text>
+<text x="690" y="224" fill="#333"></text>
+<text x="690" y="242" fill="#333">참여 메이트 (배지)</text>
+<text x="690" y="260" fill="#333"></text>
+<text x="690" y="278" fill="#333">— 모집자 화면 —</text>
+<text x="690" y="296" fill="#333">신청자  [수락] [거절]</text>
+<text x="690" y="314" fill="#333"></text>
+<text x="690" y="332" fill="#333">— 신청자 화면 —</text>
+<text x="690" y="350" fill="#333">[한마디 입력]</text>
+<text x="690" y="368" fill="#333">[참여 신청하기]</text>
+<circle cx="920" cy="520" r="22" fill="#1f2a44"/><text x="911" y="525" fill="#fff" font-size="12">AI</text>
+<text x="16" y="550" fill="#888" font-size="12">S-05 메이트 찾기 (목록 + 상세 모달)</text></svg>

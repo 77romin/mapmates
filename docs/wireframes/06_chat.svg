@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" font-family="Pretendard, Malgun Gothic, sans-serif" font-size="13">
+<rect width="960" height="560" fill="#ffffff" stroke="#9aa3b2"/>
+<rect width="960" height="44" fill="#f1f3f7" stroke="#9aa3b2"/>
+<text x="16" y="28" font-weight="700" font-size="15">너랑 갈.지도</text>
+<text x="130" y="28" fill="#555">지도 탐색 | 내 플랜 | 메이트 | 핫플 | 커뮤니티 | 뉴스</text>
+<text x="770" y="28" fill="#555">[담은 장소] [로그인]</text>
+<rect x="40" y="70" width="400" height="440" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="50" y="90" fill="#333">[화면 어디서나 우하단 버튼으로 열림]</text>
+<text x="50" y="108" fill="#333"></text>
+<text x="50" y="126" fill="#333">탭 1. 여행 도우미 (Spring AI + Planner)</text>
+<text x="50" y="144" fill="#333">  - 질문 → 서버가 Tool 순서 계획 → 실행 → 응답</text>
+<text x="50" y="162" fill="#333">  - 답변 아래에 사용한 Tool 표시</text>
+<text x="50" y="180" fill="#333">     예) 관광지 검색 → 날씨 조회 → 동선 최적화</text>
+<text x="50" y="198" fill="#333">  - 추천 장소마다 [+ 담기] 버튼</text>
+<text x="50" y="216" fill="#333"></text>
+<text x="50" y="234" fill="#333">탭 2. 문서 Q&amp;A (FastAPI RAG)</text>
+<text x="50" y="252" fill="#333">  - 📎 버튼으로 txt / md / pdf 업로드</text>
+<text x="50" y="270" fill="#333">  - 답변에 (문서 참고) / (일반 응답) 배지</text>
+<text x="50" y="288" fill="#333">  - 출처 파일명과 유사도(%) 표시</text>
+<text x="50" y="306" fill="#333"></text>
+<text x="50" y="324" fill="#333">오류 시 빨간 말풍선으로 안내</text>
+<rect x="560" y="70" width="340" height="440" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="570" y="90" fill="#333"></text>
+<rect x="560" y="70" width="340" height="36" fill="#dfe4ee" stroke="#9aa3b2" rx="6"/>
+<text x="570" y="90" fill="#333">✨ AI 길잡이                                         [x]</text>
+<rect x="560" y="106" width="340" height="30" fill="#eef1f6" stroke="#9aa3b2" rx="6"/>
+<text x="570" y="126" fill="#333">  여행 도우미      |      문서 Q&amp;A</text>
+<rect x="680" y="146" width="210" height="30" fill="#ffe8e1" stroke="#9aa3b2" rx="6"/>
+<text x="690" y="166" fill="#333">주말 부산 코스 짜줘</text>
+<rect x="570" y="186" width="260" height="150" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="580" y="206" fill="#333">1. 가덕도</text>
+<text x="580" y="224" fill="#333">2. 가덕도 등대</text>
+<text x="580" y="242" fill="#333">3. 외양포전망대</text>
+<text x="580" y="260" fill="#333">총 이동 거리 45.1km</text>
+<text x="580" y="278" fill="#333">🛠 관광지 검색 → 동선 최적화</text>
+<text x="580" y="296" fill="#333">[+ 가덕도] [+ 등대]</text>
+<rect x="570" y="346" width="260" height="70" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="580" y="366" fill="#333">(문서 참고)</text>
+<text x="580" y="384" fill="#333">배터리 30% 전에 충전 권장</text>
+<text x="580" y="402" fill="#333">출처: 여행_준비_가이드.md (42%)</text>
+<rect x="570" y="470" width="320" height="32" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="580" y="490" fill="#333">[📎] [ 질문 입력                    ] [➤]</text>
+<circle cx="920" cy="520" r="22" fill="#1f2a44"/><text x="911" y="525" fill="#fff" font-size="12">AI</text>
+<text x="16" y="550" fill="#888" font-size="12">S-10 AI 길잡이 (플로팅 챗봇)</text></svg>
