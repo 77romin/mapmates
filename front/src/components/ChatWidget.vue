@@ -92,7 +92,7 @@ function addAll(places) {
 
 <template>
   <button v-if="!open" class="chat-fab" aria-label="AI 길잡이 열기" @click="open = true; scrollDown()">
-    <i class="bi bi-stars" aria-hidden="true"></i>
+    <i class="bi bi-stars" aria-hidden="true"></i><span class="chat-fab-text">AI 길잡이</span>
   </button>
 
   <section v-else class="chat-box" aria-label="AI 길잡이">
@@ -114,14 +114,14 @@ function addAll(places) {
           <div class="pre-line">{{ m.text }}</div>
           <div v-if="m.notice" class="meta">{{ m.notice }}</div>
           <div v-if="m.sources?.length" class="meta">출처: <span v-for="(s, j) in m.sources" :key="j">{{ s.source }} ({{ Math.round(s.score * 100) }}%){{ j < m.sources.length - 1 ? ', ' : '' }}</span></div>
-          <div v-if="m.tools?.length" class="meta"><i class="bi bi-tools me-1" aria-hidden="true"></i>{{ m.tools.join(' → ') }}</div>
+          <div v-if="m.tools?.length" class="meta"><i class="bi bi-tools me-1" aria-hidden="true"></i>{{ m.tools.join(', 이어서 ') }}</div>
           <div v-if="m.places?.length > 1" class="mt-2">
             <button class="btn btn-sm w-100" :class="m.places.every((p) => draft.has(p.no)) ? 'btn-light' : 'btn-coral'" :disabled="m.places.every((p) => draft.has(p.no))" @click="addAll(m.places)">
               <i :class="['bi me-1', m.places.every((p) => draft.has(p.no)) ? 'bi-check2-all' : 'bi-bag-plus']" aria-hidden="true"></i>{{ m.places.every((p) => draft.has(p.no)) ? '코스 전체를 담았어요' : `이 코스 ${m.places.length}곳 전체 담기` }}
             </button>
           </div>
           <div v-if="m.places?.length" class="places">
-            <button v-for="p in m.places" :key="p.no" class="btn btn-sm" :class="draft.has(p.no) ? 'btn-light' : 'btn-outline-coral'" :disabled="draft.has(p.no)" @click="addPlace(p)">
+            <button v-for="p in m.places" :key="p.no" class="place-chip" :class="{ on: draft.has(p.no) }" :disabled="draft.has(p.no)" @click="addPlace(p)">
               <i :class="['bi me-1', draft.has(p.no) ? 'bi-check2' : 'bi-plus']" aria-hidden="true"></i>{{ p.title }}
             </button>
           </div>
@@ -145,18 +145,23 @@ function addAll(places) {
 </template>
 
 <style scoped>
-.chat-fab { position: fixed; right: 20px; bottom: 20px; width: 58px; height: 58px; border-radius: 50%; border: 0; background: var(--mm-ink); color: #fff; font-size: 1.5rem; box-shadow: var(--mm-shadow-2); z-index: 1040; }
+.chat-fab { position: fixed; right: 20px; bottom: 20px; height: 52px; padding: 0 20px 0 16px; border-radius: var(--mm-r-pill); border: 0; background: var(--mm-ink); color: #fff; font-size: 1.25rem; display: inline-flex; align-items: center; gap: var(--mm-sp-2); box-shadow: var(--mm-shadow-2); z-index: 1040; transition: background 0.15s; }
+.chat-fab-text { font-size: var(--mm-fs-sm); font-weight: 700; }
+@media (max-width: 767.98px) { .chat-fab { width: 52px; padding: 0; justify-content: center; } .chat-fab-text { display: none; } }
+.place-chip { border: 1px solid var(--mm-line-strong); background: #fff; color: var(--mm-ink); border-radius: var(--mm-r-pill); padding: 4px 12px; font-size: var(--mm-fs-sm); font-weight: 600; text-align: left; }
+.place-chip:hover:not(:disabled) { border-color: var(--mm-ink); }
+.place-chip.on { background: var(--mm-surface); color: var(--mm-muted); border-color: var(--mm-surface); }
 .chat-fab:hover { background: var(--mm-coral-dark); }
 .chat-box { position: fixed; right: 20px; bottom: 20px; width: 380px; max-width: calc(100vw - 24px); height: 580px; max-height: calc(100vh - 90px); background: #fff; border-radius: var(--mm-r-lg); box-shadow: var(--mm-shadow-3); display: flex; flex-direction: column; overflow: hidden; z-index: 1040; }
 .chat-head { background: var(--mm-ink); color: #fff; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
 .chat-modes { display: flex; border-bottom: 1px solid var(--mm-line); }
 .chat-modes button { flex: 1; border: 0; background: #fff; padding: 9px; font-weight: 600; font-size: var(--mm-fs-sm); color: var(--mm-muted); border-bottom: 2px solid transparent; }
 .chat-modes button.active { color: var(--mm-coral-dark); border-bottom-color: var(--mm-coral-dark); }
-.chat-list { flex: 1; overflow-y: auto; padding: 14px; background: var(--mm-bg); display: flex; flex-direction: column; gap: 10px; }
+.chat-list { flex: 1; overflow-y: auto; padding: var(--mm-sp-4); background: var(--mm-surface); display: flex; flex-direction: column; gap: 10px; }
 .msg { display: flex; }
 .msg.user { justify-content: flex-end; }
-.bubble { max-width: 86%; padding: 9px 13px; border-radius: var(--mm-r-md); font-size: var(--mm-fs-sm); line-height: 1.5; background: #fff; border: 1px solid var(--mm-line); }
-.msg.user .bubble { background: var(--mm-coral-dark); color: #fff; border-color: var(--mm-coral-dark); border-bottom-right-radius: 4px; }
+.bubble { max-width: 86%; padding: 10px 14px; border-radius: var(--mm-r-md); font-size: var(--mm-fs-sm); line-height: 1.6; background: #fff; border: 0; box-shadow: var(--mm-shadow-1); }
+.msg.user .bubble { background: var(--mm-ink); color: #fff; box-shadow: none; border-bottom-right-radius: 4px; }
 .msg.ai .bubble { border-bottom-left-radius: 4px; }
 .msg.error .bubble { background: var(--mm-danger-bg); border-color: var(--mm-danger-line); color: var(--mm-danger); }
 .meta { font-size: var(--mm-fs-xs); color: var(--mm-muted); margin-top: 6px; }
