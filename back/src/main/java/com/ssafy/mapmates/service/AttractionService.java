@@ -25,6 +25,8 @@ public class AttractionService {
     private final InfoService infoService;
     /** 관광공사 API 에서도 사진을 찾지 못한 장소. 같은 장소를 반복 조회하지 않기 위해 기억한다. */
     private final Set<Integer> noImage = ConcurrentHashMap.newKeySet();
+    /** 원본 API 에도 소개 글이 없던 장소 (다시 묻지 않기 위함) */
+    private final Set<Integer> noOverview = ConcurrentHashMap.newKeySet();
 
     public List<Map<String, Object>> sidos() { return attractionDao.sidos(); }
     public List<Map<String, Object>> guguns(int sidoCode) { return attractionDao.guguns(sidoCode); }
@@ -59,6 +61,23 @@ public class AttractionService {
     }
 
     /**
+     * 소개 글이 비어 있으면 한국관광공사 API 에서 찾아 채우고 DB 에 저장한다. (다음부터는 바로 쓰인다)
+     * 찾지 못한 장소는 기억해 두고 다시 묻지 않는다. 채웠으면 true.
+     */
+    public boolean fillOverview(Attraction a) {
+        if (a == null || a.getContentId() == null || noOverview.contains(a.getNo())) return false;
+        if (a.getOverview() != null && !a.getOverview().isBlank()) return false;
+        String overview = infoService.tourOverview(a.getContentId());
+        if (overview == null) {
+            noOverview.add(a.getNo());
+            return false;
+        }
+        attractionDao.updateOverview(a.getNo(), overview);
+        a.setOverview(overview);
+        return true;
+    }
+
+    /**
      * 상세 조회. DB 에 대표 사진이 없으면 한국관광공사 API 에서 찾아 보여주고,
      * 찾은 주소는 DB 에 저장해 다음부터는 목록에서도 바로 쓰이게 한다.
      */
@@ -74,6 +93,7 @@ public class AttractionService {
                 a.setFirstImage1(url);
             }
         }
+        fillOverview(a);
         return a;
     }
 

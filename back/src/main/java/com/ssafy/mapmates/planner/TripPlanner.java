@@ -265,12 +265,19 @@ public class TripPlanner {
         if (pool.size() <= need) return pool;
         try {
             StringBuilder list = new StringBuilder();
-            for (Place p : pool) list.append(p.no()).append(" | ").append(p.title()).append(" | ").append(p.type()).append(" | ").append(p.address()).append('\n');
+            // 이름과 유형만으로는 어떤 곳인지 알 수 없으므로, 등록된 소개 글 앞부분을 함께 보여 준다
+            Map<Integer, AttractionTool.Brief> briefs = attractionTool.briefs(pool.stream().map(Place::no).toList());
+            for (Place p : pool) {
+                AttractionTool.Brief b = briefs.get(p.no());
+                list.append(p.no()).append(" | ").append(p.title()).append(" | ").append(p.type()).append(" | ").append(p.address())
+                        .append(" | ").append(b == null || b.overview().isBlank() ? "소개 없음" : AttractionTool.cut(b.overview(), 110)).append('\n');
+            }
             String system = "너는 여행 코스에 넣을 장소를 고르는 역할이다. 아래 후보 목록에서만 고른다. "
+                    + "후보마다 붙은 소개 글을 읽고, 사용자 조건에 맞는 근거가 소개 글에 드러난 장소를 우선한다. "
                     + "사용자의 조건(동행, 분위기, 일수)에 어울리는 장소를 정확히 요청한 개수만큼 골라 번호(no)만 반환한다. "
                     + "식사가 어울리는 일정이면 음식점을 하루에 한두 곳 포함하고, 같은 성격의 장소만 고르지 않는다.";
             String user = "조건: " + plan.intent() + "\n일수: " + plan.days() + "일\n고를 개수: " + need
-                    + "\n\n[후보: no | 이름 | 유형 | 주소]\n" + list;
+                    + "\n\n[후보: no | 이름 | 유형 | 주소 | 소개]\n" + list;
             Selection sel = chatClient.prompt().system(system).user(user).call().entity(Selection.class);
             if (sel != null && sel.nos() != null) {
                 Map<Integer, Place> byNo = new HashMap<>();

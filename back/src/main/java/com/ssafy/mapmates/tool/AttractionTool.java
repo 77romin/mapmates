@@ -7,6 +7,7 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
+import com.ssafy.mapmates.dao.AttractionDao;
 import com.ssafy.mapmates.dto.Attraction;
 import com.ssafy.mapmates.service.AttractionService;
 
@@ -21,8 +22,55 @@ public class AttractionTool {
     private static final Map<String, Integer> TYPES = Map.of("관광지", 12, "문화시설", 14, "축제", 15, "여행코스", 25,
             "레포츠", 28, "숙박", 32, "쇼핑", 38, "음식점", 39);
     private final AttractionService attractionService;
+    private final AttractionDao attractionDao;
 
     public record Place(int no, String title, String type, String address, double latitude, double longitude) {}
+
+    /** 장소의 사진과 소개 글 앞부분. 소개 글은 태그와 줄바꿈을 걷어낸 한 줄이다. */
+    public record Brief(String image, String overview) {}
+
+    /** 번호별 사진·소개 글. AI 가 이름만 보고 고르지 않도록 등록된 소개 글을 근거로 함께 넘길 때 쓴다. */
+    public Map<Integer, Brief> briefs(List<Integer> nos) {
+        return briefs(nos, false);
+    }
+
+    /**
+     * @param fill true 면 소개 글이 비어 있는 장소를 한국관광공사 API 에서 한꺼번에 찾아 채운다.
+     *             (최종 코스에 들어간 몇 곳에만 쓴다. 전체 대기는 7초로 제한한다)
+     */
+    public Map<Integer, Brief> briefs(List<Integer> nos, boolean fill) {
+        Map<Integer, Brief> result = new java.util.HashMap<>();
+        if (nos == null || nos.isEmpty()) return result;
+        List<Attraction> rows = attractionDao.findBriefs(nos);
+        if (fill) {
+            try (var pool = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+                List<java.util.concurrent.Future<?>> jobs = new java.util.ArrayList<>();
+                for (Attraction a : rows) {
+                    if (a.getOverview() == null || a.getOverview().isBlank()) jobs.add(pool.submit(() -> attractionService.fillOverview(a)));
+                }
+                long deadline = System.currentTimeMillis() + 7000;
+                for (var job : jobs) {
+                    try {
+                        job.get(Math.max(1, deadline - System.currentTimeMillis()), java.util.concurrent.TimeUnit.MILLISECONDS);
+                    } catch (Exception e) {
+                        job.cancel(true); // 늦는 곳은 소개 없이 진행한다
+                    }
+                }
+            }
+        }
+        for (Attraction a : rows) {
+            String text = a.getOverview() == null ? "" : a.getOverview().replaceAll("<[^>]*>", " ").replaceAll("&nbsp;", " ").replaceAll("\\s+", " ").strip();
+            String image = a.getFirstImage1() == null || a.getFirstImage1().isBlank() ? null : a.getFirstImage1();
+            result.put(a.getNo(), new Brief(image, text));
+        }
+        return result;
+    }
+
+    /** 글을 지정한 길이에서 자른다. (프롬프트 길이를 줄이기 위함) */
+    public static String cut(String text, int max) {
+        if (text == null) return "";
+        return text.length() <= max ? text : text.substring(0, max) + "…";
+    }
 
     @Tool(description = "지역(시도 이름), 키워드, 유형으로 국내 관광지를 검색한다. 결과에는 관광지 번호(no), 이름, 유형, 주소, 위도, 경도가 포함된다.")
     public List<Place> searchAttractions(

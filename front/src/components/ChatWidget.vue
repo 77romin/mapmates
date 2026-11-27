@@ -252,9 +252,20 @@ async function makePlan(m) {
           <!-- 코스: 일차를 유지한 채 플랜으로 바로 만든다 -->
           <div v-if="m.course" class="course">
             <div class="course-head">{{ m.course.title }}, {{ m.course.stops.length }}곳</div>
-            <ol class="course-days">
-              <li v-for="d in m.course.days" :key="d"><span class="course-day">{{ d }}일차</span>{{ m.course.stops.filter((s) => s.dayNo === d).map((s) => s.title).join(', ') }}</li>
-            </ol>
+            <div v-for="d in m.course.days" :key="d" class="course-day">
+              <div class="course-day-head"><strong>{{ d }}일차</strong><span v-if="m.course.dayKm?.[d - 1]">이동 약 {{ m.course.dayKm[d - 1] }}km</span></div>
+              <ol class="course-stops">
+                <li v-for="s in m.course.stops.filter((x) => x.dayNo === d)" :key="s.no">
+                  <img v-if="s.image" :src="s.image" alt="" loading="lazy" @error="s.image = null" />
+                  <span v-else class="course-noimg" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
+                  <span class="min-w-0">
+                    <span class="course-name">{{ s.title }}</span>
+                    <span class="course-kind">{{ s.type }}</span>
+                    <span v-if="s.summary" class="course-sum">{{ s.summary }}</span>
+                  </span>
+                </li>
+              </ol>
+            </div>
             <button class="btn btn-sm w-100" :class="m.planId ? 'mm-btn-quiet' : 'btn-coral'" :disabled="m.making" @click="makePlan(m)">
               <span v-if="m.making" class="spinner-border spinner-border-sm me-1"></span>
               <i v-else :class="['bi me-1', m.planId ? 'bi-box-arrow-up-right' : 'bi-signpost-2']" aria-hidden="true"></i>{{ m.planId ? '만든 플랜 열기' : `${span(m.course.days)} 코스로 플랜 만들기` }}
@@ -328,8 +339,16 @@ async function makePlan(m) {
 .places { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .course { margin-top: var(--mm-sp-3); padding: var(--mm-sp-3); border-radius: var(--mm-r-sm); background: var(--mm-route-tint); }
 .course-head { font-weight: 700; color: var(--mm-ink); margin-bottom: var(--mm-sp-2); }
-.course-days { list-style: none; padding: 0; margin: 0 0 var(--mm-sp-3); font-size: var(--mm-fs-xs); line-height: 1.6; color: var(--mm-text); }
-.course-days li + li { margin-top: var(--mm-sp-1); }
-.course-day { display: inline-block; min-width: 40px; margin-right: var(--mm-sp-2); font-weight: 700; color: var(--mm-route); }
+.course-day { margin-bottom: var(--mm-sp-3); }
+.course-day-head { display: flex; justify-content: space-between; align-items: baseline; font-size: var(--mm-fs-xs); color: var(--mm-route); margin-bottom: var(--mm-sp-1); }
+.course-day-head strong { font-size: var(--mm-fs-sm); font-weight: 700; }
+.course-stops { list-style: none; padding: 0; margin: 0; background: #fff; border-radius: var(--mm-r-sm); }
+.course-stops li { display: flex; gap: var(--mm-sp-2); align-items: flex-start; padding: var(--mm-sp-2); }
+.course-stops li + li { border-top: 1px solid var(--mm-line); }
+.course-stops img, .course-noimg { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: var(--mm-surface); }
+.course-noimg { display: inline-flex; align-items: center; justify-content: center; color: var(--mm-placeholder); }
+.course-name { display: block; font-weight: 700; color: var(--mm-ink); line-height: 1.3; }
+.course-kind { display: block; font-size: var(--mm-fs-xs); color: var(--mm-muted); }
+.course-sum { display: block; font-size: var(--mm-fs-xs); color: var(--mm-text); line-height: 1.45; margin-top: 2px; }
 .chat-input { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--mm-line); }
 </style>

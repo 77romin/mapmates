@@ -68,6 +68,28 @@ public class InfoService {
         return null;
     }
 
+    /**
+     * 한국관광공사 국문 관광정보 서비스에서 콘텐츠의 소개 글(개요)을 찾는다. 없거나 실패하면 null.
+     * (제공 덤프에는 소개 글이 거의 비어 있어, AI 추천과 상세 화면에서 원본 API 로 보충한다)
+     */
+    @SuppressWarnings("unchecked")
+    public String tourOverview(int contentId) {
+        if (serviceKey == null || serviceKey.isBlank()) return null;
+        try {
+            String url = "https://apis.data.go.kr/B551011/KorService2/detailCommon2?serviceKey=" + key()
+                    + "&MobileOS=ETC&MobileApp=mapmates&_type=json&contentId=" + contentId;
+            Map<String, Object> body = quickClient.get().uri(URI.create(url)).retrieve().body(Map.class);
+            for (Map<String, Object> item : findItems(body)) {
+                Object overview = item.get("overview");
+                if (overview != null && overview.toString().strip().length() >= 10) return overview.toString().strip();
+            }
+            log.debug("관광공사 소개 글 없음: contentId={}", contentId);
+        } catch (Exception e) {
+            log.warn("관광공사 소개 글 조회 실패: contentId={}, {}", contentId, e.getClass().getSimpleName());
+        }
+        return null;
+    }
+
     /** 3시간 간격 단기예보. 키가 없거나 호출 실패 시 available=false 로 응답한다. */
     @SuppressWarnings("unchecked")
     public Map<String, Object> weather(double lat, double lng) {
