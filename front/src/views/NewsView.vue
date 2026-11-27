@@ -26,6 +26,8 @@ const fmt = (d) => {
   const t = new Date(d)
   return isNaN(t) ? d : t.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
 }
+// 구글 뉴스 제목 끝에 붙는 ' - 언론사' 는 아래에 따로 보여 주므로 뗀다
+const headline = (n) => (n.source && n.title.endsWith(' - ' + n.source) ? n.title.slice(0, -(n.source.length + 3)) : n.title)
 // 외부 링크는 http(s) 만 허용
 const safe = (url) => (/^https?:\/\//.test(url) ? url : '#')
 </script>
@@ -37,20 +39,27 @@ const safe = (url) => (/^https?:\/\//.test(url) ? url : '#')
     <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="뉴스 주제">
       <button v-for="k in KEYWORDS" :key="k" class="btn btn-sm rounded-pill" :class="keyword === k ? 'bg-ink' : 'btn-light border'" @click="load(k)">{{ k }}</button>
     </div>
-    <div v-if="loading" class="mm-empty"><div class="spinner-border text-secondary" role="status"></div><p class="mt-2 mb-0">뉴스를 모으는 중…</p></div>
+    <div v-if="loading" class="mm-card" role="status" aria-busy="true" aria-label="뉴스를 모으는 중"><div v-for="n in 6" :key="n" class="news-item" aria-hidden="true"><div class="mm-skel mm-skel-line w-75"></div><div class="mm-skel mm-skel-line w-25"></div></div></div>
     <div v-else-if="error" class="mm-empty"><i class="bi bi-wifi-off"></i>{{ error }}<br /><button class="btn btn-sm btn-outline-coral mt-2" @click="load()">다시 시도</button></div>
     <div v-else-if="!news.length" class="mm-card mm-empty"><i class="bi bi-newspaper"></i>'{{ keyword }}' 관련 뉴스를 찾지 못했습니다.</div>
     <div v-else class="mm-card">
       <a v-for="n in news" :key="n.id" :href="safe(n.link)" target="_blank" rel="noopener noreferrer" class="news-item">
-        <div class="fw-semibold">{{ n.title }}</div>
-        <div class="small text-secondary">{{ n.source }} · {{ fmt(n.pubDate) }} <i class="bi bi-box-arrow-up-right ms-1" aria-hidden="true"></i></div>
+        <div class="min-w-0 flex-grow-1">
+          <div class="news-title">{{ headline(n) }}</div>
+          <div class="mm-item-meta"><span class="news-src">{{ n.source }}</span>{{ fmt(n.pubDate) }}</div>
+        </div>
+        <i class="bi bi-arrow-up-right news-go" aria-hidden="true"></i>
       </a>
     </div>
   </div>
 </template>
 
 <style scoped>
-.news-item { display: block; padding: 14px 18px; border-bottom: 1px solid var(--mm-line); color: var(--mm-ink); text-decoration: none; }
+.news-item { display: flex; align-items: center; gap: var(--mm-sp-4); padding: var(--mm-sp-4) var(--mm-sp-5); border-bottom: 1px solid var(--mm-line); color: var(--mm-ink); text-decoration: none; }
+.news-title { font-size: var(--mm-fs-md); font-weight: 600; line-height: 1.45; margin-bottom: var(--mm-sp-1); }
+.news-src { color: var(--mm-text); font-weight: 600; margin-right: var(--mm-sp-2); }
+.news-go { color: var(--mm-placeholder); flex-shrink: 0; transition: color 0.15s, transform 0.15s; }
+.news-item:hover .news-go { color: var(--mm-ink); transform: translate(2px, -2px); }
 .news-item:last-child { border-bottom: 0; }
 .news-item:hover { background: var(--mm-surface); }
 </style>

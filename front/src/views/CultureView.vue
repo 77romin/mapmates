@@ -91,7 +91,6 @@ const markers = () => {
   ]
 }
 const safe = (url) => (/^https?:\/\//.test(url || '') ? url : null)
-const STATE_CLASS = { 공연중: 'badge-soft', 공연예정: 'badge-ink' }
 </script>
 
 <template>
@@ -119,23 +118,25 @@ const STATE_CLASS = { 공연중: 'badge-soft', 공연예정: 'badge-ink' }
       </div>
     </form>
 
-    <div v-if="loading" class="mm-empty"><div class="spinner-border text-secondary" role="status"></div></div>
+    <div v-if="loading" class="row g-4" role="status" aria-busy="true" aria-label="공연을 불러오는 중">
+      <div v-for="n in 8" :key="n" class="col-6 col-md-4 col-lg-3" aria-hidden="true"><div class="poster mm-skel"></div><div class="mm-skel mm-skel-line w-75"></div><div class="mm-skel mm-skel-line w-50"></div></div>
+    </div>
     <div v-else-if="error" class="mm-card mm-empty"><i class="bi bi-exclamation-circle"></i>{{ error }}<br /><button class="btn btn-sm btn-outline-coral mt-2" @click="load(page)">다시 시도</button></div>
     <div v-else-if="!items.length" class="mm-card mm-empty"><i class="bi bi-ticket-perforated"></i>조건에 맞는 {{ tab === 'performance' ? '공연' : '행사' }}이 없습니다.<br />지역이나 검색어를 바꿔 보세요.</div>
     <template v-else>
-      <div class="row g-3">
+      <div class="row g-4">
         <div v-for="(it, i) in items" :key="it.id || i" class="col-6 col-md-4 col-lg-3">
-          <button v-reveal class="mm-card culture-card w-100 h-100 text-start p-0" @click="open(it)">
-            <img v-if="it.poster || it.image" :src="it.poster || it.image" class="poster" alt="" loading="lazy" @error="it.poster = it.image = ''" />
-            <div v-else class="poster d-flex align-items-center justify-content-center"><i class="bi bi-ticket-perforated fs-1" aria-hidden="true"></i></div>
-            <div class="p-2">
-              <span class="badge" :class="STATE_CLASS[it.state] || 'badge-ink'">{{ it.state || it.category }}</span>
-              <span v-if="it.genre" class="badge badge-ink ms-1">{{ it.genre }}</span>
-              <span v-if="it.isFree" class="badge badge-soft ms-1">{{ it.isFree }}</span>
-              <div class="fw-bold mt-1 title">{{ it.title }}</div>
-              <div class="small text-secondary text-truncate">{{ it.venue || it.place }}</div>
-              <div class="small text-secondary">{{ it.startDate ? `${it.startDate} ~ ${it.endDate}` : it.period }}</div>
+          <!-- 포스터가 주인공: 테두리 없는 카드, 상태는 포스터 위 알약 -->
+          <button v-reveal class="culture-card w-100 text-start" @click="open(it)">
+            <div class="poster-wrap">
+              <img v-if="it.poster || it.image" :src="it.poster || it.image" class="poster" alt="" loading="lazy" @error="it.poster = it.image = ''" />
+              <div v-else class="poster d-flex align-items-center justify-content-center"><i class="bi bi-ticket-perforated fs-1" aria-hidden="true"></i></div>
+              <span class="poster-chip" :class="{ now: it.state === '공연중' }">{{ it.state || it.category }}</span>
+              <span v-if="it.isFree === '무료'" class="poster-chip free">무료</span>
             </div>
+            <div class="mm-item-title title">{{ it.title }}</div>
+            <div class="mm-item-kind text-truncate">{{ it.venue || it.place }}</div>
+            <div class="mm-item-meta">{{ it.genre ? it.genre + ', ' : '' }}{{ it.startDate ? `${it.startDate} ~ ${it.endDate}` : it.period }}</div>
           </button>
         </div>
       </div>
@@ -212,10 +213,16 @@ const STATE_CLASS = { 공연중: 'badge-soft', 공연예정: 'badge-ink' }
 </template>
 
 <style scoped>
-.culture-card { overflow: hidden; transition: transform 0.15s, box-shadow 0.15s; }
-.culture-card:hover { transform: translateY(-2px); box-shadow: var(--mm-shadow-2); }
-.poster { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: var(--mm-surface); color: var(--mm-placeholder); }
-.title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 3em; }
+.culture-card { border: 0; background: transparent; padding: 0; border-radius: var(--mm-r-md); }
+.culture-card:focus-visible { outline: 0; box-shadow: 0 0 0 0.2rem rgba(255, 107, 74, 0.3); }
+.poster-wrap { position: relative; border-radius: var(--mm-r-md); overflow: hidden; margin-bottom: var(--mm-sp-3); background: var(--mm-surface); }
+.poster { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; display: block; background: var(--mm-surface); color: var(--mm-placeholder); border-radius: var(--mm-r-md); transition: transform 0.3s; }
+.culture-card:hover img.poster { transform: scale(1.03); }
+.poster-chip { position: absolute; top: var(--mm-sp-2); left: var(--mm-sp-2); background: #fff; color: var(--mm-ink); border-radius: var(--mm-r-pill); padding: 2px 10px; font-size: var(--mm-fs-xs); font-weight: 700; box-shadow: var(--mm-shadow-1); }
+.poster-chip.now { background: var(--mm-coral-dark); color: #fff; }
+.poster-chip.free { left: auto; right: var(--mm-sp-2); background: var(--mm-ink); color: #fff; }
+.title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+@media (prefers-reduced-motion: reduce) { .poster { transition: none; } }
 .wide { max-width: 760px; }
 .nearby-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 4px; border: 0; background: transparent; text-align: left; border-radius: var(--mm-r-sm); color: inherit; }
 .nearby-item:hover, .nearby-item:focus-visible { background: var(--mm-surface); }
