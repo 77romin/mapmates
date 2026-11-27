@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ssafy.mapmates.common.ApiException;
 import com.ssafy.mapmates.common.AuthInterceptor;
 import com.ssafy.mapmates.common.LoginUser;
+import com.ssafy.mapmates.common.ViewDedup;
 import com.ssafy.mapmates.dao.BoardDao;
 import com.ssafy.mapmates.dto.Board;
 import com.ssafy.mapmates.dto.Comment;
@@ -29,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class BoardController {
     private final BoardDao boardDao;
+    private final ViewDedup viewDedup;
 
     @GetMapping
     public Map<String, Object> list(@RequestParam(defaultValue = "FREE") String type,
@@ -45,8 +47,9 @@ public class BoardController {
     }
 
     @GetMapping("/{id}")
-    public Board detail(@PathVariable int id) {
-        boardDao.increaseHit(id);
+    public Board detail(@PathVariable int id, HttpServletRequest req) {
+        // 같은 사람이 다시 열거나 댓글을 쓴 뒤 새로 불러와도 조회수는 한 번만 오른다
+        if (viewDedup.firstView("board", id, req)) boardDao.increaseHit(id);
         Board board = find(id);
         board.setComments(boardDao.findComments(id));
         return board;
