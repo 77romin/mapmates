@@ -2,13 +2,14 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import http from '@/api/http'
 import { useDraftStore } from '@/stores/draft'
+import { typeIcon } from '@/utils/place'
 
 /** 장소 한 곳의 정보를 보여주고 플랜에 담는 팝업. 다른 모달 위에 겹쳐 뜬다. */
 const props = defineProps({
   no: { type: Number, required: true },
   distance: { type: Number, default: null }, // 기준 지점(공연장 등)으로부터의 거리(km)
 })
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'loaded'])
 const draft = useDraftStore()
 
 const a = ref(null)
@@ -22,6 +23,7 @@ async function load() {
   weather.value = null
   try {
     a.value = await http.get(`/attractions/${props.no}`)
+    emit('loaded', a.value)
     closeBtn.value?.focus()
     weather.value = await http.get(`/attractions/${props.no}/weather`).catch(() => null)
   } catch (e) {
@@ -54,7 +56,7 @@ const kakaoMapUrl = (x) => `https://map.kakao.com/link/map/${encodeURIComponent(
       <template v-else>
         <div class="hero" :class="{ empty: !a.firstImage1 }">
           <img v-if="a.firstImage1" :src="a.firstImage1" :alt="a.title" @error="a.firstImage1 = ''" />
-          <div v-else class="no-img"><i class="bi bi-image" aria-hidden="true"></i><span>등록된 사진이 없습니다</span></div>
+          <div v-else class="no-img"><i :class="['bi', typeIcon(a.contentTypeId)]" aria-hidden="true"></i><span>등록된 사진이 없습니다</span></div>
           <button ref="closeBtn" class="btn btn-light btn-sm close" aria-label="닫기" @click="emit('close')"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
         </div>
         <div class="p-3 body">
@@ -74,7 +76,7 @@ const kakaoMapUrl = (x) => `https://map.kakao.com/link/map/${encodeURIComponent(
           <p v-if="a.overview" class="small pre-line overview mb-2">{{ plain(a.overview) }}</p>
           <p v-else class="small text-secondary mb-2">등록된 소개 글이 없습니다.</p>
           <div class="d-flex gap-3 small">
-            <a :href="kakaoMapUrl(a)" target="_blank" rel="noopener noreferrer">카카오맵에서 보기 <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+            <a :href="kakaoMapUrl(a)" target="_blank" rel="noopener noreferrer">{{ a.firstImage1 ? '카카오맵에서 보기' : '카카오맵에서 사진·정보 보기' }} <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
             <a v-if="homepageUrl(a.homepage)" :href="homepageUrl(a.homepage)" target="_blank" rel="noopener noreferrer">홈페이지 <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
           </div>
         </div>

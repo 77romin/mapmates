@@ -4,6 +4,7 @@ import http from '@/api/http'
 import KakaoMap from '@/components/KakaoMap.vue'
 import AttractionDetail from '@/components/AttractionDetail.vue'
 import { useDraftStore } from '@/stores/draft'
+import { typeIcon } from '@/utils/place'
 
 const draft = useDraftStore()
 const sidos = ref([])
@@ -63,13 +64,18 @@ function open(no) {
   selected.value = no
   extraMarkers.value = []
 }
+/** 상세에서 새로 찾은 사진을 목록 썸네일에도 반영한다 */
+function onLoaded(detail) {
+  const item = items.value.find((i) => i.no === detail.no)
+  if (item && detail.firstImage1) item.firstImage1 = detail.firstImage1
+}
 </script>
 
 <template>
   <div class="mm-split">
     <aside class="mm-panel">
       <!-- 상세 -->
-      <AttractionDetail v-if="selected" :no="selected" @close="selected = null; extraMarkers = []" @extra="extraMarkers = $event" />
+      <AttractionDetail v-if="selected" :no="selected" @close="selected = null; extraMarkers = []" @extra="extraMarkers = $event" @loaded="onLoaded" />
 
       <!-- 검색 + 목록 -->
       <template v-else>
@@ -115,7 +121,7 @@ function open(no) {
           <template v-else>
             <div v-for="a in items" :key="a.no" class="mm-item" role="button" tabindex="0" @click="open(a.no)" @keyup.enter="open(a.no)">
               <img v-if="a.firstImage1" :src="a.firstImage1" class="mm-thumb" alt="" loading="lazy" @error="a.firstImage1 = ''" />
-              <div v-else class="mm-thumb"><i class="bi bi-image" aria-hidden="true"></i></div>
+              <div v-else class="mm-thumb"><i :class="['bi', typeIcon(a.contentTypeId)]" aria-hidden="true"></i></div>
               <div class="flex-grow-1 min-w-0">
                 <span class="badge badge-soft">{{ a.contentTypeName }}</span>
                 <div class="fw-bold text-truncate">{{ a.title }}</div>

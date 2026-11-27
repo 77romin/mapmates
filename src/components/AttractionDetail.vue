@@ -2,9 +2,10 @@
 import { ref, watch } from 'vue'
 import http from '@/api/http'
 import { useDraftStore } from '@/stores/draft'
+import { typeIcon } from '@/utils/place'
 
 const props = defineProps({ no: { type: Number, required: true } })
-const emit = defineEmits(['close', 'extra'])
+const emit = defineEmits(['close', 'extra', 'loaded'])
 const draft = useDraftStore()
 
 const a = ref(null)
@@ -25,6 +26,7 @@ async function load() {
   nearby.value = { kind: '', list: null }
   try {
     a.value = await http.get(`/attractions/${props.no}`)
+    emit('loaded', a.value)
     sun.value = await http.get(`/attractions/${props.no}/sun`).catch(() => null)
     weather.value = await http.get(`/attractions/${props.no}/weather`).catch(() => ({ available: false, message: '날씨 정보를 불러오지 못했습니다.' }))
   } catch (e) {
@@ -69,6 +71,7 @@ const plain = (html) => (html || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>
       <div v-else-if="!a" class="mm-empty"><div class="spinner-border text-secondary" role="status"></div></div>
       <template v-else>
         <img v-if="a.firstImage1" :src="a.firstImage1" class="w-100 detail-img" :alt="a.title" @error="a.firstImage1 = ''" />
+        <div v-else class="detail-noimg"><i :class="['bi', typeIcon(a.contentTypeId)]" aria-hidden="true"></i><span>등록된 사진이 없습니다</span></div>
         <div class="p-3">
           <span class="badge badge-soft">{{ a.contentTypeName }}</span>
           <span class="badge badge-ink ms-1">{{ a.sidoName }} {{ a.gugunName }}</span>
@@ -139,6 +142,8 @@ const plain = (html) => (html || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>
 
 <style scoped>
 .detail-img { height: 190px; object-fit: cover; }
+.detail-noimg { height: 84px; background: #f1ebe2; color: #b8ab98; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.85rem; }
+.detail-noimg i { font-size: 1.6rem; }
 .weather-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
 .weather-cell { flex: 0 0 auto; text-align: center; font-size: 0.78rem; background: var(--mm-bg); border-radius: 10px; padding: 6px 10px; min-width: 70px; }
 .min-h-0 { min-height: 0; }

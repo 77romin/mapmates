@@ -4,6 +4,7 @@ import http from '@/api/http'
 import KakaoMap from '@/components/KakaoMap.vue'
 import AttractionPopup from '@/components/AttractionPopup.vue'
 import { useDraftStore } from '@/stores/draft'
+import { typeIcon } from '@/utils/place'
 
 const draft = useDraftStore()
 const tab = ref('performance') // performance: KOPIS 공연, seoul: 서울시 문화행사
@@ -72,6 +73,12 @@ async function open(item) {
   } finally {
     detailLoading.value = false
   }
+}
+
+/** 팝업에서 새로 찾은 사진을 주변 장소 목록 썸네일에도 반영한다 */
+function onPlaceLoaded(detail) {
+  const item = nearby.value.find((n) => n.no === detail.no)
+  if (item && detail.firstImage1) item.firstImage1 = detail.firstImage1
 }
 
 const place = () => (detail.value?.kind === 'seoul' ? detail.value : detail.value?.facility)
@@ -183,7 +190,7 @@ const STATE_CLASS = { 공연중: 'badge-soft', 공연예정: 'badge-ink' }
                 <li v-for="n in nearby.slice(0, 5)" :key="n.no" class="border-top">
                   <button class="nearby-item" :aria-label="n.title + ' 정보 보기'" @click="popup = { no: n.no, distance: n.distance }">
                     <img v-if="n.firstImage1" :src="n.firstImage1" class="nearby-thumb" alt="" loading="lazy" @error="n.firstImage1 = ''" />
-                    <span v-else class="nearby-thumb d-flex align-items-center justify-content-center"><i class="bi bi-image" aria-hidden="true"></i></span>
+                    <span v-else class="nearby-thumb d-flex align-items-center justify-content-center"><i :class="['bi', typeIcon(n.contentTypeId)]" aria-hidden="true"></i></span>
                     <span class="flex-grow-1 min-w-0">
                       <span class="d-block fw-semibold text-truncate">{{ n.title }}</span>
                       <span class="d-block text-secondary text-truncate">{{ n.contentTypeName }} · {{ n.distance }}km</span>
@@ -200,7 +207,7 @@ const STATE_CLASS = { 공연중: 'badge-soft', 공연예정: 'badge-ink' }
     </div>
 
     <!-- 주변 장소 정보 팝업 -->
-    <AttractionPopup v-if="popup" :no="popup.no" :distance="popup.distance" @close="popup = null" />
+    <AttractionPopup v-if="popup" :no="popup.no" :distance="popup.distance" @close="popup = null" @loaded="onPlaceLoaded" />
   </div>
 </template>
 
