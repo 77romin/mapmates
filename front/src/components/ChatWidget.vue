@@ -1,9 +1,13 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import http, { AI_SERVER } from '@/api/http'
+import { useRouter } from 'vue-router'
 import { useDraftStore } from '@/stores/draft'
+import { useAuthStore } from '@/stores/auth'
 
 const draft = useDraftStore()
+const auth = useAuthStore()
+const router = useRouter()
 // ---------- 창 상태: 열림·접힘·위치·크기를 기억한다 ----------
 const UI_KEY = 'mm_chat_ui'
 const MIN_W = 300
@@ -136,7 +140,7 @@ async function send() {
       const history = messages.value.slice(1, -1).filter((m) => m.role === 'user' || (m.role === 'ai' && m.trip))
         .slice(-6).map((m) => ({ role: m.role, text: m.text }))
       const res = await http.post('/ai/chat', { message: text, mode: 'planner', history })
-      messages.value.push({ role: 'ai', trip: true, text: (res.answer || '').replace(/\*\*/g, ''), tools: (res.steps || []).map((s) => TOOL_LABEL[s.tool] || s.tool), places: res.places || [] })
+      messages.value.push({ role: 'ai', trip: true, text: (res.answer || '').replace(/\*\*/g, ''), tools: (res.steps || []).map((s) => TOOL_LABEL[s.tool] || s.tool), places: res.places || [], course: res.course || null })
     } else {
       // 문서 Q&A: fetch API 로 FastAPI RAG 서버의 /chat 호출
       const response = await fetch(`${AI_SERVER}/chat`, {
@@ -184,8 +188,34 @@ async function upload(e) {
 function addPlace(p) {
   draft.add(p)
 }
-function addAll(places) {
-  places.forEach((p) => draft.add(p))
+/** '1박 2일' 처럼 코스 길이를 말로 */
+const span = (days) => (days > 1 ? `${days - 1}박 ${days}일` : '당일')
+
+/**
+ * AI 가 짠 코스를 일차를 유지한 채 플랜으로 만든다.
+ * 로그인 상태면 바로 저장하고 그 플랜을 연다. 아니면 일차를 유지해 담아 두고 로그인 뒤 새 플랜 화면으로 보낸다.
+ */
+async function makePlan(m) {
+  if (m.planId) return router.push(`/plans/${m.planId}`)
+  const { title, stops } = m.course
+  if (!auth.isLogin) {
+    draft.addCourse(stops)
+    return router.push('/plans/new') // 로그인 화면을 거쳐 돌아온다
+  }
+  m.making = true
+  try {
+    const created = await http.post('/plans', {
+      title, startDate: null, endDate: null, budget: 0, memo: '', isPublic: false,
+      items: stops.map((s) => ({ attractionNo: s.no, dayNo: s.dayNo, memo: '', cost: 0 })),
+    })
+    m.planId = created.id
+    router.push(`/plans/${created.id}`)
+  } catch (e) {
+    messages.value.push({ role: 'error', text: '플랜을 만들지 못했습니다. ' + e.message })
+    scrollDown()
+  } finally {
+    m.making = false
+  }
 }
 </script>
 
@@ -219,11 +249,19 @@ function addAll(places) {
           <div v-if="m.notice" class="meta">{{ m.notice }}</div>
           <div v-if="m.sources?.length" class="meta">출처: <span v-for="(s, j) in m.sources" :key="j">{{ s.source }} ({{ Math.round(s.score * 100) }}%){{ j < m.sources.length - 1 ? ', ' : '' }}</span></div>
           <div v-if="m.tools?.length" class="meta"><i class="bi bi-tools me-1" aria-hidden="true"></i>{{ m.tools.join(', 이어서 ') }}</div>
-          <div v-if="m.places?.length > 1" class="mt-2">
-            <button class="btn btn-sm w-100" :class="m.places.every((p) => draft.has(p.no)) ? 'btn-light' : 'btn-coral'" :disabled="m.places.every((p) => draft.has(p.no))" @click="addAll(m.places)">
-              <i :class="['bi me-1', m.places.every((p) => draft.has(p.no)) ? 'bi-check2-all' : 'bi-bag-plus']" aria-hidden="true"></i>{{ m.places.every((p) => draft.has(p.no)) ? '코스 전체를 담았어요' : `이 코스 ${m.places.length}곳 전체 담기` }}
+          <!-- 코스: 일차를 유지한 채 플랜으로 바로 만든다 -->
+          <div v-if="m.course" class="course">
+            <div class="course-head">{{ m.course.title }}, {{ m.course.stops.length }}곳</div>
+            <ol class="course-days">
+              <li v-for="d in m.course.days" :key="d"><span class="course-day">{{ d }}일차</span>{{ m.course.stops.filter((s) => s.dayNo === d).map((s) => s.title).join(', ') }}</li>
+            </ol>
+            <button class="btn btn-sm w-100" :class="m.planId ? 'mm-btn-quiet' : 'btn-coral'" :disabled="m.making" @click="makePlan(m)">
+              <span v-if="m.making" class="spinner-border spinner-border-sm me-1"></span>
+              <i v-else :class="['bi me-1', m.planId ? 'bi-box-arrow-up-right' : 'bi-signpost-2']" aria-hidden="true"></i>{{ m.planId ? '만든 플랜 열기' : `${span(m.course.days)} 코스로 플랜 만들기` }}
             </button>
+            <div v-if="!auth.isLogin && !m.planId" class="meta">로그인 화면을 거쳐 새 플랜으로 이어집니다.</div>
           </div>
+          <div v-if="m.places?.length" class="meta">한 곳씩 담으려면 아래에서 고르세요.</div>
           <div v-if="m.places?.length" class="places">
             <button v-for="p in m.places" :key="p.no" class="place-chip" :class="{ on: draft.has(p.no) }" :disabled="draft.has(p.no)" @click="addPlace(p)">
               <i :class="['bi me-1', draft.has(p.no) ? 'bi-check2' : 'bi-plus']" aria-hidden="true"></i>{{ p.title }}
@@ -288,5 +326,10 @@ function addAll(places) {
 .msg.error .bubble { background: var(--mm-danger-bg); border-color: var(--mm-danger-line); color: var(--mm-danger); }
 .meta { font-size: var(--mm-fs-xs); color: var(--mm-muted); margin-top: 6px; }
 .places { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.course { margin-top: var(--mm-sp-3); padding: var(--mm-sp-3); border-radius: var(--mm-r-sm); background: var(--mm-route-tint); }
+.course-head { font-weight: 700; color: var(--mm-ink); margin-bottom: var(--mm-sp-2); }
+.course-days { list-style: none; padding: 0; margin: 0 0 var(--mm-sp-3); font-size: var(--mm-fs-xs); line-height: 1.6; color: var(--mm-text); }
+.course-days li + li { margin-top: var(--mm-sp-1); }
+.course-day { display: inline-block; min-width: 40px; margin-right: var(--mm-sp-2); font-weight: 700; color: var(--mm-route); }
 .chat-input { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--mm-line); }
 </style>

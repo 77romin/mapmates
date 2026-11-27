@@ -108,6 +108,13 @@ async function load() {
   }
 }
 onMounted(load)
+watch(() => route.params.id, (id, old) => {
+  if (id && id !== old) {
+    editing.value = false
+    day.value = 1
+    load()
+  }
+})
 
 /** 기존 플랜에 지도에서 담아 둔 장소를 추가한다. (이미 있는 장소는 건너뜀) */
 function addDraft() {
