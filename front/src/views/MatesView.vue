@@ -107,23 +107,27 @@ const STATUS = { PENDING: '수락 대기 중', ACCEPTED: '참여 확정', REJECT
       <h1 class="h3 mm-title mb-0">메이트 찾기</h1>
       <button class="btn btn-coral" @click="openForm"><i class="bi bi-megaphone me-1" aria-hidden="true"></i>메이트 모집하기</button>
     </div>
-    <p class="text-secondary"><span>같은 길을 갈 동행을 만나 보세요.</span> <span v-if="auth.isLogin">내 취향 태그와 잘 맞는 모집글이 위에 보입니다.</span></p>
+    <p class="text-secondary mb-4"><span>같은 길을 갈 동행을 만나 보세요.</span> <span v-if="auth.isLogin">내 취향 태그와 잘 맞는 모집글이 위에 보입니다.</span></p>
 
     <div v-if="loading" class="mm-empty"><div class="spinner-border text-secondary" role="status"></div></div>
     <div v-else-if="error" class="mm-empty"><i class="bi bi-wifi-off"></i>{{ error }}<br /><button class="btn btn-sm btn-outline-coral mt-2" @click="load">다시 시도</button></div>
     <div v-else-if="!posts.length" class="mm-card mm-empty"><i class="bi bi-people"></i>아직 모집 중인 여행이 없습니다.<br />내 플랜으로 첫 모집글을 올려 보세요.</div>
     <div v-else class="row g-3">
       <div v-for="p in posts" :key="p.id" class="col-md-6 col-lg-4">
-        <button v-reveal class="mm-card p-3 h-100 w-100 text-start mate-card" @click="open(p.id)">
-          <div class="d-flex justify-content-between mb-2">
-            <span class="badge" :class="p.status === 'OPEN' ? 'badge-soft' : 'bg-secondary'">{{ p.status === 'OPEN' ? '모집 중' : '마감' }}</span>
-            <span v-if="p.matchRate != null" class="small fw-bold text-coral"><i class="bi bi-heart-fill" aria-hidden="true"></i> 취향 일치 {{ p.matchRate }}%</span>
+        <button v-reveal class="mm-card h-100 w-100 text-start mate-card" :class="{ closed: p.status !== 'OPEN' }" @click="open(p.id)">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="badge" :class="p.status === 'OPEN' ? 'badge-soft' : 'badge-ink'">{{ p.status === 'OPEN' ? '모집 중' : '마감' }}</span>
+            <span v-if="p.matchRate != null" class="mate-match"><i class="bi bi-heart-fill" aria-hidden="true"></i> 취향 일치 {{ p.matchRate }}%</span>
           </div>
-          <h2 class="h5 mm-title mb-1">{{ p.title }}</h2>
-          <p class="small text-secondary mb-2"><i class="bi bi-signpost-2" aria-hidden="true"></i> {{ p.planTitle }}<br /><i class="bi bi-calendar3" aria-hidden="true"></i> {{ p.startDate || '날짜 미정' }}<span v-if="p.endDate"> ~ {{ p.endDate }}</span></p>
-          <div class="mb-2"><span v-for="t in (p.tags || '').split(',').filter(Boolean)" :key="t" class="badge badge-ink me-1">#{{ t }}</span></div>
-          <div class="small d-flex justify-content-between"><span>{{ p.writerName }}</span><span><i class="bi bi-person-fill" aria-hidden="true"></i> {{ p.joinedCount }} / {{ p.capacity }}명</span></div>
-          <div v-if="p.myStatus" class="small text-coral mt-1">{{ STATUS[p.myStatus] }}</div>
+          <h2 class="mate-title">{{ p.title }}</h2>
+          <div class="mate-when"><i class="bi bi-calendar3 me-1" aria-hidden="true"></i>{{ p.startDate || '날짜 미정' }}<span v-if="p.endDate && p.endDate !== p.startDate"> ~ {{ p.endDate }}</span></div>
+          <div class="mate-plan text-truncate"><i class="bi bi-signpost-2 me-1" aria-hidden="true"></i>{{ p.planTitle }}</div>
+          <div class="mate-tags"><span v-for="t in (p.tags || '').split(',').filter(Boolean)" :key="t" class="mate-tag">#{{ t }}</span></div>
+          <div class="mate-foot">
+            <span class="d-flex align-items-center gap-2 min-w-0"><span class="mate-avatar" aria-hidden="true">{{ (p.writerName || '?').slice(0, 1) }}</span><span class="text-truncate">{{ p.writerName }}</span></span>
+            <span class="mate-cap"><i class="bi bi-person-fill" aria-hidden="true"></i> {{ p.joinedCount }} / {{ p.capacity }}명</span>
+          </div>
+          <div v-if="p.myStatus" class="mate-my">{{ STATUS[p.myStatus] }}</div>
         </button>
       </div>
     </div>
@@ -245,6 +249,17 @@ const STATUS = { PENDING: '수락 대기 중', ACCEPTED: '참여 확정', REJECT
 .route-list li:last-child { border-bottom: 0; }
 .route-map { position: relative; height: 380px; border-radius: var(--mm-r-md); overflow: hidden; border: 1px solid var(--mm-line); }
 @media (max-width: 991.98px) { .route-map { height: 260px; } }
-.mate-card { transition: transform 0.15s, box-shadow 0.15s; }
-.mate-card:hover { transform: translateY(-2px); box-shadow: var(--mm-shadow-2); }
+.mate-card { display: flex; flex-direction: column; padding: var(--mm-sp-5); transition: box-shadow 0.15s; }
+.mate-card:hover { box-shadow: var(--mm-shadow-2); }
+.mate-card.closed .mate-title { color: var(--mm-muted); }
+.mate-match { font-size: var(--mm-fs-sm); font-weight: 700; color: var(--mm-coral-dark); }
+.mate-title { font-size: var(--mm-fs-lg); font-weight: 700; letter-spacing: -0.02em; line-height: 1.35; color: var(--mm-ink); margin: 0 0 var(--mm-sp-3); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.7em; }
+.mate-when { font-size: var(--mm-fs-md); font-weight: 600; color: var(--mm-text); }
+.mate-plan { font-size: var(--mm-fs-sm); color: var(--mm-muted); margin-top: var(--mm-sp-1); }
+.mate-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: var(--mm-sp-4) 0; }
+.mate-tag { font-size: var(--mm-fs-sm); color: var(--mm-ink); background: var(--mm-surface); border-radius: var(--mm-r-pill); padding: 2px 10px; }
+.mate-foot { margin-top: auto; padding-top: var(--mm-sp-4); border-top: 1px solid var(--mm-line); display: flex; justify-content: space-between; align-items: center; gap: var(--mm-sp-2); font-size: var(--mm-fs-sm); color: var(--mm-text); }
+.mate-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--mm-ink); color: #fff; font-size: var(--mm-fs-xs); font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.mate-cap { color: var(--mm-muted); white-space: nowrap; }
+.mate-my { font-size: var(--mm-fs-sm); font-weight: 600; color: var(--mm-coral-dark); margin-top: var(--mm-sp-2); }
 </style>

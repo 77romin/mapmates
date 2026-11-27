@@ -109,7 +109,7 @@ function onLoaded(detail) {
       <!-- 검색 + 목록 -->
       <template v-else>
         <form class="p-3 border-bottom" @submit.prevent="search(1)">
-          <h1 class="h6 mm-title mb-2">어디로 갈까요?</h1>
+          <h1 class="h5 mm-title mb-3">어디로 갈까요?</h1>
           <div class="row g-2">
             <div class="col-6">
               <select v-model="filter.sidoCode" class="form-select form-select-sm" aria-label="시도" @change="changeRegion">
@@ -138,9 +138,9 @@ function onLoaded(detail) {
           </div>
         </form>
 
-        <div class="px-3 py-2 small text-secondary border-bottom d-flex justify-content-between">
-          <span><span v-if="mode === 'area'" class="badge badge-ink me-1"><i class="bi bi-bounding-box" aria-hidden="true"></i> 지도에 보이는 영역</span>검색 결과 <strong class="text-coral">{{ total.toLocaleString() }}</strong>곳</span>
-          <span v-if="total">{{ page }} / {{ totalPages }}</span>
+        <div class="px-3 py-2 mm-result border-bottom d-flex justify-content-between align-items-center">
+          <span><span v-if="mode === 'area'" class="badge badge-ink me-1"><i class="bi bi-bounding-box" aria-hidden="true"></i> 지도에 보이는 영역</span>검색 결과 <strong>{{ total.toLocaleString() }}</strong>곳</span>
+          <span v-if="total" class="mm-item-meta">{{ page }} / {{ totalPages }}</span>
         </div>
 
         <div class="mm-panel-body">
@@ -151,12 +151,12 @@ function onLoaded(detail) {
             <div v-for="a in items" :key="a.no" class="mm-item" role="button" tabindex="0" @click="open(a.no)" @keyup.enter="open(a.no)">
               <img v-if="a.firstImage1" :src="a.firstImage1" class="mm-thumb" alt="" loading="lazy" @error="a.firstImage1 = ''" />
               <div v-else class="mm-thumb"><i :class="['bi', typeIcon(a.contentTypeId)]" aria-hidden="true"></i></div>
-              <div class="flex-grow-1 min-w-0">
-                <span class="badge badge-soft">{{ a.contentTypeName }}</span>
-                <div class="fw-bold text-truncate">{{ a.title }}</div>
-                <div class="small text-secondary text-truncate">{{ a.addr1 || '주소 정보 없음' }}</div>
+              <div class="flex-grow-1 min-w-0 align-self-center">
+                <div class="mm-item-title text-truncate">{{ a.title }}</div>
+                <div class="mm-item-kind">{{ a.contentTypeName }}</div>
+                <div class="mm-item-meta text-truncate">{{ a.addr1 || '주소 정보 없음' }}</div>
               </div>
-              <button class="btn btn-sm align-self-center" :class="draft.has(a.no) ? 'btn-coral' : 'btn-outline-coral'" :aria-label="draft.has(a.no) ? '담기 취소' : '플랜에 담기'" @click.stop="draft.has(a.no) ? draft.remove(a.no) : draft.add(a)">
+              <button class="mm-add align-self-center" :class="{ on: draft.has(a.no) }" :aria-label="draft.has(a.no) ? '담기 취소' : '플랜에 담기'" @click.stop="draft.has(a.no) ? draft.remove(a.no) : draft.add(a)">
                 <i :class="['bi', draft.has(a.no) ? 'bi-check-lg' : 'bi-plus-lg']" aria-hidden="true"></i>
               </button>
             </div>
