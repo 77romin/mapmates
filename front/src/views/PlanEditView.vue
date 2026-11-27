@@ -156,6 +156,7 @@ async function save() {
     if (isNew.value) {
       const created = await http.post('/plans', body)
       draft.clear()
+      editing.value = false // 만든 뒤에는 요약만 보여 준다
       router.replace(`/plans/${created.id}`)
     } else {
       await http.put(`/plans/${route.params.id}`, body)
