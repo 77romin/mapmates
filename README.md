@@ -1,93 +1,67 @@
-# Front
+# 너랑 갈.지도 (mapmates) — Frontend
 
+> 너랑 갈 다음 여행을 지도 위에 · Find your route. Meet your mates.
 
+Vue 3 + Vite + Pinia + Bootstrap 5 + Kakao Maps 기반 SPA다.
+화면 정의서와 와이어프레임은 `allfiles` 저장소의 `docs/07_화면정의서.md`에 있다.
 
-## Getting started
+## 실행 방법
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://lab.ssafy.com/s16/a11/project/finalproject/mapmates_3-kkm-mye/front.git
-git branch -M master
-git push -uf origin master
+```bash
+npm install
+cp .env.example .env.local     # VITE_KAKAO_MAP_KEY 입력
+npm run dev                    # http://localhost:5173
 ```
 
-## Integrate with your tools
+- 카카오 개발자 콘솔 > 앱 > 플랫폼 > Web 에 `http://localhost:5173` 을 등록해야 지도가 표시된다.
+- 백엔드(`back`, 8080)와 AI 서버(`allfiles/ai-server`, 8000)가 실행 중이어야 한다. 주소는 `.env.local`의 `VITE_API_BASE`, `VITE_AI_SERVER`로 바꿀 수 있다.
 
-* [Set up project integrations](https://lab.ssafy.com/s16/a11/project/finalproject/mapmates_3-kkm-mye/front/-/settings/integrations)
+## 폴더 구조
 
-## Collaborate with your team
+```
+src/
+├── api/http.js              axios 인스턴스 (토큰 첨부, 오류 메시지 통일)
+├── stores/
+│   ├── auth.js              로그인 상태 (토큰·회원 정보)
+│   └── draft.js             담은 장소 (로컬 스토리지 보관)
+├── router/index.js          라우트, 로그인 필요 화면 가드
+├── components/
+│   ├── NavBar.vue           상단 메뉴 (반응형)
+│   ├── KakaoMap.vue         지도 (핀, 번호 핀, 경로선, 클릭 위치 선택)
+│   ├── AttractionDetail.vue 관광지 상세 패널
+│   └── ChatWidget.vue       AI 길잡이 (여행 도우미 / 문서 Q&A)
+└── views/
+    ├── ExploreView.vue      지도 탐색
+    ├── PlanListView.vue     내 플랜
+    ├── PlanEditView.vue     플랜 보드
+    ├── MatesView.vue        메이트
+    ├── HotplaceView.vue     핫플레이스
+    ├── BoardView.vue        공지사항·공유 게시판
+    ├── NewsView.vue         여행 뉴스
+    └── Login / Join / FindPassword / MyPage
+```
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+## 화면과 기능
 
-## Test and Deploy
+| 화면 | 기능 |
+|---|---|
+| 지도 탐색 | 시도·구군·유형 필터, 검색, 목록·지도 핀 연동, 담기 |
+| 관광지 상세 | 사진, 소개, 날씨, 일출·일몰, 주변 축제·상권, 전기차 충전소 |
+| 플랜 보드 | 일자 탭, 드래그앤드롭 순서 변경, 경비·예산, 동선 최적화, 경로선, 중간 집결지 |
+| 메이트 | 모집 카드(취향 일치 %), 상세, 참여 신청, 수락·거절, 모집 작성 |
+| 핫플레이스 | 지도 클릭으로 위치 선택, 사진 업로드·미리보기, 지도 핀 |
+| 커뮤니티 | 공지·게시판 목록·상세·작성·수정·삭제, 검색, 댓글 |
+| 여행 뉴스 | 키워드별 뉴스 목록 |
+| 회원 | 로그인(아이디 저장), 회원가입, 비밀번호 찾기, 마이페이지(취향 태그, 출발지, 탈퇴) |
+| AI 길잡이 | 여행 도우미(사용한 도구 표시, 추천 장소 담기), 문서 Q&A(업로드, 문서 참고 여부·출처) |
 
-Use the built-in continuous integration in GitLab.
+## 구현 포인트
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- **반응형**: Bootstrap 그리드와 미디어 쿼리. 768px 미만에서는 지도가 위, 패널이 아래로 배치된다.
+- **폼 유효성 검사**: 회원가입은 항목별 실시간 검증(`is-valid` / `is-invalid`), 플랜·핫플·게시글은 제출 시 검증하고 사유를 표시한다.
+- **로컬 스토리지**: 담은 장소(`mm_draft`), 로그인 토큰, 아이디 저장.
+- **동적 DOM·지도**: Kakao Maps CustomOverlay로 핀을 그리고 선택·번호·경로선을 상태에 따라 갱신한다.
+- **fetch + async/await**: 문서 Q&A와 업로드는 fetch로 FastAPI 서버를 직접 호출하고, 네트워크 오류와 서버 오류를 구분해 안내한다.
+- **상태 표시**: 모든 목록에 로딩·빈 상태·오류 화면과 다음 행동 버튼이 있다.
+- **접근성**: 라벨 연결, 아이콘 버튼 `aria-label`, 포커스 링, 상태 메시지 `role`.
+- **보안**: 서버에서 온 HTML(관광지 소개)은 태그를 제거해 텍스트로만 출력하고, 외부 링크는 http(s)만 허용한다.

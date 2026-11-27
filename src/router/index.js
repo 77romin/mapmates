@@ -7,6 +7,7 @@ const routes = [
   { path: '/plans/new', name: 'plan-new', component: () => import('@/views/PlanEditView.vue'), meta: { auth: true } },
   { path: '/plans/:id', name: 'plan-edit', component: () => import('@/views/PlanEditView.vue'), meta: { auth: true } },
   { path: '/mates', name: 'mates', component: () => import('@/views/MatesView.vue') },
+  { path: '/culture', name: 'culture', component: () => import('@/views/CultureView.vue') },
   { path: '/hotplaces', name: 'hotplaces', component: () => import('@/views/HotplaceView.vue') },
   { path: '/board', name: 'board', component: () => import('@/views/BoardView.vue') },
   { path: '/news', name: 'news', component: () => import('@/views/NewsView.vue') },

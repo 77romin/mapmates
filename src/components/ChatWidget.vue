@@ -16,7 +16,7 @@ const messages = ref([
 ])
 const TOOL_LABEL = {
   SEARCH_ATTRACTIONS: '관광지 검색', GET_WEATHER: '날씨 조회', OPTIMIZE_ROUTE: '동선 최적화',
-  GET_MY_PLANS: '내 플랜 조회', SEARCH_DOCUMENTS: '문서 검색',
+  GET_MY_PLANS: '내 플랜 조회', SEARCH_PERFORMANCES: '공연 검색', SEARCH_DOCUMENTS: '문서 검색',
 }
 
 async function scrollDown() {

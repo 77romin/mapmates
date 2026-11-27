@@ -11,6 +11,7 @@ const menus = [
   { to: '/', label: '지도 탐색', icon: 'bi-map' },
   { to: '/plans', label: '내 플랜', icon: 'bi-signpost-2' },
   { to: '/mates', label: '메이트', icon: 'bi-people' },
+  { to: '/culture', label: '공연·행사', icon: 'bi-ticket-perforated' },
   { to: '/hotplaces', label: '핫플', icon: 'bi-camera' },
   { to: '/board', label: '커뮤니티', icon: 'bi-chat-square-text' },
   { to: '/news', label: '뉴스', icon: 'bi-newspaper' },
