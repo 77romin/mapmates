@@ -8,6 +8,7 @@
   /* 색: 바탕 */
   --mm-bg: #ffffff;
   --mm-surface: #f7f7f7;        /* 사진 자리, hover, 보조 배경 */
+  --mm-paper: #fffcf1;          /* 로고 그림의 바탕색. 로고 그림을 크게 쓰는 자리에만 */
   --mm-line: #ebebeb;           /* 카드·패널 구분선 */
   --mm-line-strong: #dddddd;    /* 입력창·버튼 테두리 */
 
@@ -29,6 +30,8 @@
 
   /* 색: 상태 */
   --mm-success: #0f9d76;
+  --mm-success-dark: #0a6b51;
+  --mm-success-tint: #e3f4ee;
   --mm-danger: #a12828;
   --mm-danger-bg: #fdecec;
   --mm-danger-line: #f5c2c2;
@@ -96,6 +99,7 @@ body { word-break: keep-all; }
 .text-coral { color: var(--mm-coral-dark) !important; }
 .badge-soft { background: var(--mm-coral-tint); color: var(--mm-coral-dark); font-weight: 600; }
 .badge-ink { background: var(--mm-surface); color: var(--mm-ink); font-weight: 600; }
+.badge-ok { background: var(--mm-success-tint); color: var(--mm-success-dark); font-weight: 600; }
 
 /* 카드·페이지 */
 .mm-card { background: #fff; border: 1px solid var(--mm-line); border-radius: var(--mm-r-md); }
@@ -142,12 +146,6 @@ h1.mm-title { font-family: var(--mm-font-display); font-weight: 400; letter-spac
 .mm-modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 1050; display: flex; align-items: center; justify-content: center; padding: var(--mm-sp-4); }
 .mm-modal-body { background: #fff; border-radius: var(--mm-r-lg); padding: var(--mm-sp-5); width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto; box-shadow: var(--mm-shadow-3); }
 
-/* 로그인·회원가입·비밀번호 찾기 공통 */
-.auth-wrap { min-height: calc(100vh - var(--mm-nav-h)); display: flex; align-items: center; justify-content: center; padding: var(--mm-sp-5) var(--mm-sp-4); background: var(--mm-surface); }
-.auth-card { width: 100%; max-width: 400px; padding: var(--mm-sp-6); }
-.auth-logo { display: block; width: 100%; max-width: 260px; margin: -8px auto 8px; border-radius: var(--mm-r-md); }
-.auth-logo.small { max-width: 150px; }
-
 /* 목록 항목 글자 위계: 제목 → 유형 → 주소 */
 .mm-item-title { font-size: var(--mm-fs-md); font-weight: 700; color: var(--mm-ink); letter-spacing: -0.01em; }
 .mm-item-kind { font-size: var(--mm-fs-sm); color: var(--mm-text); margin-top: 2px; }
@@ -172,3 +170,9 @@ h1.mm-title { font-family: var(--mm-font-display); font-weight: 400; letter-spac
 .mm-skel-line { height: 14px; border-radius: var(--mm-r-sm); margin-top: var(--mm-sp-2); }
 @keyframes mm-skel { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
 @media (prefers-reduced-motion: reduce) { .mm-skel { animation: none; } }
+
+/* 한 줄 분할 선택 (이동 수단, 상세 탭) */
+.mm-seg { display: flex; background: var(--mm-surface); border-radius: var(--mm-r-sm); padding: 3px; }
+.mm-seg button { flex: 1; border: 0; background: transparent; border-radius: 6px; padding: 6px 4px; font-size: var(--mm-fs-sm); font-weight: 600; color: var(--mm-muted); white-space: nowrap; }
+.mm-seg button.on { background: #fff; color: var(--mm-ink); box-shadow: var(--mm-shadow-1); }
+.mm-seg button:focus-visible { outline: 0; box-shadow: 0 0 0 0.2rem rgba(255, 107, 74, 0.3); }

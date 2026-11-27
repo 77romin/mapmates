@@ -216,7 +216,7 @@ async function findMeeting() {
             <button v-for="d in dayCount" :key="d" class="btn btn-sm rounded-pill" :class="day === d ? 'bg-ink' : 'btn-light'" @click="day = d">{{ d }}일차</button>
             <button class="btn btn-sm mm-btn-quiet ms-auto" @click="optimize"><i class="bi bi-magic me-1" aria-hidden="true"></i>동선 최적화</button>
           </div>
-          <div class="seg mt-2" role="group" aria-label="이동 수단">
+          <div class="mm-seg mt-2" role="group" aria-label="이동 수단">
             <button v-for="m in MODES" :key="m.key" type="button" :class="{ on: mode === m.key }" :aria-pressed="mode === m.key" @click="mode = m.key">
               <i :class="['bi', m.icon, 'me-1']" aria-hidden="true"></i>{{ m.label }}
             </button>
@@ -317,11 +317,6 @@ async function findMeeting() {
 .plan-title { font-size: var(--mm-fs-lg); font-weight: 700; letter-spacing: -0.02em; color: var(--mm-ink); margin: 0 0 2px; }
 .plan-tools { padding: var(--mm-sp-3) var(--mm-sp-4); border-top: 1px solid var(--mm-line); border-bottom: 1px solid var(--mm-line); }
 .route-sum { font-size: var(--mm-fs-sm); margin-top: var(--mm-sp-2); color: var(--mm-route); }
-
-/* 이동 수단: 한 줄 분할 선택 */
-.seg { display: flex; background: var(--mm-surface); border-radius: var(--mm-r-sm); padding: 3px; }
-.seg button { flex: 1; border: 0; background: transparent; border-radius: 6px; padding: 6px 4px; font-size: var(--mm-fs-sm); font-weight: 600; color: var(--mm-muted); white-space: nowrap; }
-.seg button.on { background: #fff; color: var(--mm-ink); box-shadow: var(--mm-shadow-1); }
 
 /* 일정표: 번호를 세로 선으로 잇는다 */
 .stops { padding-top: var(--mm-sp-4); }
