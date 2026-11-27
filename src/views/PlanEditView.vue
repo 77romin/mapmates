@@ -20,6 +20,17 @@ const error = ref('')
 const notice = ref(null) // { type, text }
 const day = ref(1)
 const meeting = ref(null)
+// 이동 수단: line(직선) | car | walk | transit
+const MODES = [
+  { key: 'line', label: '직선', icon: 'bi-slash-lg' },
+  { key: 'car', label: '자동차', icon: 'bi-car-front' },
+  { key: 'walk', label: '도보', icon: 'bi-person-walking' },
+  { key: 'transit', label: '대중교통', icon: 'bi-bus-front' },
+]
+const mode = ref('line')
+const routeInfo = ref(null)
+const routeLoading = ref(false)
+const routeError = ref('')
 
 const dayCount = computed(() => {
   if (plan.startDate && plan.endDate) {
@@ -45,6 +56,29 @@ const markers = computed(() => {
 watch(dayCount, (n) => {
   if (day.value > n) day.value = n
 })
+
+const fmtMin = (m) => (m == null ? '' : m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`)
+
+/** 현재 일차의 방문 순서대로 선택한 이동 수단의 경로를 불러온다. */
+async function loadRoute() {
+  routeInfo.value = null
+  routeError.value = ''
+  const nos = dayItems.value.map((i) => i.attractionNo)
+  if (mode.value === 'line' || nos.length < 2) return
+  routeLoading.value = true
+  const requested = mode.value + nos.join(',')
+  try {
+    const res = await http.post('/plans/route', { mode: mode.value, attractionNos: nos })
+    // 응답을 기다리는 동안 순서나 수단이 바뀌었으면 버린다
+    if (requested === mode.value + dayItems.value.map((i) => i.attractionNo).join(',')) routeInfo.value = res
+  } catch (e) {
+    routeError.value = e.message
+  } finally {
+    routeLoading.value = false
+  }
+}
+// 이동 수단, 일차, 방문 순서가 바뀌면 경로를 다시 구한다
+watch([mode, () => dayItems.value.map((i) => i.attractionNo).join(',')], loadRoute)
 
 async function load() {
   if (isNew.value) {
@@ -153,6 +187,22 @@ async function findMeeting() {
           <button v-for="d in dayCount" :key="d" class="btn btn-sm rounded-pill" :class="day === d ? 'bg-ink' : 'btn-light'" @click="day = d">{{ d }}일차</button>
           <button class="btn btn-sm btn-outline-coral ms-auto" @click="optimize"><i class="bi bi-magic me-1" aria-hidden="true"></i>동선 최적화</button>
         </div>
+        <div class="px-3 pt-2">
+          <div class="btn-group btn-group-sm w-100" role="group" aria-label="이동 수단">
+            <button v-for="m in MODES" :key="m.key" type="button" class="btn" :class="mode === m.key ? 'bg-ink' : 'btn-light border'" :aria-pressed="mode === m.key" @click="mode = m.key">
+              <i :class="['bi', m.icon, 'me-1']" aria-hidden="true"></i>{{ m.label }}
+            </button>
+          </div>
+          <div v-if="mode !== 'line'" class="small mt-1" aria-live="polite">
+            <span v-if="dayItems.length < 2" class="text-secondary">방문지가 2곳 이상이면 경로가 표시됩니다.</span>
+            <span v-else-if="routeLoading" class="text-secondary"><span class="spinner-border spinner-border-sm me-1"></span>경로를 찾는 중…</span>
+            <span v-else-if="routeError" class="text-danger">{{ routeError }} <button class="btn btn-link btn-sm p-0 align-baseline" @click="loadRoute">다시 시도</button></span>
+            <template v-else-if="routeInfo">
+              <strong class="text-coral">총 {{ routeInfo.distanceKm }}km<span v-if="routeInfo.durationMin"> · 약 {{ fmtMin(routeInfo.durationMin) }}</span></strong>
+              <span v-if="routeInfo.message" class="text-secondary d-block">{{ routeInfo.message }}</span>
+            </template>
+          </div>
+        </div>
         <div v-if="!isNew && draft.count" class="px-3 pt-2">
           <button class="btn btn-sm btn-light border w-100" @click="addDraft"><i class="bi bi-bag-plus me-1" aria-hidden="true"></i>지도에서 담은 장소 {{ draft.count }}곳을 {{ day }}일차에 추가</button>
         </div>
@@ -166,6 +216,12 @@ async function findMeeting() {
           </div>
           <draggable v-else v-model="dayItems" item-key="attractionNo" handle=".drag-handle" :animation="180">
             <template #item="{ element, index }">
+              <div>
+              <div v-if="index > 0 && routeInfo?.legs?.[index - 1]" class="leg small text-secondary">
+                <i class="bi bi-arrow-down" aria-hidden="true"></i>
+                {{ routeInfo.legs[index - 1].distanceKm }}km<span v-if="routeInfo.legs[index - 1].durationMin"> · {{ fmtMin(routeInfo.legs[index - 1].durationMin) }}</span>
+                <a v-if="routeInfo.legs[index - 1].link" :href="routeInfo.legs[index - 1].link" target="_blank" rel="noopener noreferrer" class="ms-1">카카오맵 대중교통 길찾기 <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+              </div>
               <div class="mm-card p-2 mb-2">
                 <div class="d-flex align-items-center gap-2">
                   <i class="bi bi-grip-vertical drag-handle fs-5" title="드래그해서 순서 변경" aria-hidden="true"></i>
@@ -185,6 +241,7 @@ async function findMeeting() {
                   <div class="col-4"><input v-model.number="element.cost" type="number" min="0" step="1000" class="form-control form-control-sm" placeholder="경비(원)" aria-label="경비" /></div>
                   <div class="col-5"><input v-model="element.memo" class="form-control form-control-sm" maxlength="500" placeholder="메모" aria-label="메모" /></div>
                 </div>
+              </div>
               </div>
             </template>
           </draggable>
@@ -214,11 +271,12 @@ async function findMeeting() {
         </div>
       </template>
     </aside>
-    <div class="mm-map"><KakaoMap :markers="markers" path /></div>
+    <div class="mm-map"><KakaoMap :markers="markers" path :route-path="routeInfo?.path" :dashed="mode === 'transit'" /></div>
   </div>
 </template>
 
 <style scoped>
 .plan-panel { width: 440px; }
+.leg { padding: 0 0 6px 38px; }
 @media (max-width: 767.98px) { .plan-panel { width: 100%; } }
 </style>

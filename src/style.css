@@ -66,3 +66,6 @@ body { word-break: keep-all; }
 /* 로그인·회원가입·비밀번호 찾기 공통 */
 .auth-wrap { min-height: calc(100vh - var(--mm-nav-h)); display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
 .auth-card { width: 100%; max-width: 400px; padding: 32px; }
+
+/* 선택된 버튼(네이비)은 hover·focus 에서도 글자가 보이도록 흰색 유지 */
+.btn.bg-ink, .btn.bg-ink:hover, .btn.bg-ink:focus, .btn.bg-ink:active { color: #fff !important; background: var(--mm-ink) !important; border-color: var(--mm-ink); }

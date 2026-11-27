@@ -8,6 +8,9 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 const props = defineProps({
   markers: { type: Array, default: () => [] },
   path: { type: Boolean, default: false },
+  // 실제 경로 좌표 [[위도, 경도], ...]. 있으면 직선 대신 이 경로를 그린다
+  routePath: { type: Array, default: null },
+  dashed: { type: Boolean, default: false },
   selectedId: { type: [Number, String], default: null },
   clickable: { type: Boolean, default: false },
   picked: { type: Object, default: null },
@@ -79,7 +82,8 @@ function draw(fit = true) {
     return pos
   })
   if (props.path && points.length > 1) {
-    polyline = new maps.Polyline({ path: points, strokeWeight: 4, strokeColor: '#FF6B4A', strokeOpacity: 0.9, strokeStyle: 'solid' })
+    const linePath = props.routePath?.length > 1 ? props.routePath.map((p) => new maps.LatLng(p[0], p[1])) : points
+    polyline = new maps.Polyline({ path: linePath, strokeWeight: 5, strokeColor: '#FF6B4A', strokeOpacity: 0.9, strokeStyle: props.dashed ? 'shortdash' : 'solid' })
     polyline.setMap(map)
   }
   if (fit && points.length === 1) {
@@ -131,6 +135,7 @@ watch(() => props.selectedId, (id) => {
   if (m && map) map.panTo(new window.kakao.maps.LatLng(m.latitude, m.longitude))
 })
 watch(() => props.picked, drawPicked, { deep: true })
+watch(() => [props.routePath, props.dashed], () => draw(false))
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   overlays.forEach((o) => o.setMap(null))
