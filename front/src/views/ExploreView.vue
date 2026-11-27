@@ -180,7 +180,7 @@ function onLoaded(detail) {
     </aside>
 
     <div class="mm-map">
-      <KakaoMap :markers="markers" :selected-id="selected" :fit-key="fitKey" :pad-left="padLeft" :hover-id="hovered" @marker-click="(m) => typeof m.id === 'number' && open(m.id)" @view-change="onViewChange" />
+      <KakaoMap :markers="markers" :selected-id="selected" :fit-key="fitKey" :pad-left="padLeft" :hover-id="hovered" cluster @marker-click="(m) => typeof m.id === 'number' && open(m.id)" @view-change="onViewChange" />
       <button v-if="moved && !selected" class="btn btn-sm bg-ink research" @click="search(1, 'area')">
         <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>이 지역에서 다시 검색
       </button>

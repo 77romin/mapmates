@@ -20,6 +20,8 @@ const props = defineProps({
   padLeft: { type: Number, default: 0 },
   // 목록에서 가리키고 있는 장소. 해당 핀을 키워서 맨 위로 올린다
   hoverId: { type: [Number, String], default: null },
+  // true 면 화면에서 서로 겹치는 핀을 하나로 묶고 개수를 보여 준다
+  cluster: { type: Boolean, default: false },
 })
 const emit = defineEmits(['marker-click', 'map-click', 'view-change'])
 
@@ -56,12 +58,12 @@ function loadSdk() {
   })
 }
 
-function pinEl(m) {
+function pinEl(m, count = 1) {
   const b = document.createElement('button')
   b.type = 'button'
-  b.className = 'mm-pin' + (m.kind ? ' ' + m.kind : '') + (m.id === props.selectedId ? ' selected' : '')
-  b.title = m.title || ''
-  b.setAttribute('aria-label', m.title || '장소')
+  b.className = 'mm-pin' + (m.kind ? ' ' + m.kind : '') + (m.id === props.selectedId ? ' selected' : '') + (count > 1 ? ' stack' : '')
+  b.title = count > 1 ? `${m.title} 외 ${count - 1}곳` : m.title || ''
+  b.setAttribute('aria-label', count > 1 ? `${m.title} 외 ${count - 1}곳, 확대하기` : m.title || '장소')
   const iconEl = () => {
     const i = document.createElement('i')
     i.className = 'bi ' + (m.icon || 'bi-geo-alt-fill')
@@ -84,11 +86,36 @@ function pinEl(m) {
   } else {
     b.appendChild(iconEl())
   }
+  if (count > 1) {
+    const n = document.createElement('span')
+    n.className = 'mm-pin-count'
+    n.textContent = count
+    b.appendChild(n)
+  }
   b.addEventListener('click', (e) => {
     e.stopPropagation()
+    // 묶음 핀은 그 자리로 확대해 풀어 준다
+    if (count > 1) return map.setLevel(Math.max(1, map.getLevel() - 2), { anchor: new window.kakao.maps.LatLng(m.latitude, m.longitude), animate: true })
     emit('marker-click', m)
   })
   return b
+}
+
+/** 화면에서 가까이 겹치는 핀끼리 묶는다. 선택된 핀·번호 핀·종류가 있는 핀은 묶지 않는다 */
+function groupPins(list) {
+  if (!props.cluster) return list.map((m) => ({ m, members: [m] }))
+  const { maps } = window.kakao
+  const proj = map.getProjection()
+  const R = 46 // 사진 핀 지름(44px) 정도 안에 들어오면 겹친 것으로 본다
+  const groups = []
+  for (const m of list) {
+    const p = proj.containerPointFromCoords(new maps.LatLng(m.latitude, m.longitude))
+    const solo = m.id === props.selectedId || m.label != null || !!m.kind
+    const g = solo ? null : groups.find((x) => !x.solo && Math.hypot(x.x - p.x, x.y - p.y) < R)
+    if (g) g.members.push(m)
+    else groups.push({ m, x: p.x, y: p.y, solo, members: [m] })
+  }
+  return groups
 }
 
 function draw(fit = true) {
@@ -103,10 +130,12 @@ function draw(fit = true) {
   // 원본 데이터에 국내 범위를 벗어난 좌표가 일부 있어, 지도 범위 계산에서 제외한다
   const valid = props.markers.filter((m) => m.latitude > 32.5 && m.latitude < 39.5 && m.longitude > 123.5 && m.longitude < 132.5)
   const bounds = new maps.LatLngBounds()
-  const points = valid.map((m) => {
+  const points = valid.map((m) => new maps.LatLng(m.latitude, m.longitude))
+  points.forEach((pos) => bounds.extend(pos))
+  groupPins(valid).forEach(({ m, members }) => {
     const pos = new maps.LatLng(m.latitude, m.longitude)
-    const el = pinEl(m)
-    const baseZ = m.id === props.selectedId ? 10 : 1
+    const el = pinEl(m, members.length)
+    const baseZ = m.id === props.selectedId ? 10 : members.length > 1 ? 2 : 1
     const overlay = new maps.CustomOverlay({ position: pos, content: el, yAnchor: 1, zIndex: baseZ })
     // 겹친 핀도 확인할 수 있게, 마우스를 올리거나 포커스한 핀을 맨 위로 올린다
     el.addEventListener('mouseenter', () => overlay.setZIndex(20))
@@ -115,9 +144,7 @@ function draw(fit = true) {
     el.addEventListener('blur', () => overlay.setZIndex(baseZ))
     overlay.setMap(map)
     overlays.push(overlay)
-    pinsById.set(m.id, { el, overlay, baseZ })
-    bounds.extend(pos)
-    return pos
+    members.forEach((x) => pinsById.set(x.id, { el, overlay, baseZ }))
   })
   if (props.path && points.length > 1) {
     const linePath = props.routePath?.length > 1 ? props.routePath.map((p) => new maps.LatLng(p[0], p[1])) : points
@@ -174,6 +201,8 @@ onMounted(async () => {
       emit('view-change', { ...currentView(), byUser: !programmatic })
       programmatic = false
     })
+    // 확대·축소하면 핀 사이의 화면 거리가 달라지므로 다시 묶는다
+    maps.event.addListener(map, 'zoom_changed', () => props.cluster && map && draw(false))
     lastFitKey = props.fitKey
     draw()
     drawPicked()
@@ -264,6 +293,7 @@ onBeforeUnmount(() => {
 .mm-pin.photo:hover::after { border-top-color: #fff; }
 .mm-pin.photo.selected { border-color: var(--mm-coral); background: var(--mm-coral); transform: scale(1.45); }
 .mm-pin.photo.selected::after { border-top-color: var(--mm-coral); }
+.mm-pin-count { position: absolute; top: -8px; right: -10px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--mm-r-pill); background: var(--mm-ink); color: #fff; border: 2px solid #fff; font-size: 12px; font-weight: 700; line-height: 18px; text-align: center; }
 .mm-pin.meet { background: var(--mm-success); }
 .mm-pin.meet::after { border-top-color: var(--mm-success); }
 </style>
