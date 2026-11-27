@@ -27,7 +27,15 @@ public interface AttractionDao {
     @Select("SELECT content_type_id AS code, content_type_name AS name FROM contenttypes ORDER BY content_type_id")
     List<Map<String, Object>> contentTypes();
 
-    @Select("<script>SELECT " + COLS + JOINS
+    /**
+     * 유형별로 순위(rn)를 매긴 뒤 순위 순으로 정렬해, 유형을 고르지 않은 "전체" 검색에서
+     * 관광지·문화시설·축제·음식점 등이 번갈아 나오게 한다. (유형을 하나 고르면 일반 정렬과 같다)
+     * 유형 안에서는 사진이 있는 곳, (지도 영역 검색이면) 화면 중심에 가까운 곳이 먼저다.
+     */
+    @Select("<script>SELECT * FROM (SELECT " + COLS + ", ROW_NUMBER() OVER (PARTITION BY a.content_type_id ORDER BY"
+            + " (a.first_image1 IS NULL OR a.first_image1 = ''),"
+            + "<if test='minLat != null'> POW(a.latitude - (#{minLat} + #{maxLat}) / 2, 2) + POW(a.longitude - (#{minLng} + #{maxLng}) / 2, 2),</if>"
+            + " a.no) AS rn " + JOINS
             + "<where>"
             + "<if test='sidoCode != null'>a.area_code = #{sidoCode}</if>"
             + "<if test='gugunCode != null'> AND a.si_gun_gu_code = #{gugunCode}</if>"
@@ -35,10 +43,7 @@ public interface AttractionDao {
             + "<if test=\"keyword != null and keyword != ''\"> AND (a.title LIKE CONCAT('%', #{keyword}, '%') OR a.addr1 LIKE CONCAT('%', #{keyword}, '%'))</if>"
             + "<if test='minLat != null'> AND a.latitude BETWEEN #{minLat} AND #{maxLat} AND a.longitude BETWEEN #{minLng} AND #{maxLng}</if>"
             + "</where>"
-            + " ORDER BY (a.first_image1 IS NULL OR a.first_image1 = ''),"
-            // 지도 영역 검색이면 화면 중심에 가까운 장소부터 보여준다
-            + "<if test='minLat != null'> POW(a.latitude - (#{minLat} + #{maxLat}) / 2, 2) + POW(a.longitude - (#{minLng} + #{maxLng}) / 2, 2),</if>"
-            + " a.no LIMIT #{offset}, #{size}</script>")
+            + ") t ORDER BY (t.first_image1 IS NULL OR t.first_image1 = ''), t.rn, t.content_type_id LIMIT #{offset}, #{size}</script>")
     List<Attraction> search(@Param("sidoCode") Integer sidoCode, @Param("gugunCode") Integer gugunCode,
             @Param("contentTypeId") Integer contentTypeId, @Param("keyword") String keyword,
             @Param("minLat") Double minLat, @Param("maxLat") Double maxLat, @Param("minLng") Double minLng, @Param("maxLng") Double maxLng,
