@@ -3,6 +3,7 @@ package com.ssafy.mapmates.service;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -27,6 +29,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class InfoService {
     private final RestClient restClient = RestClient.create();
+    /** 화면 응답을 오래 붙잡지 않도록 짧은 제한 시간을 둔 클라이언트 (연결 3초, 응답 6초) */
+    private final RestClient quickClient = RestClient.builder().requestFactory(quickFactory()).build();
     private final Map<String, Object[]> cache = new ConcurrentHashMap<>(); // key -> {만료시각, 값}
 
     @Value("${datago.service-key:}")
@@ -41,6 +45,27 @@ public class InfoService {
 
     public SunCalculator.SunTimes sun(double lat, double lng, LocalDate date) {
         return SunCalculator.calc(lat, lng, date == null ? LocalDate.now() : date);
+    }
+
+    /**
+     * 한국관광공사 국문 관광정보 서비스에서 콘텐츠의 대표 이미지 주소를 찾는다. 없거나 실패하면 null.
+     * (제공 덤프에 사진이 빠진 장소를 원본 API 로 보충하기 위한 용도)
+     */
+    @SuppressWarnings("unchecked")
+    public String tourImage(int contentId) {
+        if (serviceKey == null || serviceKey.isBlank()) return null;
+        try {
+            String url = "https://apis.data.go.kr/B551011/KorService2/detailImage2?serviceKey=" + key()
+                    + "&MobileOS=ETC&MobileApp=mapmates&_type=json&imageYN=Y&numOfRows=1&contentId=" + contentId;
+            Map<String, Object> body = quickClient.get().uri(URI.create(url)).retrieve().body(Map.class);
+            for (Map<String, Object> item : findItems(body)) {
+                Object img = item.get("originimgurl");
+                if (img != null && img.toString().startsWith("http") && img.toString().length() <= 200) return img.toString();
+            }
+        } catch (Exception e) {
+            log.warn("관광공사 이미지 조회 실패: {}", e.getClass().getSimpleName());
+        }
+        return null;
     }
 
     /** 3시간 간격 단기예보. 키가 없거나 호출 실패 시 available=false 로 응답한다. */
@@ -149,6 +174,13 @@ public class InfoService {
             result.put("message", "충전소 정보를 불러오지 못했습니다.");
         }
         return result;
+    }
+
+    private static SimpleClientHttpRequestFactory quickFactory() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(3));
+        factory.setReadTimeout(Duration.ofSeconds(6));
+        return factory;
     }
 
     private String key() {

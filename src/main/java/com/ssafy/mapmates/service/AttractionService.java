@@ -4,6 +4,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
 
@@ -18,6 +20,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AttractionService {
     private final AttractionDao attractionDao;
+    private final InfoService infoService;
+    /** 관광공사 API 에서도 사진을 찾지 못한 장소. 같은 장소를 반복 조회하지 않기 위해 기억한다. */
+    private final Set<Integer> noImage = ConcurrentHashMap.newKeySet();
 
     public List<Map<String, Object>> sidos() { return attractionDao.sidos(); }
     public List<Map<String, Object>> guguns(int sidoCode) { return attractionDao.guguns(sidoCode); }
@@ -37,6 +42,25 @@ public class AttractionService {
     public Attraction get(int no) {
         Attraction a = attractionDao.findByNo(no);
         if (a == null) throw ApiException.notFound("관광지를 찾을 수 없습니다.");
+        return a;
+    }
+
+    /**
+     * 상세 조회. DB 에 대표 사진이 없으면 한국관광공사 API 에서 찾아 보여주고,
+     * 찾은 주소는 DB 에 저장해 다음부터는 목록에서도 바로 쓰이게 한다.
+     */
+    public Attraction getDetail(int no) {
+        Attraction a = get(no);
+        boolean missing = a.getFirstImage1() == null || a.getFirstImage1().isBlank();
+        if (missing && a.getContentId() != null && !noImage.contains(no)) {
+            String url = infoService.tourImage(a.getContentId());
+            if (url == null) {
+                noImage.add(no);
+            } else {
+                attractionDao.updateImage(no, url);
+                a.setFirstImage1(url);
+            }
+        }
         return a;
     }
 

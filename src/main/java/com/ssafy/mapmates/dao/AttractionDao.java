@@ -6,6 +6,7 @@ import java.util.Map;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import com.ssafy.mapmates.dto.Attraction;
 
@@ -63,6 +64,9 @@ public interface AttractionDao {
     @Select("<script>SELECT " + COLS + JOINS + "WHERE a.no IN "
             + "<foreach collection='nos' item='n' open='(' separator=',' close=')'>#{n}</foreach></script>")
     List<Attraction> findByNos(@Param("nos") List<Integer> nos);
+
+    @Update("UPDATE attractions SET first_image1 = #{url} WHERE no = #{no}")
+    int updateImage(@Param("no") int no, @Param("url") String url);
 
     @Select("SELECT sido_code FROM sidos WHERE sido_name LIKE CONCAT('%', #{name}, '%') LIMIT 1")
     Integer findSidoCode(String name);

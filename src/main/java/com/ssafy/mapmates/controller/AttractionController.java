@@ -42,7 +42,7 @@ public class AttractionController {
     }
 
     @GetMapping("/{no}")
-    public Attraction detail(@PathVariable int no) { return attractionService.get(no); }
+    public Attraction detail(@PathVariable int no) { return attractionService.getDetail(no); }
 
     /** 주변 장소. kind: festival(축제·행사 15), store(쇼핑 38·음식점 39), stay(숙박 32), all */
     @GetMapping("/{no}/nearby")
