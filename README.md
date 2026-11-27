@@ -40,7 +40,7 @@
 | 알고리즘 적용 기획서 | [docs/08_알고리즘_적용_기획서.md](docs/08_알고리즘_적용_기획서.md) |
 | AI 고찰 보고서 (RAG, Spring AI) | [docs/09_AI_고찰보고서.md](docs/09_AI_고찰보고서.md) |
 | 발표 자료 | [presentation/너랑갈지도_발표.pptx](presentation/너랑갈지도_발표.pptx) |
-| 시연 영상 | `presentation/` 에 추가 예정 |
+| 시연 영상 | [presentation/너랑갈지도_시연영상.mp4](presentation/너랑갈지도_시연영상.mp4) (약 2분 30초, 자막 포함) |
 | 실행 화면 캡처 | [docs/screens](docs/screens) |
 | AI 서버 | [ai-server](ai-server) |
 
