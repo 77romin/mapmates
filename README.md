@@ -127,11 +127,14 @@ npm run dev
     <td align="center">
       <a href="https://github.com/77romin">
         <img src="https://github.com/77romin.png" width="120" alt="77romin 프로필 사진" /><br />
-        <b>77romin</b>
+        <b>김강민 (77romin)</b>
       </a>
     </td>
     <td align="center">
-      <b>마예은</b>
+      <a href="https://github.com/yeeunma">
+        <img src="https://github.com/yeeunma.png" width="120" alt="yeeunma 프로필 사진" /><br />
+        <b>마예은 (yeeunma)</b>
+      </a>
     </td>
   </tr>
 </table>
