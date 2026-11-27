@@ -17,7 +17,7 @@
 | 요구사항 정의서 | [docs/01_요구사항정의서.md](docs/01_요구사항정의서.md) |
 | Usecase Diagram | [docs/02_유스케이스_다이어그램.md](docs/02_유스케이스_다이어그램.md) |
 | WBS | [docs/03_WBS.md](docs/03_WBS.md) |
-| ERD | [docs/04_ERD.md](docs/04_ERD.md) · DDL [sql/schema.sql](sql/schema.sql) · 초기 데이터 [sql/data.sql](sql/data.sql) |
+| ERD | [docs/04_ERD.md](docs/04_ERD.md) · DDL [sql/schema.sql](sql/schema.sql) · 초기 데이터 [sql/data.sql](sql/data.sql) · 더미 데이터 [sql/dummy_community.sql](sql/dummy_community.sql), [sql/dummy_mates.sql](sql/dummy_mates.sql) |
 | API 설계서 | [docs/05_API설계서.md](docs/05_API설계서.md) |
 | Class Diagram | [docs/06_클래스_다이어그램.md](docs/06_클래스_다이어그램.md) |
 | 화면 정의서 | [docs/07_화면정의서.md](docs/07_화면정의서.md) · 와이어프레임 [docs/wireframes](docs/wireframes) |
