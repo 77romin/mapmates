@@ -22,7 +22,10 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    posts.value = await http.get('/mates')
+    const list = await http.get('/mates')
+    // 표지 사진: 방문지 사진 앞 3장
+    list.forEach((p) => (p.covers = (p.coverImages || '').split('|').filter((u) => u.startsWith('http')).slice(0, 3)))
+    posts.value = list
   } catch (e) {
     error.value = e.message
   } finally {
@@ -96,6 +99,7 @@ const detailDay = ref(0) // 0 = 전체
 const days = computed(() => [...new Set((detail.value?.items || []).map((i) => i.dayNo || 1))].sort((a, b) => a - b))
 const shownItems = computed(() => (detail.value?.items || []).filter((i) => !detailDay.value || (i.dayNo || 1) === detailDay.value))
 const routeMarkers = computed(() => shownItems.value.map((i, idx) => ({ id: i.id, latitude: i.latitude, longitude: i.longitude, title: i.title, label: idx + 1, kind: 'hot' })))
+const detailCovers = computed(() => (detail.value?.post.coverImages || '').split('|').filter((u) => u.startsWith('http')).slice(0, 3))
 const totalCost = computed(() => (detail.value?.items || []).reduce((sum, i) => sum + (i.cost || 0), 0))
 
 const STATUS = { PENDING: '수락 대기 중', ACCEPTED: '참여 확정', REJECTED: '거절됨' }
@@ -107,23 +111,32 @@ const STATUS = { PENDING: '수락 대기 중', ACCEPTED: '참여 확정', REJECT
       <h1 class="h3 mm-title mb-0">메이트 찾기</h1>
       <button class="btn btn-coral" @click="openForm"><i class="bi bi-megaphone me-1" aria-hidden="true"></i>메이트 모집하기</button>
     </div>
-    <p class="text-secondary"><span v-blur-in>같은 길을 갈 동행을 만나 보세요.</span> <span v-if="auth.isLogin">내 취향 태그와 잘 맞는 모집글이 위에 보입니다.</span></p>
+    <p class="text-secondary mb-4"><span>같은 길을 갈 동행을 만나 보세요.</span> <span v-if="auth.isLogin">내 취향 태그와 잘 맞는 모집글이 위에 보입니다.</span></p>
 
     <div v-if="loading" class="mm-empty"><div class="spinner-border text-secondary" role="status"></div></div>
     <div v-else-if="error" class="mm-empty"><i class="bi bi-wifi-off"></i>{{ error }}<br /><button class="btn btn-sm btn-outline-coral mt-2" @click="load">다시 시도</button></div>
     <div v-else-if="!posts.length" class="mm-card mm-empty"><i class="bi bi-people"></i>아직 모집 중인 여행이 없습니다.<br />내 플랜으로 첫 모집글을 올려 보세요.</div>
     <div v-else class="row g-3">
       <div v-for="p in posts" :key="p.id" class="col-md-6 col-lg-4">
-        <button v-reveal class="mm-card p-3 h-100 w-100 text-start mate-card spot" @click="open(p.id)">
-          <div class="d-flex justify-content-between mb-2">
-            <span class="badge" :class="p.status === 'OPEN' ? 'badge-soft' : 'bg-secondary'">{{ p.status === 'OPEN' ? '모집 중' : '마감' }}</span>
-            <span v-if="p.matchRate != null" class="small fw-bold text-coral"><i class="bi bi-heart-fill" aria-hidden="true"></i> 취향 일치 {{ p.matchRate }}%</span>
+        <button v-reveal class="mm-card h-100 w-100 text-start mate-card" :class="{ closed: p.status !== 'OPEN' }" @click="open(p.id)">
+          <!-- 표지: 플랜 방문지 사진 1~3장 -->
+          <div class="mate-cover" :class="'n' + p.covers.length">
+            <img v-for="u in p.covers" :key="u" :src="u" alt="" loading="lazy" @error="p.covers = p.covers.filter((x) => x !== u)" />
+            <i v-if="!p.covers.length" class="bi bi-map" aria-hidden="true"></i>
+            <span v-if="p.matchRate != null" class="mate-chip"><i class="bi bi-heart-fill" aria-hidden="true"></i> 취향 일치 <strong>{{ p.matchRate }}%</strong></span>
+            <span v-if="p.status !== 'OPEN'" class="mate-chip end">마감</span>
           </div>
-          <h2 class="h5 mm-title mb-1">{{ p.title }}</h2>
-          <p class="small text-secondary mb-2"><i class="bi bi-signpost-2" aria-hidden="true"></i> {{ p.planTitle }}<br /><i class="bi bi-calendar3" aria-hidden="true"></i> {{ p.startDate || '날짜 미정' }}<span v-if="p.endDate"> ~ {{ p.endDate }}</span></p>
-          <div class="mb-2"><span v-for="t in (p.tags || '').split(',').filter(Boolean)" :key="t" class="badge badge-ink me-1">#{{ t }}</span></div>
-          <div class="small d-flex justify-content-between"><span>{{ p.writerName }}</span><span><i class="bi bi-person-fill" aria-hidden="true"></i> {{ p.joinedCount }} / {{ p.capacity }}명</span></div>
-          <div v-if="p.myStatus" class="small text-coral mt-1">{{ STATUS[p.myStatus] }}</div>
+          <div class="mate-body">
+          <h2 class="mate-title">{{ p.title }}</h2>
+          <div class="mate-when">{{ p.startDate || '날짜 미정' }}<span v-if="p.endDate && p.endDate !== p.startDate"> ~ {{ p.endDate }}</span></div>
+          <div class="mate-plan text-truncate">{{ p.planTitle }}<template v-if="p.placeCount">, {{ p.placeCount }}곳</template></div>
+          <div class="mate-tags"><span v-for="t in (p.tags || '').split(',').filter(Boolean)" :key="t" class="mate-tag">#{{ t }}</span></div>
+          <div class="mate-foot">
+            <span class="d-flex align-items-center gap-2 min-w-0"><span class="mate-avatar" aria-hidden="true">{{ (p.writerName || '?').slice(0, 1) }}</span><span class="text-truncate">{{ p.writerName }}</span></span>
+            <span class="mate-cap"><i class="bi bi-person-fill" aria-hidden="true"></i> {{ p.joinedCount }} / {{ p.capacity }}명</span>
+          </div>
+          <div v-if="p.myStatus" class="mate-my">{{ STATUS[p.myStatus] }}</div>
+          </div>
         </button>
       </div>
     </div>
@@ -131,47 +144,47 @@ const STATUS = { PENDING: '수락 대기 중', ACCEPTED: '참여 확정', REJECT
     <!-- 상세 -->
     <div v-if="detail" class="mm-modal" role="dialog" aria-modal="true" aria-label="모집글 상세" @click.self="detail = null">
       <div class="mm-modal-body mate-detail">
-        <div class="d-flex justify-content-between align-items-start gap-2">
-          <div>
-            <span class="badge me-1" :class="detail.post.status === 'OPEN' ? 'badge-soft' : 'bg-secondary'">{{ detail.post.status === 'OPEN' ? '모집 중' : '마감' }}</span>
-            <span v-if="detail.post.matchRate != null" class="small fw-bold text-coral"><i class="bi bi-heart-fill" aria-hidden="true"></i> 취향 일치 {{ detail.post.matchRate }}%</span>
-            <h2 class="h4 mm-title mt-1 mb-1">{{ detail.post.title }}</h2>
-          </div>
-          <button class="btn-close flex-shrink-0" aria-label="닫기" @click="detail = null"></button>
+        <!-- 방문지 사진을 모달 맨 위에 가득 채운다 -->
+        <div class="md-hero" :class="'n' + detailCovers.length">
+          <img v-for="u in detailCovers" :key="u" :src="u" alt="" />
+          <button class="mm-add md-close" aria-label="닫기" @click="detail = null"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+          <span v-if="detail.post.matchRate != null" class="mate-chip"><i class="bi bi-heart-fill" aria-hidden="true"></i> 취향 일치 <strong>{{ detail.post.matchRate }}%</strong></span>
         </div>
-        <p class="small text-secondary mb-2">
-          <i class="bi bi-person-circle" aria-hidden="true"></i> {{ detail.post.writerName }}
-          · <i class="bi bi-calendar3" aria-hidden="true"></i> {{ detail.post.startDate || '날짜 미정' }}<span v-if="detail.post.endDate && detail.post.endDate !== detail.post.startDate"> ~ {{ detail.post.endDate }}</span>
-          · <i class="bi bi-people" aria-hidden="true"></i> {{ detail.post.joinedCount }}/{{ detail.post.capacity }}명
-        </p>
-        <div class="mb-3"><span v-for="t in (detail.post.tags || '').split(',').filter(Boolean)" :key="t" class="badge badge-ink me-1">#{{ t }}</span></div>
+        <div class="md-body">
+        <span class="badge" :class="detail.post.status === 'OPEN' ? 'badge-soft' : 'badge-ink'">{{ detail.post.status === 'OPEN' ? '모집 중' : '마감' }}</span>
+        <h2 class="md-title">{{ detail.post.title }}</h2>
+        <div class="md-facts">
+          <span class="d-inline-flex align-items-center gap-2"><span class="mate-avatar" aria-hidden="true">{{ (detail.post.writerName || '?').slice(0, 1) }}</span>{{ detail.post.writerName }}</span>
+          <span><i class="bi bi-calendar3 me-1" aria-hidden="true"></i>{{ detail.post.startDate || '날짜 미정' }}<template v-if="detail.post.endDate && detail.post.endDate !== detail.post.startDate"> ~ {{ detail.post.endDate }}</template></span>
+          <span><i class="bi bi-people me-1" aria-hidden="true"></i>{{ detail.post.joinedCount }} / {{ detail.post.capacity }}명</span>
+        </div>
+        <div class="mate-tags"><span v-for="t in (detail.post.tags || '').split(',').filter(Boolean)" :key="t" class="mate-tag">#{{ t }}</span></div>
 
         <div class="row g-3">
           <div class="col-lg-6">
-            <h3 class="h6 fw-bold">소개</h3>
+            <h3 class="md-h">소개</h3>
             <p class="pre-line intro">{{ detail.post.content || '소개 글이 없습니다.' }}</p>
 
-            <h3 class="h6 fw-bold d-flex align-items-center justify-content-between">
-              <span>여행 경로 <span class="fw-normal text-secondary small">{{ detail.post.planTitle }}</span></span>
-            </h3>
+            <h3 class="md-h">여행 경로 <span class="mm-item-meta fw-normal ms-1">{{ detail.post.planTitle }}</span></h3>
             <div v-if="days.length > 1" class="d-flex flex-wrap gap-1 mb-2" role="group" aria-label="일차 선택">
               <button class="btn btn-sm rounded-pill" :class="detailDay === 0 ? 'bg-ink' : 'btn-light border'" @click="detailDay = 0">전체</button>
               <button v-for="d in days" :key="d" class="btn btn-sm rounded-pill" :class="detailDay === d ? 'bg-ink' : 'btn-light border'" @click="detailDay = d">{{ d }}일차</button>
             </div>
             <p v-if="!detail.items.length" class="small text-secondary">아직 방문지가 없습니다.</p>
             <ol v-else class="list-unstyled route-list mb-2">
-              <li v-for="(i, idx) in shownItems" :key="i.id" class="d-flex gap-2 align-items-start">
+              <li v-for="(i, idx) in shownItems" :key="i.id">
                 <span class="mm-num">{{ idx + 1 }}</span>
-                <div class="min-w-0 small">
-                  <div class="fw-semibold">{{ i.title }} <span v-if="days.length > 1 && !detailDay" class="badge badge-ink">{{ i.dayNo }}일차</span></div>
-                  <div class="text-secondary text-truncate">{{ i.contentTypeName }} · {{ i.addr1 }}</div>
-                  <div v-if="i.memo" class="text-secondary"><i class="bi bi-sticky" aria-hidden="true"></i> {{ i.memo }}</div>
+                <img v-if="i.firstImage1" :src="i.firstImage1" class="route-thumb" alt="" loading="lazy" @error="i.firstImage1 = ''" />
+                <div class="min-w-0 flex-grow-1">
+                  <div class="mm-item-title text-truncate">{{ i.title }}</div>
+                  <div class="mm-item-meta text-truncate">{{ i.contentTypeName }}<template v-if="days.length > 1 && !detailDay">, {{ i.dayNo }}일차</template></div>
+                  <div v-if="i.memo" class="route-memo"><i class="bi bi-sticky me-1" aria-hidden="true"></i>{{ i.memo }}</div>
                 </div>
               </li>
             </ol>
             <p v-if="totalCost" class="small text-secondary">예상 경비 합계 {{ totalCost.toLocaleString() }}원 (1인 기준 메모)</p>
 
-            <h3 class="h6 fw-bold">참여 메이트</h3>
+            <h3 class="md-h">참여 메이트</h3>
             <p><span v-for="m in detail.members" :key="m.id" class="badge badge-ink me-1">{{ m.name }}{{ m.role === 'OWNER' ? ' (모집자)' : '' }}</span></p>
           </div>
           <div class="col-lg-6">
@@ -182,7 +195,7 @@ const STATUS = { PENDING: '수락 대기 중', ACCEPTED: '참여 확정', REJECT
         <hr />
 
         <template v-if="auth.member?.id === detail.post.memberId">
-          <h3 class="h6 fw-bold">참여 신청</h3>
+          <h3 class="md-h">참여 신청</h3>
           <p v-if="!detail.applications?.length" class="small text-secondary">아직 신청이 없습니다.</p>
           <div v-for="a in detail.applications" :key="a.id" class="mm-card p-2 mb-2 d-flex align-items-center gap-2">
             <div class="flex-grow-1 small"><strong>{{ a.memberName }}</strong> <span class="text-secondary">{{ a.memberTags }}</span><div>{{ a.message }}</div></div>
@@ -209,6 +222,7 @@ const STATUS = { PENDING: '수락 대기 중', ACCEPTED: '참여 확정', REJECT
           </form>
           <div v-else class="alert alert-secondary mb-0">모집이 마감되었습니다.</div>
         </template>
+        </div>
       </div>
     </div>
 
@@ -239,12 +253,51 @@ const STATUS = { PENDING: '수락 대기 중', ACCEPTED: '참여 확정', REJECT
 </template>
 
 <style scoped>
-.mate-detail { max-width: 940px; }
-.intro { line-height: 1.7; }
-.route-list li { padding: 6px 0; border-bottom: 1px solid var(--mm-line); }
-.route-list li:last-child { border-bottom: 0; }
-.route-map { position: relative; height: 380px; border-radius: 12px; overflow: hidden; border: 1px solid var(--mm-line); }
+.mate-detail { max-width: 940px; padding: 0; overflow-x: hidden; }
+.md-hero { position: relative; display: grid; gap: 2px; height: 240px; background: var(--mm-route-tint); }
+.md-hero.n0 { height: 72px; }
+.md-hero.n2 { grid-template-columns: 1fr 1fr; }
+.md-hero.n3 { grid-template-columns: 2fr 1fr 1fr; }
+.md-hero img { width: 100%; height: 100%; min-height: 0; min-width: 0; object-fit: cover; }
+.md-close { position: absolute; top: var(--mm-sp-3); right: var(--mm-sp-3); border-color: transparent; box-shadow: var(--mm-shadow-1); }
+.md-hero .mate-chip { top: auto; bottom: var(--mm-sp-3); }
+.md-body { padding: var(--mm-sp-5); }
+.md-title { font-size: var(--mm-fs-xl); font-weight: 700; letter-spacing: -0.02em; line-height: 1.3; color: var(--mm-ink); margin: var(--mm-sp-2) 0 var(--mm-sp-3); }
+.md-facts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--mm-sp-2) var(--mm-sp-5); font-size: var(--mm-fs-sm); color: var(--mm-text); }
+.md-h { font-size: var(--mm-fs-md); font-weight: 700; color: var(--mm-ink); margin: var(--mm-sp-5) 0 var(--mm-sp-2); }
+.intro { line-height: 1.75; font-size: var(--mm-fs-sm); }
+.route-list li { position: relative; display: flex; align-items: center; gap: var(--mm-sp-3); padding-bottom: var(--mm-sp-4); }
+.route-list li::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: var(--mm-route-tint); }
+.route-list li:first-child::before { top: 20px; }
+.route-list li:last-child::before { bottom: auto; height: 20px; }
+.route-list li:only-child::before { display: none; }
+.route-list .mm-num { position: relative; z-index: 1; box-shadow: 0 0 0 3px #fff; }
+.route-thumb { width: 44px; height: 44px; border-radius: var(--mm-r-sm); object-fit: cover; flex-shrink: 0; background: var(--mm-surface); }
+.route-memo { font-size: var(--mm-fs-sm); color: var(--mm-text); }
+.route-map { position: relative; height: 380px; border-radius: var(--mm-r-md); overflow: hidden; border: 1px solid var(--mm-line); }
 @media (max-width: 991.98px) { .route-map { height: 260px; } }
-.mate-card { transition: transform 0.15s, box-shadow 0.15s; }
-.mate-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(31, 42, 68, 0.1); }
+.mate-card { display: flex; flex-direction: column; padding: 0; overflow: hidden; transition: box-shadow 0.15s; }
+.mate-body { display: flex; flex-direction: column; flex: 1; padding: var(--mm-sp-4) var(--mm-sp-4) var(--mm-sp-4); }
+.mate-cover { position: relative; display: grid; gap: 2px; aspect-ratio: 16 / 10; background: var(--mm-route-tint); color: var(--mm-route); font-size: 2rem; place-items: center; }
+.mate-cover img { width: 100%; height: 100%; min-height: 0; object-fit: cover; transition: transform 0.3s; }
+.mate-cover.n2 { grid-template-columns: 1fr 1fr; }
+.mate-cover.n3 { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
+.mate-cover.n3 img:first-of-type { grid-row: 1 / 3; }
+.mate-card.closed .mate-cover img { filter: grayscale(0.7); opacity: 0.8; }
+.mate-chip { position: absolute; top: var(--mm-sp-3); left: var(--mm-sp-3); background: #fff; color: var(--mm-ink); border-radius: var(--mm-r-pill); padding: 4px 12px; font-size: var(--mm-fs-sm); font-weight: 600; box-shadow: var(--mm-shadow-1); }
+.mate-chip i { color: var(--mm-coral-dark); }
+.mate-chip strong { font-weight: 800; }
+.mate-chip.end { left: auto; right: var(--mm-sp-3); background: var(--mm-ink); color: #fff; }
+@media (prefers-reduced-motion: reduce) { .mate-cover img { transition: none; } }
+.mate-card:hover { box-shadow: var(--mm-shadow-2); }
+.mate-card.closed .mate-title { color: var(--mm-muted); }
+.mate-title { font-size: var(--mm-fs-lg); font-weight: 700; letter-spacing: -0.02em; line-height: 1.35; color: var(--mm-ink); margin: 0 0 var(--mm-sp-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.7em; }
+.mate-when { font-size: var(--mm-fs-md); font-weight: 600; color: var(--mm-text); }
+.mate-plan { font-size: var(--mm-fs-sm); color: var(--mm-muted); margin-top: var(--mm-sp-1); }
+.mate-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: var(--mm-sp-3) 0 var(--mm-sp-4); }
+.mate-tag { font-size: var(--mm-fs-sm); color: var(--mm-ink); background: var(--mm-surface); border-radius: var(--mm-r-pill); padding: 2px 10px; }
+.mate-foot { margin-top: auto; padding-top: var(--mm-sp-4); border-top: 1px solid var(--mm-line); display: flex; justify-content: space-between; align-items: center; gap: var(--mm-sp-2); font-size: var(--mm-fs-sm); color: var(--mm-text); }
+.mate-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--mm-ink); color: #fff; font-size: var(--mm-fs-xs); font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.mate-cap { color: var(--mm-muted); white-space: nowrap; }
+.mate-my { font-size: var(--mm-fs-sm); font-weight: 600; color: var(--mm-coral-dark); margin-top: var(--mm-sp-2); }
 </style>

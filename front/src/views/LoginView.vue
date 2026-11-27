@@ -1,4 +1,5 @@
 <script setup>
+import AuthLayout from '@/components/AuthLayout.vue'
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -30,22 +31,21 @@ async function submit() {
 </script>
 
 <template>
-  <div class="auth-wrap">
-    <form class="mm-card auth-card" novalidate @submit.prevent="submit">
-      <img src="/logo.webp" alt="너랑 갈.지도 로고 — 너랑 갈 다음 여행을 지도 위에" class="auth-logo" />
-      <p v-blur-in class="text-center text-secondary small mb-2">해 질 무렵, 너랑 갈 다음 여행을 지도 위에</p>
-      <h1 class="h4 mm-title mb-3 text-center">로그인</h1>
+  <AuthLayout>
+    <form novalidate @submit.prevent="submit">
+      <h1 class="h2 mm-title mb-1">로그인</h1>
+      <p class="text-secondary mb-4">담아 둔 장소와 플랜을 이어서 볼 수 있어요.</p>
       <label class="form-label small fw-semibold" for="uid">아이디</label>
       <input id="uid" v-model="form.userId" class="form-control mb-3" autocomplete="username" />
       <label class="form-label small fw-semibold" for="pw">비밀번호</label>
       <input id="pw" v-model="form.password" type="password" class="form-control mb-2" autocomplete="current-password" />
       <div class="form-check mb-3"><input id="rem" v-model="remember" type="checkbox" class="form-check-input" /><label for="rem" class="form-check-label small">아이디 저장</label></div>
       <div v-if="error" class="alert alert-danger py-2 small" role="alert">{{ error }}</div>
-      <button class="btn btn-coral w-100" :disabled="loading"><span v-if="loading" class="spinner-border spinner-border-sm me-1"></span>로그인</button>
+      <button class="btn btn-coral btn-lg w-100" :disabled="loading"><span v-if="loading" class="spinner-border spinner-border-sm me-1"></span>로그인</button>
       <div class="d-flex justify-content-between small mt-3">
         <RouterLink to="/find-password">비밀번호 찾기</RouterLink>
         <RouterLink to="/join">회원가입</RouterLink>
       </div>
     </form>
-  </div>
+  </AuthLayout>
 </template>

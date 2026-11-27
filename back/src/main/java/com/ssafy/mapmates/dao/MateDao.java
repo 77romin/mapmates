@@ -16,7 +16,12 @@ import com.ssafy.mapmates.dto.MatePost;
 @Mapper
 public interface MateDao {
     String COLS = "mp.*, m.name AS writer_name, p.title AS plan_title, p.start_date, p.end_date, "
-            + "(SELECT COUNT(*) FROM plan_members pm WHERE pm.plan_id = mp.plan_id) AS joined_count ";
+            + "(SELECT COUNT(*) FROM plan_members pm WHERE pm.plan_id = mp.plan_id) AS joined_count, "
+            + "(SELECT COUNT(*) FROM plan_items pi WHERE pi.plan_id = mp.plan_id) AS place_count, "
+            // 카드 표지용: 방문 순서대로 사진 주소를 '|' 로 이어 붙인다 (GROUP_CONCAT 기본 길이 제한 안에서 앞쪽 몇 장이면 충분하다)
+            + "(SELECT GROUP_CONCAT(a.first_image1 ORDER BY pi.day_no, pi.seq SEPARATOR '|') FROM plan_items pi "
+            + "JOIN attractions a ON pi.attraction_no = a.no "
+            + "WHERE pi.plan_id = mp.plan_id AND a.first_image1 IS NOT NULL AND a.first_image1 <> '') AS cover_images ";
     String FROM = "FROM mate_posts mp JOIN members m ON mp.member_id = m.id JOIN plans p ON mp.plan_id = p.id ";
 
     @Select("SELECT " + COLS + FROM + "ORDER BY (mp.status = 'OPEN') DESC, mp.id DESC LIMIT 100")

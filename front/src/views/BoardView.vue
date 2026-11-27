@@ -117,7 +117,7 @@ async function removeComment(c) {
         </form>
         <button v-if="canWrite || (type === 'FREE' && !auth.isLogin)" class="btn btn-sm btn-coral ms-auto flex-shrink-0" @click="write()"><i class="bi bi-pencil me-1" aria-hidden="true"></i>글쓰기</button>
       </div>
-      <div v-if="loading" class="mm-empty"><div class="spinner-border text-secondary" role="status"></div></div>
+      <div v-if="loading" class="p-3" role="status" aria-busy="true" aria-label="게시글을 불러오는 중"><div v-for="n in 6" :key="n" class="mm-skel mm-skel-line board-skel" aria-hidden="true"></div></div>
       <div v-else-if="error" class="mm-empty"><i class="bi bi-wifi-off"></i>{{ error }}</div>
       <div v-else-if="!items.length" class="mm-empty"><i class="bi bi-chat-square-text"></i>{{ keyword ? '검색 결과가 없습니다.' : '아직 게시글이 없습니다.' }}</div>
       <div v-else class="table-responsive">
@@ -126,7 +126,7 @@ async function removeComment(c) {
           <tbody>
             <tr v-for="b in items" :key="b.id" role="button" tabindex="0" @click="open(b.id)" @keyup.enter="open(b.id)">
               <td class="ps-3 text-secondary">{{ b.id }}</td>
-              <td><span class="fw-semibold">{{ b.title }}</span> <span v-if="b.commentCount" class="small text-coral">[{{ b.commentCount }}]</span></td>
+              <td><span class="board-title">{{ b.title }}</span> <span v-if="b.commentCount" class="badge badge-soft ms-1"><i class="bi bi-chat me-1" aria-hidden="true"></i>{{ b.commentCount }}</span></td>
               <td class="d-none d-md-table-cell small">{{ b.writerName }}</td>
               <td class="d-none d-md-table-cell small text-secondary">{{ b.createdAt?.slice(0, 10) }}</td>
               <td class="small text-secondary">{{ b.hit }}</td>
@@ -182,5 +182,10 @@ async function removeComment(c) {
 <style scoped>
 .search { max-width: 320px; }
 .num { width: 70px; }
+.board-title { font-weight: 600; color: var(--mm-ink); }
+.board-skel { height: 20px; margin: var(--mm-sp-4) 0; }
+.table { --bs-table-hover-bg: var(--mm-surface); --bs-table-border-color: var(--mm-line); }
+.table > :not(caption) > * > * { padding: var(--mm-sp-4) var(--mm-sp-3); }
+.table thead th { font-weight: 600; }
 .content { min-height: 120px; line-height: 1.7; }
 </style>

@@ -29,6 +29,20 @@ export const useDraftStore = defineStore('draft', {
       this.persist()
       return true
     },
+    /** AI 가 짠 코스처럼 일차가 정해진 장소 묶음을 일차를 유지한 채 담는다. 이미 담긴 장소는 일차만 맞춘다. */
+    addCourse(stops) {
+      for (const s of stops) {
+        const found = this.items.find((i) => i.attractionNo === s.no)
+        const memo = s.slot === '점심' || s.slot === '저녁' ? s.slot : ''
+        if (found) found.dayNo = s.dayNo
+        else
+          this.items.push({
+            attractionNo: s.no, title: s.title, addr1: s.address ?? '', firstImage1: '',
+            latitude: s.latitude, longitude: s.longitude, contentTypeName: s.type ?? '', dayNo: s.dayNo || 1, cost: 0, memo,
+          })
+      }
+      this.persist()
+    },
     remove(no) {
       this.items = this.items.filter((i) => i.attractionNo !== no)
       this.persist()

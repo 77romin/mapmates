@@ -165,7 +165,9 @@ public class CultureService {
         List<Map<String, Object>> items = new ArrayList<>();
         int total = 0;
         try {
-            Map<String, Object> body = restClient.get().uri(URI.create(url)).retrieve().body(Map.class);
+            // 이 서버는 기본 Java User-Agent 요청에 JSON 이 아닌 응답을 줄 수 있어 브라우저 형식으로 보낸다
+            Map<String, Object> body = restClient.get().uri(URI.create(url))
+                    .header("User-Agent", "Mozilla/5.0 (compatible; mapmates)").retrieve().body(Map.class);
             Object info = body == null ? null : body.get("culturalEventInfo");
             if (info instanceof Map<?, ?> infoMap) {
                 total = infoMap.get("list_total_count") instanceof Number n ? n.intValue() : 0;
@@ -197,6 +199,11 @@ public class CultureService {
             log.warn("서울 열린데이터 서버 연결 실패");
             throw new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY,
                     "서울 열린데이터 서버에 연결할 수 없습니다. 현재 네트워크에서 접속이 차단되었을 수 있습니다.");
+        } catch (org.springframework.web.client.UnknownContentTypeException e) {
+            // 오류일 때 이 API 는 JSON 이 아닌 본문(XML·HTML)을 돌려준다. 원인을 알 수 있게 응답 앞부분을 남긴다. (키가 든 URL 은 남기지 않는다)
+            String raw = e.getResponseBodyAsString().strip().replaceAll("\\s+", " ");
+            log.warn("서울 문화행사 응답이 JSON 이 아님: contentType={}, body={}", e.getContentType(), raw.substring(0, Math.min(200, raw.length())));
+            throw new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY, "서울 문화행사 정보를 불러오지 못했습니다.");
         } catch (Exception e) {
             log.warn("서울 문화행사 조회 실패: {}", e.getClass().getSimpleName());
             throw new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY, "서울 문화행사 정보를 불러오지 못했습니다.");

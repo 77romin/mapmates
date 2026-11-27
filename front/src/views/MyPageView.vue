@@ -64,27 +64,30 @@ async function withdraw() {
 <template>
   <div class="mm-page narrow">
     <h1 class="h3 mm-title mb-3">마이페이지</h1>
-    <div v-if="loading" class="mm-empty"><div class="spinner-border text-secondary" role="status"></div></div>
-    <form v-else class="mm-card p-4" novalidate @submit.prevent="save">
+    <div v-if="loading" role="status" aria-busy="true" aria-label="내 정보를 불러오는 중"><div v-for="n in 5" :key="n" class="mm-skel mm-skel-line my-skel" aria-hidden="true"></div></div>
+    <form v-else novalidate @submit.prevent="save">
+      <h2 class="my-h">기본 정보</h2>
       <div class="row g-3">
         <div class="col-md-6"><label class="form-label small fw-semibold" for="myId">아이디</label><input id="myId" :value="form.userId" class="form-control" disabled /></div>
         <div class="col-md-6"><label class="form-label small fw-semibold" for="myName">이름</label><input id="myName" v-model="form.name" class="form-control" maxlength="30" /></div>
         <div class="col-md-6"><label class="form-label small fw-semibold" for="myEmail">이메일</label><input id="myEmail" v-model.trim="form.email" type="email" class="form-control" /></div>
         <div class="col-md-6"><label class="form-label small fw-semibold" for="myPw">새 비밀번호 <span class="fw-normal text-secondary">(변경할 때만)</span></label><input id="myPw" v-model="form.password" type="password" class="form-control" autocomplete="new-password" /></div>
         <div class="col-12">
-          <div class="form-label small fw-semibold">여행 스타일 (최대 3개)</div>
-          <div class="d-flex flex-wrap gap-1">
+          <h2 class="my-h">여행 스타일</h2>
+          <p class="mm-item-meta mb-2">최대 3개까지 고를 수 있어요. 잘 맞는 메이트 모집글을 먼저 보여 드립니다.</p>
+          <div class="d-flex flex-wrap gap-2">
             <button v-for="t in TAGS" :key="t" type="button" class="btn btn-sm rounded-pill" :class="form.tags.split(',').includes(t) ? 'bg-ink' : 'btn-light border'" :aria-pressed="form.tags.split(',').includes(t)" @click="toggleTag(t)">#{{ t }}</button>
           </div>
         </div>
         <div class="col-12">
-          <div class="form-label small fw-semibold">내 출발지 <span class="fw-normal text-secondary">— 지도를 클릭해 설정하면 메이트와의 중간 집결지 계산에 쓰입니다.</span></div>
+          <h2 class="my-h">내 출발지</h2>
+          <p class="mm-item-meta mb-2">지도를 눌러 정하면 메이트와 만날 중간 집결지를 계산할 때 씁니다.</p>
           <div class="home-map"><KakaoMap :markers="home ? [{ id: 'home', ...home, title: '내 출발지', kind: 'hot' }] : []" clickable @map-click="pick" /></div>
           <div class="small text-secondary mt-1">{{ home ? `선택한 위치: ${home.latitude.toFixed(4)}, ${home.longitude.toFixed(4)}` : '아직 출발지를 설정하지 않았습니다.' }}</div>
         </div>
       </div>
       <div v-if="message" :class="['alert py-2 small mt-3 mb-0', 'alert-' + message.type]" role="status">{{ message.text }}</div>
-      <div class="d-flex justify-content-between mt-4">
+      <div class="d-flex justify-content-between align-items-center my-foot">
         <button type="button" class="btn btn-link text-danger text-decoration-none px-0" @click="withdraw">회원 탈퇴</button>
         <button class="btn btn-coral px-4">저장</button>
       </div>
@@ -94,5 +97,9 @@ async function withdraw() {
 
 <style scoped>
 .narrow { max-width: 760px; }
-.home-map { position: relative; height: 260px; border-radius: 12px; overflow: hidden; border: 1px solid var(--mm-line); }
+.my-h { font-size: var(--mm-fs-lg); font-weight: 700; letter-spacing: -0.02em; color: var(--mm-ink); margin: var(--mm-sp-6) 0 var(--mm-sp-3); padding-top: var(--mm-sp-5); border-top: 1px solid var(--mm-line); }
+form > .my-h:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.my-skel { height: 40px; margin-bottom: var(--mm-sp-4); }
+.my-foot { margin-top: var(--mm-sp-6); padding-top: var(--mm-sp-5); border-top: 1px solid var(--mm-line); }
+.home-map { position: relative; height: 260px; border-radius: var(--mm-r-md); overflow: hidden; border: 1px solid var(--mm-line); }
 </style>

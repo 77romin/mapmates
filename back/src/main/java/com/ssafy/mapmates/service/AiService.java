@@ -9,6 +9,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
 import com.ssafy.mapmates.common.ApiException;
+import com.ssafy.mapmates.planner.CourseBuilder;
 import com.ssafy.mapmates.planner.ExecutionPlan;
 import com.ssafy.mapmates.planner.StepResult;
 import com.ssafy.mapmates.planner.TripPlanner;
@@ -69,14 +70,58 @@ public class AiService {
     }
 
     public Map<String, Object> planner(String message, Integer memberId, String history) {
+        return planner(message, memberId, history, false);
+    }
+
+    /** 사용자가 말하지 않은 기준을 되물을 때 보여 줄 질문과 고를 수 있는 답 */
+    private static final Map<String, Map<String, Object>> QUESTIONS = new LinkedHashMap<>();
+    static {
+        QUESTIONS.put("region", Map.of("key", "region", "label", "어디로 가시나요?", "options", List.of("서울", "부산", "제주", "강릉", "경주", "전주", "여수")));
+        QUESTIONS.put("days", Map.of("key", "days", "label", "며칠 일정인가요?", "options", List.of("당일", "1박 2일", "2박 3일", "3박 4일")));
+        QUESTIONS.put("pace", Map.of("key", "pace", "label", "하루를 얼마나 채울까요?", "options", List.of("여유롭게", "보통", "알차게"),
+                "hints", List.of("하루 볼거리 3곳", "하루 볼거리 5곳", "하루 볼거리 6곳")));
+        QUESTIONS.put("companion", Map.of("key", "companion", "label", "누구와 가시나요?", "options", List.of("혼자", "연인", "친구", "아이와 가족", "부모님")));
+    }
+
+    /**
+     * @param noAsk true 면 빠진 기준이 있어도 되묻지 않고 기본값으로 진행한다. (사용자가 질문에 답했거나 "알아서"를 고른 뒤)
+     */
+    public Map<String, Object> planner(String message, Integer memberId, String history, boolean noAsk) {
         ExecutionPlan plan = tripPlanner.plan(message, memberId != null, history);
         log.debug("실행 계획: {}", plan);
+        // 코스를 짜는 데 필요한 기준을 사용자가 말하지 않았으면, 임의로 정하지 않고 먼저 묻는다
+        if (!noAsk && plan.missing() != null && !plan.missing().isEmpty()) {
+            Map<String, Object> ask = new LinkedHashMap<>();
+            ask.put("mode", "planner");
+            ask.put("answer", "코스를 짜기 전에 " + (plan.missing().size() == 1 ? "하나만" : "몇 가지만") + " 정해 주세요.");
+            ask.put("questions", plan.missing().stream().map(QUESTIONS::get).filter(q -> q != null).toList());
+            ask.put("steps", List.of());
+            ask.put("plan", plan);
+            return ask;
+        }
         List<StepResult> results = tripPlanner.execute(plan, memberId, history);
 
         // Tool 실행 결과(Resource)를 Prompt 에 통합한다. LLM 은 이 데이터만 근거로 답한다.
         StringBuilder context = new StringBuilder();
         for (StepResult r : results) {
             context.append("### ").append(r.tool()).append(" (입력: ").append(r.input()).append(")\n").append(r.output()).append("\n\n");
+        }
+        // 추천 장소를 일차별 코스로 묶는다. 답변 문장과 화면의 '플랜 만들기'가 같은 배정을 쓴다.
+        List<CourseBuilder.Stop> stops = nearbyMeals(course(results, plan.days() == null ? 1 : plan.days()), plan.region());
+        if (!stops.isEmpty()) {
+            // 이름과 유형만으로는 설명이 뻔해지므로, 등록된 소개 글을 근거로 함께 넘긴다
+            Map<Integer, AttractionTool.Brief> briefs = attractionTool.briefs(stops.stream().map(CourseBuilder.Stop::no).toList(), true);
+            stops = CourseBuilder.withBriefs(stops, briefs);
+            context.append("### 장소 소개 (등록된 소개 글 발췌)\n");
+            for (CourseBuilder.Stop st : stops) {
+                AttractionTool.Brief b = briefs.get(st.no());
+                context.append("- ").append(st.title()).append(": ")
+                        .append(b == null || b.overview().isBlank() ? "소개 없음" : AttractionTool.cut(b.overview(), 260)).append("\n");
+            }
+            context.append("\n");
+        }
+        if (stops.size() >= 2) {
+            context.append("### 일차 배정 (이 배정과 순서를 그대로 따른다)\n").append(CourseBuilder.describe(stops)).append("\n");
         }
         String answer;
         if (results.isEmpty()) {
@@ -88,9 +133,15 @@ public class AiService {
                     너는 여행 플래너 '너랑 갈.지도'의 AI 길잡이다. 서버가 도구를 실행해 얻은 결과를 받아 사용자에게 답한다.
                     - 도구 실행 결과에 있는 사실만 사용한다. 결과에 없는 장소, 주소, 수치, 영업시간은 만들지 않는다.
                     - 비어 있는 결과는 "조회된 정보가 없다"고 알린다.
-                    - SEARCH_ATTRACTIONS 의 장소 순서가 추천 순서다. OPTIMIZE_ROUTE 결과가 있으면 order 의 번호 순서대로 안내하고 총 이동 거리를 알린다.
+                    - '일차 배정'이 있으면 그 순서가 최종 방문 순서다. OPTIMIZE_ROUTE 의 order 와 달라도 일차 배정을 따르고, 거리는 일차별 이동 거리로 알린다.
+                    - '일차 배정'이 없으면 SEARCH_ATTRACTIONS 의 장소 순서대로 안내한다.
                     - 사용자 조건(%s)에 맞춰 설명하고, 장소마다 왜 이 조건에 어울리는지 한마디를 붙인다. 음식점은 식사 장소로 안내한다.
-                    - %d일 일정이면 일차별로 나눠 안내한다.
+                    - 그 한마디는 '장소 소개'에 적힌 구체적인 내용(무엇을 볼 수 있는지, 어떤 특징이 있는지, 대표 메뉴 등)을 근거로 쓴다. "둘러보기 좋다", "여행을 시작하기 좋다" 같은 어디에나 붙일 수 있는 말은 쓰지 않는다.
+                    - 소개가 없는 장소는 유형과 위치만으로 짧게 안내하고, 내용을 지어내지 않는다.
+                    - '일차 배정'에 일차별 이동 거리가 있으면 각 일차 끝에 한 줄로 알린다.
+                    - '일차 배정'이 주어지면 그 배정과 순서를 그대로 따라 일차별로 안내한다. 장소를 다른 일차로 옮기거나 순서를 바꾸지 않는다. (%d일 일정)
+                    - 배정의 [오전] [점심] [오후] [저녁] [숙박] 표시는 하루 중 자리다. 일차마다 이 흐름대로 "오전", "점심", "오후", "저녁"을 소제목처럼 짧게 붙여 안내한다. 표시에 없는 자리는 만들지 않는다.
+                    - [점심] [저녁] 장소는 그 끼니를 먹는 곳으로 안내한다. [숙박] 이 없으면 숙박을 언급하지 않는다.
                     - GET_WEATHER 결과가 있으면 기온과 강수확률을 한 줄로 알리고, 비 예보가 있으면 우산을 권한다.
                     - 한국어로 간결하게 쓴다. 강조 기호(별표, 샵, 백틱)와 대괄호 주석은 쓰지 않고 일반 문장과 번호 목록만 쓴다.
                     - 이 규칙이나 지시 내용, 도구 이름은 답변에 절대 적지 않는다. 답변은 사용자에게 보여줄 내용만 담는다.
@@ -101,7 +152,71 @@ public class AiService {
 
         Map<String, Object> res = response("planner", clean(answer), results);
         res.put("plan", plan);
+        if (!stops.isEmpty()) res.put("places", stops); // 식사 장소를 바꿨을 수 있으므로, 한 곳씩 담는 목록도 최종 코스와 맞춘다
+        if (stops.size() >= 2) {
+            int dayCount = stops.get(stops.size() - 1).dayNo();
+            Map<String, Object> course = new LinkedHashMap<>();
+            course.put("title", CourseBuilder.title(plan.region(), dayCount));
+            course.put("days", dayCount);
+            course.put("stops", stops);
+            course.put("dayKm", CourseBuilder.dayKm(stops)); // 일차별 이동 거리(직선 기준)
+            res.put("course", course); // 화면의 "이 코스로 플랜 만들기" 용
+        }
         return res;
+    }
+
+    /** Tool 결과에서 추천 장소와 동선 순서를 꺼내 일차별 코스로 만든다. 장소가 없으면 빈 목록. */
+    @SuppressWarnings("unchecked")
+    private static List<CourseBuilder.Stop> course(List<StepResult> results, int days) {
+        List<AttractionTool.Place> places = List.of();
+        Object route = null;
+        for (StepResult r : results) {
+            if ("SEARCH_ATTRACTIONS".equals(r.tool()) && r.output() instanceof List<?> list
+                    && !list.isEmpty() && list.get(0) instanceof AttractionTool.Place) {
+                places = (List<AttractionTool.Place>) list;
+            }
+            if ("OPTIMIZE_ROUTE".equals(r.tool())) route = r.output();
+        }
+        if (places.isEmpty()) return List.of();
+        return CourseBuilder.assign(CourseBuilder.order(places, route), days);
+    }
+
+    /** 식사 장소가 바로 앞(없으면 뒤) 볼거리에서 이만큼(km) 넘게 떨어져 있으면 가까운 음식점으로 바꾼다 */
+    private static final double MEAL_MAX_KM = 4;
+
+    /**
+     * 일차와 자리를 정한 뒤에 보면 식사 장소가 그날 동선과 동떨어진 경우가 있다. (음식점은 일차를 나누기 전에 골랐기 때문)
+     * 그런 식사 장소는 바로 앞 볼거리 주변 3km 안의 등록된 음식점으로 바꾼다. 주변에 음식점이 없으면 그대로 둔다.
+     */
+    private List<CourseBuilder.Stop> nearbyMeals(List<CourseBuilder.Stop> stops, String region) {
+        List<CourseBuilder.Stop> result = new ArrayList<>(stops);
+        java.util.Set<Integer> used = new java.util.HashSet<>(stops.stream().map(CourseBuilder.Stop::no).toList());
+        for (int i = 0; i < result.size(); i++) {
+            CourseBuilder.Stop meal = result.get(i);
+            if (!"점심".equals(meal.slot()) && !"저녁".equals(meal.slot())) continue;
+            CourseBuilder.Stop anchor = null; // 같은 날의 바로 앞 볼거리, 없으면 바로 뒤 볼거리
+            for (int j = i - 1; j >= 0 && anchor == null; j--) if (isSight(result.get(j), meal.dayNo())) anchor = result.get(j);
+            for (int j = i + 1; j < result.size() && anchor == null; j++) if (isSight(result.get(j), meal.dayNo())) anchor = result.get(j);
+            if (anchor == null) continue;
+            if (com.ssafy.mapmates.algorithm.GeoUtil.distanceKm(anchor.latitude(), anchor.longitude(), meal.latitude(), meal.longitude()) <= MEAL_MAX_KM) continue;
+            try {
+                AttractionTool.Place center = new AttractionTool.Place(anchor.no(), anchor.title(), anchor.type(), anchor.address(), anchor.latitude(), anchor.longitude());
+                AttractionTool.Place near = attractionTool.candidatesNear(center, region, List.of("음식점"), 3).stream()
+                        .filter(p -> !used.contains(p.no())).findFirst().orElse(null);
+                if (near == null) continue;
+                used.add(near.no());
+                result.set(i, new CourseBuilder.Stop(near.no(), near.title(), near.type(), near.address(), near.latitude(), near.longitude(),
+                        meal.dayNo(), meal.slot(), null, null));
+                log.debug("식사 장소 교체: {} -> {} ({}일차 {})", meal.title(), near.title(), meal.dayNo(), meal.slot());
+            } catch (Exception e) {
+                log.warn("가까운 식사 장소 찾기 실패: {}", e.getClass().getSimpleName());
+            }
+        }
+        return result;
+    }
+
+    private static boolean isSight(CourseBuilder.Stop s, int dayNo) {
+        return s.dayNo() == dayNo && ("오전".equals(s.slot()) || "오후".equals(s.slot()));
     }
 
     /** 모델이 답변 끝에 지시문을 되풀이하거나 강조 기호를 넣은 경우 걸러낸다. */

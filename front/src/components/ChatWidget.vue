@@ -1,10 +1,121 @@
 <script setup>
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import http, { AI_SERVER } from '@/api/http'
+import { useRoute, useRouter } from 'vue-router'
 import { useDraftStore } from '@/stores/draft'
+import { useAuthStore } from '@/stores/auth'
+import { useAiMapStore } from '@/stores/aiMap'
+import { daySlots, planFromCourse } from '@/utils/coursePlan'
 
 const draft = useDraftStore()
-const open = ref(false)
+const auth = useAuthStore()
+const router = useRouter()
+const route = useRoute()
+const aiMap = useAiMapStore()
+// ---------- 창 상태: 열림·접힘·위치·크기를 기억한다 ----------
+const UI_KEY = 'mm_chat_ui'
+const MIN_W = 300
+const MIN_H = 320
+const EDGE = 12 // 화면 가장자리와 띄우는 최소 간격
+const DEFAULT = { w: 380, h: 580 }
+const saved = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(UI_KEY)) || {}
+  } catch {
+    return {}
+  }
+})()
+const wide = window.matchMedia('(min-width: 768px)')
+const floating = ref(wide.matches) // 넓은 화면에서만 옮기고 크기를 바꿀 수 있다
+// 기본은 열림. 좁은 화면에서는 화면을 가리므로 닫힌 채로 시작한다. 직접 닫거나 연 선택은 기억한다
+const open = ref(saved.open ?? wide.matches)
+const mini = ref(!!saved.mini) // 제목 줄만 남기고 접었는지
+const rect = reactive({ w: saved.w || DEFAULT.w, h: saved.h || DEFAULT.h, x: saved.x ?? null, y: saved.y ?? null })
+
+/** 창이 화면 밖으로 나가지 않게 위치와 크기를 맞춘다 */
+function clamp() {
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  rect.w = Math.min(Math.max(rect.w, MIN_W), vw - EDGE * 2)
+  rect.h = Math.min(Math.max(rect.h, MIN_H), vh - EDGE * 2)
+  if (rect.x == null) rect.x = vw - rect.w - 20 // 처음에는 오른쪽 아래
+  if (rect.y == null) rect.y = vh - rect.h - 20
+  rect.x = Math.min(Math.max(rect.x, EDGE), vw - rect.w - EDGE)
+  rect.y = Math.min(Math.max(rect.y, EDGE), vh - (mini.value ? 48 : rect.h) - EDGE)
+}
+const boxStyle = computed(() =>
+  floating.value ? { left: rect.x + 'px', top: rect.y + 'px', width: rect.w + 'px', height: mini.value ? 'auto' : rect.h + 'px' } : {},
+)
+function resetBox(e) {
+  if (e.target.closest('button')) return
+  Object.assign(rect, DEFAULT, { x: null, y: null })
+  clamp()
+}
+
+// 끌어서 옮기기(move), 모서리를 끌어 크기 바꾸기(tl: 왼쪽 위, br: 오른쪽 아래)
+let drag = null
+function dragStart(e, kind) {
+  if (!floating.value || (kind === 'move' && e.target.closest('button'))) return
+  drag = { kind, px: e.clientX, py: e.clientY, x: rect.x, y: rect.y, w: rect.w, h: rect.h }
+  e.currentTarget.setPointerCapture(e.pointerId)
+  e.preventDefault()
+}
+function dragMove(e) {
+  if (!drag) return
+  const dx = e.clientX - drag.px
+  const dy = e.clientY - drag.py
+  if (drag.kind === 'move') {
+    rect.x = drag.x + dx
+    rect.y = drag.y + dy
+  } else if (drag.kind === 'br') {
+    rect.w = Math.min(Math.max(drag.w + dx, MIN_W), window.innerWidth - EDGE - drag.x)
+    rect.h = Math.min(Math.max(drag.h + dy, MIN_H), window.innerHeight - EDGE - drag.y)
+  } else {
+    // 왼쪽 위 모서리: 오른쪽 아래는 제자리에 둔다
+    const right = drag.x + drag.w
+    const bottom = drag.y + drag.h
+    rect.w = Math.min(Math.max(drag.w - dx, MIN_W), right - EDGE)
+    rect.h = Math.min(Math.max(drag.h - dy, MIN_H), bottom - EDGE)
+    rect.x = right - rect.w
+    rect.y = bottom - rect.h
+  }
+  clamp()
+}
+function dragEnd(e) {
+  if (!drag) return
+  drag = null
+  e.currentTarget.releasePointerCapture?.(e.pointerId)
+}
+
+const onWide = (e) => {
+  floating.value = e.matches
+  clamp()
+}
+onMounted(() => {
+  clamp()
+  window.addEventListener('resize', clamp)
+  wide.addEventListener('change', onWide)
+  if (open.value) scrollDown()
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', clamp)
+  wide.removeEventListener('change', onWide)
+})
+// 지도가 채팅창에 가려지는 폭을 알 수 있게 창의 자리를 알려 둔다
+watch([open, mini, floating, () => [rect.x, rect.y, rect.w, rect.h]], () => {
+  aiMap.chatBox = open.value && !mini.value && floating.value ? { x: rect.x, y: rect.y, w: rect.w, h: rect.h } : null
+}, { immediate: true })
+watch(mini, () => {
+  clamp() // 펼칠 때 아래로 넘치지 않게
+  scrollDown()
+})
+watch([open, mini, () => [rect.x, rect.y, rect.w, rect.h]], () => {
+  try {
+    localStorage.setItem(UI_KEY, JSON.stringify({ open: open.value, mini: mini.value, ...rect }))
+  } catch {
+    /* 저장소를 쓸 수 없으면 기억하지 않는다 */
+  }
+})
 const mode = ref('trip') // trip: Spring AI Planner, doc: FastAPI RAG
 const input = ref('')
 const loading = ref(false)
@@ -24,11 +135,17 @@ async function scrollDown() {
   if (listEl.value) listEl.value.scrollTop = listEl.value.scrollHeight
 }
 
-async function send() {
-  const text = input.value.trim()
+/**
+ * @param sent  서버에 보낼 문장. 없으면 입력창의 글을 보낸다
+ * @param shown 내 말풍선에 보여 줄 글 (sent 와 다를 때)
+ * @param noAsk true 면 서버가 빠진 기준을 되묻지 않고 기본값으로 진행한다
+ */
+async function send(sent, shown, noAsk = false) {
+  const typed = typeof sent !== 'string'
+  const text = (typed ? input.value : sent).trim()
   if (!text || loading.value) return
-  messages.value.push({ role: 'user', text })
-  input.value = ''
+  messages.value.push({ role: 'user', text: shown || text })
+  if (typed) input.value = ''
   loading.value = true
   scrollDown()
   try {
@@ -36,8 +153,16 @@ async function send() {
       // 후속 요청("한 곳만 바꿔줘")을 이해하도록 직전 대화를 함께 보낸다 (방금 입력한 질문은 제외)
       const history = messages.value.slice(1, -1).filter((m) => m.role === 'user' || (m.role === 'ai' && m.trip))
         .slice(-6).map((m) => ({ role: m.role, text: m.text }))
-      const res = await http.post('/ai/chat', { message: text, mode: 'planner', history })
-      messages.value.push({ role: 'ai', trip: true, text: (res.answer || '').replace(/\*\*/g, ''), tools: (res.steps || []).map((s) => TOOL_LABEL[s.tool] || s.tool), places: res.places || [] })
+      const res = await http.post('/ai/chat', { message: text, mode: 'planner', history, noAsk })
+      if (res.questions?.length) {
+        // 코스를 짜는 데 필요한 기준이 빠졌다. 고를 수 있는 답과 함께 되묻는다
+        messages.value.push({ role: 'ai', trip: true, text: res.answer, questions: res.questions, picks: {}, origin: text })
+        return
+      }
+      const view = asCourse(res)
+      messages.value.push({ role: 'ai', trip: true, text: (res.answer || '').replace(/\*\*/g, ''), tools: (res.steps || []).map((s) => TOOL_LABEL[s.tool] || s.tool), places: res.places || [], course: res.course || null, view })
+      // 메인 지도를 보고 있으면 추천 결과를 바로 지도에 올린다. 다른 화면에서는 '지도에서 보기'를 눌러야 옮겨 간다
+      if (view && route.path === '/') aiMap.show(messages.value[messages.value.length - 1].view)
     } else {
       // 문서 Q&A: fetch API 로 FastAPI RAG 서버의 /chat 호출
       const response = await fetch(`${AI_SERVER}/chat`, {
@@ -85,21 +210,55 @@ async function upload(e) {
 function addPlace(p) {
   draft.add(p)
 }
-function addAll(places) {
-  places.forEach((p) => draft.add(p))
+const ASK_NAME = { region: '지역', days: '일수', pace: '하루 일정', companion: '동행' }
+const AUTO = '알아서 정해줘'
+/** 되물은 질문에 고른 답을 원래 요청에 붙여 다시 보낸다 */
+function answer(m) {
+  m.answered = true
+  const picks = m.questions.map((q) => [q.key, m.picks[q.key]])
+  const shown = picks.map(([, v]) => v).join(', ')
+  const sent = m.origin + '\n조건: ' + picks.map(([k, v]) => `${ASK_NAME[k]} ${v === AUTO ? '알아서 정해줘' : v}`).join(', ')
+  send(sent, shown, true)
+}
+
+/** 응답에 코스가 없고 장소만 있으면(한두 곳 추천) 지도에 보여 줄 수 있게 하루짜리 묶음으로 만든다 */
+const asCourse = (res) =>
+  res.course || (res.places?.length ? { title: '추천 장소', days: 1, stops: res.places.map((p) => ({ ...p, dayNo: 1 })) } : null)
+
+/** 코스를 메인 지도에 보여 준다. 다른 화면에 있으면 지도 탐색으로 옮겨 간다 */
+function showOnMap(course) {
+  aiMap.show(course)
+  if (route.path !== '/') router.push('/')
+}
+
+async function makePlan(m) {
+  m.making = true
+  try {
+    await planFromCourse(m.course, { auth, draft, router })
+  } catch (e) {
+    messages.value.push({ role: 'error', text: '플랜을 만들지 못했습니다. ' + e.message })
+    scrollDown()
+  } finally {
+    m.making = false
+  }
 }
 </script>
 
 <template>
   <button v-if="!open" class="chat-fab" aria-label="AI 길잡이 열기" @click="open = true; scrollDown()">
-    <i class="bi bi-stars" aria-hidden="true"></i>
+    <i class="bi bi-stars" aria-hidden="true"></i><span class="chat-fab-text">AI 길잡이</span>
   </button>
 
-  <section v-else class="chat-box" aria-label="AI 길잡이">
-    <header class="chat-head">
+  <section v-else class="chat-box" :class="{ floating, mini }" :style="boxStyle" aria-label="AI 길잡이">
+    <!-- 제목 줄을 잡고 끌면 창이 움직인다. 두 번 누르면 처음 위치와 크기로 돌아간다 -->
+    <header class="chat-head" :title="floating ? '끌어서 옮기기, 두 번 눌러 처음 위치로' : null" @pointerdown="dragStart($event, 'move')" @pointermove="dragMove" @pointerup="dragEnd" @pointercancel="dragEnd" @dblclick="resetBox">
       <strong><i class="bi bi-stars me-1" aria-hidden="true"></i>AI 길잡이</strong>
-      <button class="btn-close btn-close-white" aria-label="닫기" @click="open = false"></button>
+      <div class="d-flex gap-1">
+        <button class="head-btn" :aria-label="mini ? '창 펼치기' : '창 접기'" :aria-expanded="!mini" @click="mini = !mini"><i :class="['bi', mini ? 'bi-arrows-angle-expand' : 'bi-dash-lg']" aria-hidden="true"></i></button>
+        <button class="head-btn" aria-label="닫기" @click="open = false"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+      </div>
     </header>
+    <div v-show="!mini" class="chat-main">
     <div class="chat-modes" role="tablist">
       <button role="tab" :aria-selected="mode === 'trip'" :class="{ active: mode === 'trip' }" @click="mode = 'trip'">여행 도우미</button>
       <button role="tab" :aria-selected="mode === 'doc'" :class="{ active: mode === 'doc' }" @click="mode = 'doc'">문서 Q&amp;A</button>
@@ -112,16 +271,55 @@ function addAll(places) {
             <i :class="['bi me-1', m.doc ? 'bi-file-earmark-text' : 'bi-robot']" aria-hidden="true"></i>{{ m.doc ? '문서 참고' : '일반 응답' }}
           </span>
           <div class="pre-line">{{ m.text }}</div>
+          <!-- 빠진 기준을 되묻는다: 질문마다 하나씩 고른다 -->
+          <div v-if="m.questions?.length" class="ask">
+            <fieldset v-for="q in m.questions" :key="q.key" class="ask-q" :disabled="m.answered">
+              <legend>{{ q.label }}</legend>
+              <div class="ask-opts">
+                <button v-for="(o, i) in q.options" :key="o" type="button" class="place-chip" :class="{ picked: m.picks[q.key] === o }" :aria-pressed="m.picks[q.key] === o" @click="m.picks[q.key] = o">{{ o }}<span v-if="q.hints" class="ask-hint">{{ q.hints[i] }}</span></button>
+                <button v-if="q.key !== 'region'" type="button" class="place-chip" :class="{ picked: m.picks[q.key] === AUTO }" :aria-pressed="m.picks[q.key] === AUTO" @click="m.picks[q.key] = AUTO">{{ AUTO }}</button>
+              </div>
+            </fieldset>
+            <button class="btn btn-sm btn-coral w-100" :disabled="m.answered || loading || m.questions.some((q) => !m.picks[q.key])" @click="answer(m)">이 조건으로 코스 짜기</button>
+            <div v-if="!m.answered" class="meta">고르는 대신 아래 입력창에 직접 적어도 됩니다.</div>
+          </div>
           <div v-if="m.notice" class="meta">{{ m.notice }}</div>
           <div v-if="m.sources?.length" class="meta">출처: <span v-for="(s, j) in m.sources" :key="j">{{ s.source }} ({{ Math.round(s.score * 100) }}%){{ j < m.sources.length - 1 ? ', ' : '' }}</span></div>
-          <div v-if="m.tools?.length" class="meta"><i class="bi bi-tools me-1" aria-hidden="true"></i>{{ m.tools.join(' → ') }}</div>
-          <div v-if="m.places?.length > 1" class="mt-2">
-            <button class="btn btn-sm w-100" :class="m.places.every((p) => draft.has(p.no)) ? 'btn-light' : 'btn-coral'" :disabled="m.places.every((p) => draft.has(p.no))" @click="addAll(m.places)">
-              <i :class="['bi me-1', m.places.every((p) => draft.has(p.no)) ? 'bi-check2-all' : 'bi-bag-plus']" aria-hidden="true"></i>{{ m.places.every((p) => draft.has(p.no)) ? '코스 전체를 담았어요' : `이 코스 ${m.places.length}곳 전체 담기` }}
-            </button>
+          <div v-if="m.tools?.length" class="meta"><i class="bi bi-tools me-1" aria-hidden="true"></i>{{ m.tools.join(', 이어서 ') }}</div>
+          <!-- 코스: 일차를 유지한 채 플랜으로 바로 만든다 -->
+          <div v-if="m.course" class="course">
+            <div class="course-head">{{ m.course.title }}, {{ m.course.stops.length }}곳</div>
+            <div v-for="d in m.course.days" :key="d" class="course-day">
+              <div class="course-day-head"><strong>{{ d }}일차</strong><span v-if="m.course.dayKm?.[d - 1]">이동 약 {{ m.course.dayKm[d - 1] }}km</span></div>
+              <div class="course-stops">
+                <div v-for="g in daySlots(m.course, d)" :key="g.slot + g.stops[0].no" class="course-slot">
+                  <div v-if="g.slot" class="course-slot-name">{{ g.slot }}</div>
+                  <ol>
+                    <li v-for="s in g.stops" :key="s.no">
+                      <img v-if="s.image" :src="s.image" alt="" loading="lazy" @error="s.image = null" />
+                      <span v-else class="course-noimg" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
+                      <span class="min-w-0">
+                        <span class="course-name">{{ s.title }}</span>
+                        <span class="course-kind">{{ s.type }}</span>
+                      </span>
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm mm-btn-quiet flex-shrink-0" @click="showOnMap(m.course)"><i class="bi bi-map me-1" aria-hidden="true"></i>지도에서 보기</button>
+              <button class="btn btn-sm flex-grow-1" :class="m.course.planId ? 'mm-btn-quiet' : 'btn-coral'" :disabled="m.making" @click="makePlan(m)">
+                <span v-if="m.making" class="spinner-border spinner-border-sm me-1"></span>
+                <i v-else :class="['bi me-1', m.course.planId ? 'bi-box-arrow-up-right' : 'bi-signpost-2']" aria-hidden="true"></i>{{ m.course.planId ? '플랜 열기' : '플랜 만들기' }}
+              </button>
+            </div>
+            <div v-if="!auth.isLogin && !m.course.planId" class="meta">플랜 만들기는 로그인 화면을 거쳐 새 플랜으로 이어집니다.</div>
           </div>
+          <button v-else-if="m.view" class="btn btn-sm mm-btn-quiet mt-2" @click="showOnMap(m.view)"><i class="bi bi-map me-1" aria-hidden="true"></i>지도에서 보기</button>
+          <div v-if="m.places?.length" class="meta">한 곳씩 담으려면 아래에서 고르세요.</div>
           <div v-if="m.places?.length" class="places">
-            <button v-for="p in m.places" :key="p.no" class="btn btn-sm" :class="draft.has(p.no) ? 'btn-light' : 'btn-outline-coral'" :disabled="draft.has(p.no)" @click="addPlace(p)">
+            <button v-for="p in m.places" :key="p.no" class="place-chip" :class="{ on: draft.has(p.no) }" :disabled="draft.has(p.no)" @click="addPlace(p)">
               <i :class="['bi me-1', draft.has(p.no) ? 'bi-check2' : 'bi-plus']" aria-hidden="true"></i>{{ p.title }}
             </button>
           </div>
@@ -130,7 +328,7 @@ function addAll(places) {
       <div v-if="loading" class="msg ai"><div class="bubble"><span class="spinner-grow spinner-grow-sm text-secondary" role="status"></span> 답변을 만들고 있어요…</div></div>
     </div>
 
-    <form class="chat-input" @submit.prevent="send">
+    <form class="chat-input" @submit.prevent="send()">
       <template v-if="mode === 'doc'">
         <input ref="fileEl" type="file" accept=".txt,.md,.pdf" hidden @change="upload" />
         <button type="button" class="btn btn-light" :disabled="uploading" aria-label="문서 업로드" title="문서 업로드 (txt, md, pdf)" @click="fileEl.click()">
@@ -141,25 +339,72 @@ function addAll(places) {
       <input v-model="input" class="form-control" maxlength="1000" :placeholder="mode === 'trip' ? '여행에 대해 물어보세요' : '업로드한 문서에 대해 물어보세요'" aria-label="질문 입력" />
       <button class="btn btn-coral" :disabled="loading || !input.trim()" aria-label="보내기"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
     </form>
+    </div>
+    <!-- 모서리를 끌어 크기를 바꾼다 -->
+    <template v-if="floating && !mini">
+      <span class="rz tl" aria-hidden="true" @pointerdown="dragStart($event, 'tl')" @pointermove="dragMove" @pointerup="dragEnd" @pointercancel="dragEnd"></span>
+      <span class="rz br" aria-hidden="true" @pointerdown="dragStart($event, 'br')" @pointermove="dragMove" @pointerup="dragEnd" @pointercancel="dragEnd"></span>
+    </template>
   </section>
 </template>
 
 <style scoped>
-.chat-fab { position: fixed; right: 20px; bottom: 20px; width: 58px; height: 58px; border-radius: 50%; border: 0; background: var(--mm-ink); color: #fff; font-size: 1.5rem; box-shadow: 0 6px 18px rgba(31, 42, 68, 0.35); z-index: 1040; }
-.chat-fab:hover { background: var(--mm-coral); }
-.chat-box { position: fixed; right: 20px; bottom: 20px; width: 380px; max-width: calc(100vw - 24px); height: 580px; max-height: calc(100vh - 90px); background: #fff; border-radius: 16px; box-shadow: 0 12px 40px rgba(31, 42, 68, 0.28); display: flex; flex-direction: column; overflow: hidden; z-index: 1040; }
-.chat-head { background: var(--mm-ink); color: #fff; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+.chat-fab { position: fixed; right: 20px; bottom: 20px; height: 52px; padding: 0 20px 0 16px; border-radius: var(--mm-r-pill); border: 0; background: var(--mm-ink); color: #fff; font-size: 1.25rem; display: inline-flex; align-items: center; gap: var(--mm-sp-2); box-shadow: var(--mm-shadow-2); z-index: 1040; transition: background 0.15s; }
+.chat-fab-text { font-size: var(--mm-fs-sm); font-weight: 700; }
+@media (max-width: 767.98px) { .chat-fab { width: 52px; padding: 0; justify-content: center; } .chat-fab-text { display: none; } }
+.place-chip { border: 1px solid var(--mm-line-strong); background: #fff; color: var(--mm-ink); border-radius: var(--mm-r-pill); padding: 4px 12px; font-size: var(--mm-fs-sm); font-weight: 600; text-align: left; }
+.place-chip:hover:not(:disabled) { border-color: var(--mm-ink); }
+.place-chip.on { background: var(--mm-surface); color: var(--mm-muted); border-color: var(--mm-surface); }
+.place-chip.picked { background: var(--mm-ink); border-color: var(--mm-ink); color: #fff; }
+.ask { margin-top: var(--mm-sp-3); }
+.ask-q { border: 0; padding: 0; margin: 0 0 var(--mm-sp-3); min-width: 0; }
+.ask-q legend { font-size: var(--mm-fs-sm); font-weight: 700; color: var(--mm-ink); margin-bottom: var(--mm-sp-2); float: none; width: auto; }
+.ask-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.ask-hint { margin-left: 6px; font-weight: 400; font-size: var(--mm-fs-xs); opacity: 0.75; }
+.ask-q:disabled .place-chip:not(.picked) { opacity: 0.45; }
+.chat-fab:hover { background: var(--mm-coral-dark); }
+.chat-box { position: fixed; right: 20px; bottom: 20px; width: 380px; max-width: calc(100vw - 24px); height: 580px; max-height: calc(100vh - 90px); background: #fff; border-radius: var(--mm-r-lg); box-shadow: var(--mm-shadow-3); display: flex; flex-direction: column; overflow: hidden; z-index: 1040; }
+.chat-head { background: var(--mm-ink); color: #fff; padding: 10px 10px 10px 16px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+/* 넓은 화면: 위치와 크기를 직접 정한다 */
+.chat-box.floating { right: auto; bottom: auto; max-width: none; max-height: none; }
+.chat-box.floating .chat-head { cursor: grab; touch-action: none; user-select: none; }
+.chat-box.floating .chat-head:active { cursor: grabbing; }
+.chat-main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.head-btn { width: 30px; height: 30px; border: 0; border-radius: 50%; background: transparent; color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+.head-btn:hover, .head-btn:focus-visible { background: rgba(255, 255, 255, 0.18); outline: 0; }
+.rz { position: absolute; width: 18px; height: 18px; z-index: 2; touch-action: none; }
+.rz.tl { top: 0; left: 0; cursor: nwse-resize; }
+.rz.br { right: 0; bottom: 0; cursor: nwse-resize; }
+/* 오른쪽 아래 모서리의 손잡이 표시 */
+.rz.br::after { content: ''; position: absolute; right: 4px; bottom: 4px; width: 8px; height: 8px; border-right: 2px solid var(--mm-placeholder); border-bottom: 2px solid var(--mm-placeholder); border-bottom-right-radius: 3px; }
 .chat-modes { display: flex; border-bottom: 1px solid var(--mm-line); }
-.chat-modes button { flex: 1; border: 0; background: #fff; padding: 9px; font-weight: 600; font-size: 0.9rem; color: var(--mm-muted); border-bottom: 2px solid transparent; }
-.chat-modes button.active { color: var(--mm-coral-dark); border-bottom-color: var(--mm-coral); }
-.chat-list { flex: 1; overflow-y: auto; padding: 14px; background: var(--mm-bg); display: flex; flex-direction: column; gap: 10px; }
+.chat-modes button { flex: 1; border: 0; background: #fff; padding: 9px; font-weight: 600; font-size: var(--mm-fs-sm); color: var(--mm-muted); border-bottom: 2px solid transparent; }
+.chat-modes button.active { color: var(--mm-coral-dark); border-bottom-color: var(--mm-coral-dark); }
+.chat-list { flex: 1; overflow-y: auto; padding: var(--mm-sp-4); background: var(--mm-surface); display: flex; flex-direction: column; gap: 10px; }
 .msg { display: flex; }
 .msg.user { justify-content: flex-end; }
-.bubble { max-width: 86%; padding: 9px 13px; border-radius: 14px; font-size: 0.92rem; line-height: 1.5; background: #fff; border: 1px solid var(--mm-line); }
-.msg.user .bubble { background: var(--mm-coral); color: #fff; border-color: var(--mm-coral); border-bottom-right-radius: 4px; }
+.bubble { max-width: 86%; padding: 10px 14px; border-radius: var(--mm-r-md); font-size: var(--mm-fs-sm); line-height: 1.6; background: #fff; border: 0; box-shadow: var(--mm-shadow-1); }
+.msg.user .bubble { background: var(--mm-ink); color: #fff; box-shadow: none; border-bottom-right-radius: 4px; }
 .msg.ai .bubble { border-bottom-left-radius: 4px; }
-.msg.error .bubble { background: #fdecec; border-color: #f5c2c2; color: #a12828; }
-.meta { font-size: 0.76rem; color: var(--mm-muted); margin-top: 6px; }
+.msg.error .bubble { background: var(--mm-danger-bg); border-color: var(--mm-danger-line); color: var(--mm-danger); }
+.meta { font-size: var(--mm-fs-xs); color: var(--mm-muted); margin-top: 6px; }
 .places { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.course { margin-top: var(--mm-sp-3); padding: var(--mm-sp-3); border-radius: var(--mm-r-sm); background: var(--mm-route-tint); }
+.course-head { font-weight: 700; color: var(--mm-ink); margin-bottom: var(--mm-sp-2); }
+.course-day { margin-bottom: var(--mm-sp-3); }
+.course-day-head { display: flex; justify-content: space-between; align-items: baseline; font-size: var(--mm-fs-xs); color: var(--mm-route); margin-bottom: var(--mm-sp-1); }
+.course-day-head strong { font-size: var(--mm-fs-sm); font-weight: 700; }
+.course-stops { background: #fff; border-radius: var(--mm-r-sm); }
+.course-slot { display: flex; gap: var(--mm-sp-2); padding: var(--mm-sp-2); }
+.course-slot + .course-slot { border-top: 1px solid var(--mm-line); }
+.course-slot-name { flex: 0 0 30px; padding-top: 2px; font-size: var(--mm-fs-xs); font-weight: 700; color: var(--mm-route); }
+.course-slot ol { list-style: none; padding: 0; margin: 0; flex: 1; min-width: 0; }
+.course-stops li { display: flex; gap: var(--mm-sp-2); align-items: center; }
+.course-stops li + li { margin-top: var(--mm-sp-2); }
+.course-stops img, .course-noimg { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: var(--mm-surface); }
+.course-noimg { display: inline-flex; align-items: center; justify-content: center; color: var(--mm-placeholder); }
+.course-name { display: block; font-weight: 700; color: var(--mm-ink); line-height: 1.3; }
+.course-kind { display: block; font-size: var(--mm-fs-xs); color: var(--mm-muted); }
+.course-sum { display: block; font-size: var(--mm-fs-xs); color: var(--mm-text); line-height: 1.45; margin-top: 2px; }
 .chat-input { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--mm-line); }
 </style>

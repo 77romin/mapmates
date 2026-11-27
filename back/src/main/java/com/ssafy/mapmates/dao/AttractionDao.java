@@ -77,6 +77,11 @@ public interface AttractionDao {
             + "<foreach collection='nos' item='n' open='(' separator=',' close=')'>#{n}</foreach></script>")
     List<Attraction> findByNos(@Param("nos") List<Integer> nos);
 
+    /** 번호 목록의 사진과 소개 글 앞부분만 가져온다. (AI 가 장소를 고르고 설명할 때 근거로 쓴다) */
+    @Select("<script>SELECT a.no, a.content_id, a.title, a.first_image1, LEFT(a.overview, 600) AS overview FROM attractions a WHERE a.no IN "
+            + "<foreach collection='nos' item='n' open='(' separator=',' close=')'>#{n}</foreach></script>")
+    List<Attraction> findBriefs(@Param("nos") List<Integer> nos);
+
     /** 사진이 있고 좌표가 정상인 장소 중에서 무작위로 뽑는다. (AI 추천 후보용) */
     @Select("<script>SELECT " + COLS + JOINS
             + "WHERE a.first_image1 IS NOT NULL AND a.first_image1 != '' AND a.latitude BETWEEN 33 AND 39 AND a.longitude BETWEEN 124 AND 132"
@@ -104,6 +109,9 @@ public interface AttractionDao {
             + " ORDER BY (a.title = #{name}) DESC, (a.title LIKE CONCAT(#{name}, '%')) DESC, (a.content_type_id IN (12, 14, 38, 39)) DESC,"
             + " (a.first_image1 IS NULL OR a.first_image1 = ''), CHAR_LENGTH(a.title) LIMIT 1</script>")
     Attraction findBestByName(@Param("sidoCode") Integer sidoCode, @Param("name") String name);
+
+    @Update("UPDATE attractions SET overview = #{overview} WHERE no = #{no}")
+    int updateOverview(@Param("no") int no, @Param("overview") String overview);
 
     @Update("UPDATE attractions SET first_image1 = #{url} WHERE no = #{no}")
     int updateImage(@Param("no") int no, @Param("url") String url);

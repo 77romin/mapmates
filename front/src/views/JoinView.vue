@@ -1,4 +1,5 @@
 <script setup>
+import AuthLayout from '@/components/AuthLayout.vue'
 import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import http from '@/api/http'
@@ -47,10 +48,10 @@ async function submit() {
 </script>
 
 <template>
-  <div class="auth-wrap">
-    <form class="mm-card auth-card" novalidate @submit.prevent="submit">
-      <img src="/logo.webp" alt="너랑 갈.지도 로고 — 너랑 갈 다음 여행을 지도 위에" class="auth-logo small" />
-      <h1 class="h4 mm-title mb-4 text-center">회원가입</h1>
+  <AuthLayout>
+    <form novalidate @submit.prevent="submit">
+      <h1 class="h2 mm-title mb-1">회원가입</h1>
+      <p class="text-secondary mb-4">여행 스타일을 고르면 잘 맞는 메이트를 먼저 보여 드려요.</p>
       <div class="mb-3">
         <label class="form-label small fw-semibold" for="jId">아이디</label>
         <input id="jId" v-model.trim="form.userId" :class="['form-control', cls('userId')]" autocomplete="username" @blur="touched.userId = true" />
@@ -76,13 +77,13 @@ async function submit() {
         <input id="jEmail" v-model.trim="form.email" type="email" :class="['form-control', cls('email')]" autocomplete="email" @blur="touched.email = true" />
         <div class="invalid-feedback">{{ errors.email }}</div>
       </div>
-      <div class="form-label small fw-semibold">여행 스타일 <span class="text-secondary fw-normal">(선택, 최대 3개 · 메이트 추천에 사용)</span></div>
+      <div class="form-label small fw-semibold">여행 스타일 <span class="text-secondary fw-normal">(선택, 최대 3개)</span></div>
       <div class="d-flex flex-wrap gap-1 mb-4">
         <button v-for="t in TAGS" :key="t" type="button" class="btn btn-sm rounded-pill" :class="form.tags.split(',').includes(t) ? 'bg-ink' : 'btn-light border'" :aria-pressed="form.tags.split(',').includes(t)" @click="toggleTag(t)">#{{ t }}</button>
       </div>
       <div v-if="error" class="alert alert-danger py-2 small" role="alert">{{ error }}</div>
-      <button class="btn btn-coral w-100" :disabled="loading"><span v-if="loading" class="spinner-border spinner-border-sm me-1"></span>가입하기</button>
+      <button class="btn btn-coral btn-lg w-100" :disabled="loading"><span v-if="loading" class="spinner-border spinner-border-sm me-1"></span>가입하기</button>
       <p class="small text-center mt-3 mb-0">이미 계정이 있나요? <RouterLink to="/login">로그인</RouterLink></p>
     </form>
-  </div>
+  </AuthLayout>
 </template>

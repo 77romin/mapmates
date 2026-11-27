@@ -53,7 +53,7 @@ public class AiController {
                 case "simple" -> aiService.simple(message);
                 case "single" -> aiService.single(message, tool, memberId);
                 case "multi" -> aiService.multi(message, memberId);
-                default -> aiService.planner(message, memberId, history);
+                default -> aiService.planner(message, memberId, history, Boolean.TRUE.equals(body.get("noAsk")));
             };
         } catch (ApiException e) {
             throw e;

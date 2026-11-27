@@ -1,4 +1,5 @@
 <script setup>
+import AuthLayout from '@/components/AuthLayout.vue'
 import { reactive, ref } from 'vue'
 import http from '@/api/http'
 
@@ -22,10 +23,10 @@ async function submit() {
 </script>
 
 <template>
-  <div class="auth-wrap">
-    <div class="mm-card auth-card">
-      <h1 class="h4 mm-title mb-1">비밀번호 찾기</h1>
-      <p class="text-secondary small mb-4">아이디와 가입 이메일이 일치하면 임시 비밀번호를 발급합니다.</p>
+  <AuthLayout>
+    <div>
+      <h1 class="h2 mm-title mb-1">비밀번호 찾기</h1>
+      <p class="text-secondary mb-4">아이디와 가입 이메일이 일치하면 임시 비밀번호를 발급합니다.</p>
       <div v-if="result" role="status">
         <div class="alert alert-success">
           <div class="small mb-1">{{ result.message }}</div>
@@ -43,5 +44,5 @@ async function submit() {
         <p class="small text-center mt-3 mb-0"><RouterLink to="/login">로그인으로 돌아가기</RouterLink></p>
       </form>
     </div>
-  </div>
+  </AuthLayout>
 </template>

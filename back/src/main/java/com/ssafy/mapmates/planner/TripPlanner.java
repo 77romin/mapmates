@@ -49,6 +49,9 @@ public class TripPlanner {
     @Value("classpath:/prompts/planner.txt")
     private Resource plannerPrompt;
 
+    /** 한 번에 추천하는 장소 수의 상한 (응답 시간과 동선 최적화 계산량을 고려) */
+    static final int MAX_PLACES = 24;
+
     public ExecutionPlan plan(String question, boolean loggedIn, String history) {
         ExecutionPlan raw;
         try {
@@ -71,14 +74,34 @@ public class TripPlanner {
         }
         if (!loggedIn) wanted.remove(ToolStep.GET_MY_PLANS);
         List<ToolStep> steps = ORDER.stream().filter(wanted::contains).toList();
-        int days = raw.days() == null ? 1 : Math.max(1, Math.min(raw.days(), 5));
-        // 장소 수: 사용자가 정하지 않았으면 하루 4곳 기준
-        int count = raw.count() == null ? Math.min(8, days * 4) : Math.max(2, Math.min(raw.count(), 10));
+        // 코스를 짜 달라는 요청인데 사용자가 말하지 않은 기준. 서버가 임의로 정하지 않고 되묻는 데 쓴다
+        List<String> missing = new ArrayList<>();
+        if (steps.contains(ToolStep.SEARCH_ATTRACTIONS) && steps.contains(ToolStep.OPTIMIZE_ROUTE)) {
+            if (nvl(raw.region()).isBlank()) missing.add("region");
+            if (raw.days() == null || raw.days() <= 0) missing.add("days");
+            if (nvl(raw.pace()).isBlank()) missing.add("pace");
+            if (nvl(raw.companion()).isBlank()) missing.add("companion");
+        }
+        int days = raw.days() == null || raw.days() <= 0 ? 1 : Math.max(1, Math.min(raw.days(), 5));
+        String pace = raw.pace() == null || raw.pace().isBlank() ? "보통" : raw.pace().trim();
+        String city = nvl(raw.city()).replaceAll("(시|군)$", "");
         String docQuery = raw.documentQuery() == null || raw.documentQuery().isBlank() ? question : raw.documentQuery();
         List<String> types = raw.contentTypes() == null ? List.of()
                 : raw.contentTypes().stream().filter(t -> t != null && !t.isBlank()).distinct().toList();
         String intent = raw.intent() == null || raw.intent().isBlank() ? question : raw.intent();
-        return new ExecutionPlan(steps, nvl(raw.region()), nvl(raw.keyword()), nvl(raw.contentType()), count, docQuery, types, days, intent);
+        // 장소 수: 사용자가 직접 말했으면 그 수(최대 24), 아니면 하루 틀(볼거리 + 점심·저녁)에 일수를 곱한다
+        // 여러 유형을 섞는 코스에는 식사가 빠지지 않게 음식점을 넣는다. (맛집만, 숙소만처럼 한 유형만 물은 경우는 그대로 둔다)
+        if (steps.contains(ToolStep.SEARCH_ATTRACTIONS) && types.size() != 1 && !types.contains("음식점") && nvl(raw.contentType()).isBlank()) {
+            List<String> withFood = new ArrayList<>(types.isEmpty() ? List.of("관광지", "문화시설") : types);
+            withFood.add("음식점");
+            types = withFood;
+        }
+        boolean withMeals = types.contains("음식점") && types.size() > 1;
+        ExecutionPlan sized = new ExecutionPlan(steps, "", "", "", 0, "", types, days, intent, pace, "", "", List.of());
+        int auto = days * (sized.sightsPerDay() + (withMeals ? ExecutionPlan.MEALS_PER_DAY : 0));
+        int count = raw.count() == null || raw.count() <= 0 ? Math.min(MAX_PLACES, auto) : Math.max(2, Math.min(raw.count(), MAX_PLACES));
+        return new ExecutionPlan(steps, nvl(raw.region()), nvl(raw.keyword()), nvl(raw.contentType()), count, docQuery, types, days, intent, pace,
+                city, nvl(raw.companion()), missing);
     }
 
     /** 이전 대화가 있으면 이번 요청 앞에 붙인다. (후속 요청에서 지역·조건을 이어받기 위함) */
@@ -98,16 +121,18 @@ public class TripPlanner {
                         List<String> types = plan.contentTypes().isEmpty() && !plan.contentType().isBlank()
                                 ? List.of(plan.contentType()) : plan.contentTypes();
                         double radius = plan.days() <= 1 ? 5 : 12;
-                        // 음식점이 섞인 코스라면 하루에 한 곳은 식사 장소가 들어가게 자리를 잡아 둔다
+                        // 음식점이 섞인 코스라면 하루에 점심·저녁 두 곳이 들어가게 자리를 잡아 둔다 (전체의 5분의 2를 넘기지 않는다)
                         boolean mixedWithFood = types.contains("음식점") && types.size() > 1;
-                        int foodNeed = mixedWithFood ? Math.min(plan.days(), Math.max(1, plan.count() / 3)) : 0;
+                        int foodNeed = mixedWithFood ? Math.max(1, Math.min(plan.days() * ExecutionPlan.MEALS_PER_DAY, plan.count() * 2 / 5)) : 0;
                         int spotNeed = plan.count() - foodNeed;
 
                         // 1) AI 가 조건에 맞는 장소를 직접 추천한다
                         List<String> suggested = suggestPlaceNames(plan, types, history);
                         // 2) 추천된 장소가 실제 DB 에 있는지 하나씩 확인한다 (없는 장소는 버린다)
                         Map<Integer, Place> verified = new java.util.LinkedHashMap<>();
-                        for (Place p : resolvePlaces(plan.region(), suggested)) verified.putIfAbsent(p.no(), p);
+                        for (Place p : resolvePlaces(plan.region(), suggested, plan.city())) verified.putIfAbsent(p.no(), p);
+                        // 시·군·구를 말했으면 그 안에서만 채운다 (같은 시도의 다른 도시 장소가 섞이지 않게)
+                        String area = plan.keyword().isBlank() ? plan.city() : plan.keyword();
                         List<Place> spots = new ArrayList<>(mixedWithFood
                                 ? verified.values().stream().filter(p -> !isFood(p)).limit(spotNeed).toList()
                                 : verified.values().stream().limit(plan.count()).toList());
@@ -119,7 +144,7 @@ public class TripPlanner {
                         if (spots.size() < spotNeed) {
                             List<String> spotTypes = mixedWithFood ? types.stream().filter(t -> !"음식점".equals(t)).toList() : types;
                             List<Place> pool = spots.isEmpty()
-                                    ? attractionTool.findCourseCandidates(plan.region(), spotTypes, plan.keyword(), radius)
+                                    ? attractionTool.findCourseCandidates(plan.region(), spotTypes, area, radius)
                                     : attractionTool.candidatesNear(spots.get(0), plan.region(), spotTypes, radius);
                             if (pool.isEmpty()) pool = attractionTool.findCourseCandidates(plan.region(), spotTypes, "", radius);
                             List<Place> taken = spots;
@@ -128,7 +153,7 @@ public class TripPlanner {
                         }
                         if (foods.size() < foodNeed) {
                             List<Place> pool = spots.isEmpty()
-                                    ? attractionTool.findCourseCandidates(plan.region(), List.of("음식점"), plan.keyword(), radius)
+                                    ? attractionTool.findCourseCandidates(plan.region(), List.of("음식점"), area, radius)
                                     : attractionTool.candidatesNear(spots.get(0), plan.region(), List.of("음식점"), 3);
                             List<Place> taken = foods;
                             foods.addAll(selectPlaces(pool.stream().filter(p -> taken.stream().noneMatch(t -> t.no() == p.no())).toList(),
@@ -184,11 +209,13 @@ public class TripPlanner {
      * "같은 장소가 어느 것인지"를 AI 에게 한 번에 물어 정한다. (예: 창덕궁 -> 창덕궁과 후원, 남산타워 -> 남산서울타워)
      * 후보에 같은 장소가 없으면 그 추천은 버린다.
      */
-    List<Place> resolvePlaces(String region, List<String> names) {
+    List<Place> resolvePlaces(String region, List<String> names, String city) {
         Map<String, Place> resolved = new HashMap<>();
         Map<String, List<Place>> unclear = new java.util.LinkedHashMap<>();
         for (String name : names) {
             List<Place> cands = attractionTool.findCandidatesByName(region, name);
+            // 시·군·구를 말했으면 주소가 그곳인 후보만 남긴다. (이름이 같은 다른 도시의 가게를 고르지 않게)
+            if (city != null && !city.isBlank()) cands = cands.stream().filter(c -> c.address() != null && c.address().contains(city)).toList();
             if (cands.isEmpty()) continue;
             String key = name.replace(" ", "");
             Place exact = cands.stream().filter(c -> c.title().replace(" ", "").equals(key)).findFirst().orElse(null);
@@ -235,17 +262,20 @@ public class TripPlanner {
                     + "이름은 지도에서 검색되는 짧은 공식 명칭으로 쓴다(예: 경복궁, 남산서울타워, 광장시장). 설명 없이 이름만 반환한다. "
                     + "매번 뻔한 곳만 고르지 말고 조건에 어울리는 다양한 곳을 섞는다. "
                     + "사용자가 꼭 넣어 달라고 이름을 말한 장소는 목록 맨 앞에 둔다. "
-                    + "원하는 유형에 음식점이 있으면 그 동네의 실제 식당이나 카페 이름도 서너 곳 포함한다. "
+                    + "원하는 유형에 음식점이 있으면 볼거리 근처의 실제 식당 이름을 '음식점 수'만큼 포함한다. 점심과 저녁에 갈 만한 곳을 섞고, 같은 메뉴만 고르지 않는다. "
+                    + "일수가 여러 날이면 날마다 다른 동네를 다닐 수 있게 서너 개 권역으로 나눠 고른다. "
                     + "이전 대화가 있고 이번 요청이 그 추천을 고쳐 달라는 것이면, 바꾸라고 한 부분만 바꾸고 나머지 장소 이름은 그대로 다시 포함한다.";
             String user = (history == null || history.isBlank() ? "" : "[이전 대화]\n" + history + "\n\n")
-                    + "지역: " + (plan.region().isBlank() ? "전국" : plan.region())
+                    + "지역: " + (plan.region().isBlank() ? "전국" : plan.region()) + (plan.city().isBlank() ? "" : " " + plan.city() + " (이 시·군·구 안의 장소만)")
+                    + (plan.companion().isBlank() || "상관없음".equals(plan.companion()) ? "" : "\n동행: " + plan.companion())
                     + (plan.keyword().isBlank() ? "" : "\n동네/키워드: " + plan.keyword())
                     + "\n조건: " + plan.intent() + "\n일수: " + plan.days() + "일"
                     + "\n원하는 유형: " + (types.isEmpty() ? "관광지, 문화시설, 음식점" : String.join(", ", types))
-                    + "\n추천할 개수: " + (plan.count() * 2 + 2);
+                    + (types.contains("음식점") && types.size() > 1 ? "\n음식점 수: " + (plan.days() * ExecutionPlan.MEALS_PER_DAY + 2) : "")
+                    + "\n추천할 개수: " + Math.min(40, plan.count() * 3 / 2 + 4);
             Suggestion s = chatClient.prompt().system(system).user(user).call().entity(Suggestion.class);
             if (s != null && s.names() != null) {
-                return s.names().stream().filter(n -> n != null && !n.isBlank()).map(String::trim).distinct().limit(24).toList();
+                return s.names().stream().filter(n -> n != null && !n.isBlank()).map(String::trim).distinct().limit(40).toList();
             }
         } catch (Exception e) {
             log.warn("AI 장소 추천 실패: {}", e.getClass().getSimpleName());
@@ -265,12 +295,19 @@ public class TripPlanner {
         if (pool.size() <= need) return pool;
         try {
             StringBuilder list = new StringBuilder();
-            for (Place p : pool) list.append(p.no()).append(" | ").append(p.title()).append(" | ").append(p.type()).append(" | ").append(p.address()).append('\n');
+            // 이름과 유형만으로는 어떤 곳인지 알 수 없으므로, 등록된 소개 글 앞부분을 함께 보여 준다
+            Map<Integer, AttractionTool.Brief> briefs = attractionTool.briefs(pool.stream().map(Place::no).toList());
+            for (Place p : pool) {
+                AttractionTool.Brief b = briefs.get(p.no());
+                list.append(p.no()).append(" | ").append(p.title()).append(" | ").append(p.type()).append(" | ").append(p.address())
+                        .append(" | ").append(b == null || b.overview().isBlank() ? "소개 없음" : AttractionTool.cut(b.overview(), 110)).append('\n');
+            }
             String system = "너는 여행 코스에 넣을 장소를 고르는 역할이다. 아래 후보 목록에서만 고른다. "
+                    + "후보마다 붙은 소개 글을 읽고, 사용자 조건에 맞는 근거가 소개 글에 드러난 장소를 우선한다. "
                     + "사용자의 조건(동행, 분위기, 일수)에 어울리는 장소를 정확히 요청한 개수만큼 골라 번호(no)만 반환한다. "
                     + "식사가 어울리는 일정이면 음식점을 하루에 한두 곳 포함하고, 같은 성격의 장소만 고르지 않는다.";
             String user = "조건: " + plan.intent() + "\n일수: " + plan.days() + "일\n고를 개수: " + need
-                    + "\n\n[후보: no | 이름 | 유형 | 주소]\n" + list;
+                    + "\n\n[후보: no | 이름 | 유형 | 주소 | 소개]\n" + list;
             Selection sel = chatClient.prompt().system(system).user(user).call().entity(Selection.class);
             if (sel != null && sel.nos() != null) {
                 Map<Integer, Place> byNo = new HashMap<>();
@@ -300,7 +337,7 @@ public class TripPlanner {
         List<String> types = q.contains("맛집") || q.contains("음식") ? List.of("음식점")
                 : q.contains("숙소") || q.contains("숙박") ? List.of("숙박") : List.of("관광지", "문화시설", "음식점");
         int days = q.contains("2박") ? 3 : q.contains("1박") ? 2 : 1;
-        return new ExecutionPlan(steps, region, "", "", null, q, types, days, q);
+        return new ExecutionPlan(steps, region, "", "", null, q, types, days, q, "보통", "", "상관없음", List.of());
     }
 
     private String nvl(String s) {

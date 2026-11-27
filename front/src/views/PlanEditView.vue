@@ -5,6 +5,7 @@ import draggable from 'vuedraggable'
 import http from '@/api/http'
 import KakaoMap from '@/components/KakaoMap.vue'
 import { useDraftStore } from '@/stores/draft'
+import { usePanelPad } from '@/utils/panelPad'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,6 +21,15 @@ const error = ref('')
 const notice = ref(null) // { type, text }
 const day = ref(1)
 const meeting = ref(null)
+const padLeft = usePanelPad(440)
+const editing = ref(!route.params.id) // 플랜 정보 입력칸을 펼쳤는지. 새 플랜은 펼친 채로 시작한다
+const openNo = ref(null) // 일차·경비·메모 입력칸을 펼친 방문지
+const fmtDay = (d) => { const [, m, dd] = d.split('-'); return `${Number(m)}월 ${Number(dd)}일` }
+const period = computed(() => {
+  if (!plan.startDate) return '날짜 미정'
+  if (!plan.endDate || plan.endDate === plan.startDate) return `${fmtDay(plan.startDate)}, 당일`
+  return `${fmtDay(plan.startDate)} ~ ${fmtDay(plan.endDate)}, ${dayCount.value - 1}박 ${dayCount.value}일`
+})
 // 이동 수단: line(직선) | car | walk | transit
 const MODES = [
   { key: 'line', label: '직선', icon: 'bi-slash-lg' },
@@ -98,6 +108,13 @@ async function load() {
   }
 }
 onMounted(load)
+watch(() => route.params.id, (id, old) => {
+  if (id && id !== old) {
+    editing.value = false
+    day.value = 1
+    load()
+  }
+})
 
 /** 기존 플랜에 지도에서 담아 둔 장소를 추가한다. (이미 있는 장소는 건너뜀) */
 function addDraft() {
@@ -130,7 +147,10 @@ async function optimize() {
 }
 
 async function save() {
-  if (!plan.title.trim()) return flash('warning', '플랜 제목을 입력해 주세요.')
+  if (!plan.title.trim()) {
+    editing.value = true // 접혀 있으면 입력칸을 펼쳐 보여 준다
+    return flash('warning', '플랜 제목을 입력해 주세요.')
+  }
   if (plan.startDate && plan.endDate && plan.endDate < plan.startDate) return flash('warning', '종료일이 시작일보다 빠릅니다.')
   saving.value = true
   try {
@@ -143,6 +163,7 @@ async function save() {
     if (isNew.value) {
       const created = await http.post('/plans', body)
       draft.clear()
+      editing.value = false // 만든 뒤에는 요약만 보여 준다
       router.replace(`/plans/${created.id}`)
     } else {
       await http.put(`/plans/${route.params.id}`, body)
@@ -166,82 +187,101 @@ async function findMeeting() {
 </script>
 
 <template>
-  <div class="mm-split">
+  <div class="mm-split mm-split--float">
     <aside class="mm-panel plan-panel">
-      <div v-if="loading" class="mm-empty"><div class="spinner-border text-secondary" role="status"></div></div>
+      <div v-if="loading" class="p-3" role="status" aria-busy="true" aria-label="플랜을 불러오는 중">
+        <div class="mm-skel mm-skel-line w-50"></div>
+        <div class="mm-skel mm-skel-line w-75"></div>
+        <div v-for="n in 4" :key="n" class="mm-skel plan-skel"></div>
+      </div>
       <div v-else-if="error" class="mm-empty"><i class="bi bi-exclamation-circle"></i>{{ error }}<br /><RouterLink to="/plans" class="btn btn-sm btn-outline-coral mt-2">목록으로</RouterLink></div>
       <template v-else>
-        <form class="p-3 border-bottom" novalidate @submit.prevent="save">
+        <!-- 플랜 정보: 평소엔 요약만, 누르면 입력칸이 펼쳐진다 -->
+        <div class="plan-head">
+          <div class="min-w-0 flex-grow-1">
+            <h1 class="plan-title text-truncate">{{ plan.title || '새 플랜' }}</h1>
+            <div class="mm-item-meta">{{ period }}<template v-if="plan.budget">, 예산 {{ Number(plan.budget).toLocaleString() }}원</template></div>
+          </div>
+          <span v-if="plan.isPublic" class="badge badge-soft">공개</span>
+          <button class="mm-add" :aria-expanded="editing" aria-controls="planForm" :aria-label="editing ? '플랜 정보 접기' : '플랜 정보 수정'" @click="editing = !editing">
+            <i :class="['bi', editing ? 'bi-chevron-up' : 'bi-pencil']" aria-hidden="true"></i>
+          </button>
+        </div>
+        <form v-show="editing" id="planForm" class="px-3 pb-3" novalidate @submit.prevent="save">
           <label class="form-label small fw-semibold mb-1" for="planTitle">플랜 제목</label>
           <input id="planTitle" v-model="plan.title" class="form-control mb-2" maxlength="100" placeholder="예) 너랑 갈 부산 1박 2일" required />
           <div class="row g-2">
-            <div class="col-6"><label class="form-label small mb-1" for="sd">시작일</label><input id="sd" v-model="plan.startDate" type="date" class="form-control form-control-sm" /></div>
-            <div class="col-6"><label class="form-label small mb-1" for="ed">종료일</label><input id="ed" v-model="plan.endDate" type="date" class="form-control form-control-sm" :min="plan.startDate" /></div>
-            <div class="col-6"><label class="form-label small mb-1" for="bg">예산(원)</label><input id="bg" v-model.number="plan.budget" type="number" min="0" step="10000" class="form-control form-control-sm" /></div>
-            <div class="col-6 d-flex align-items-end"><div class="form-check form-switch mb-1"><input id="pub" v-model="plan.isPublic" class="form-check-input" type="checkbox" /><label class="form-check-label small" for="pub">공개(메이트 모집 가능)</label></div></div>
-            <div class="col-12"><textarea v-model="plan.memo" class="form-control form-control-sm" rows="2" maxlength="1000" placeholder="메모 (준비물, 예약 정보 등)" aria-label="메모"></textarea></div>
+            <div class="col-6"><label class="form-label small fw-semibold mb-1" for="sd">시작일</label><input id="sd" v-model="plan.startDate" type="date" class="form-control" /></div>
+            <div class="col-6"><label class="form-label small fw-semibold mb-1" for="ed">종료일</label><input id="ed" v-model="plan.endDate" type="date" class="form-control" :min="plan.startDate" /></div>
+            <div class="col-6"><label class="form-label small fw-semibold mb-1" for="bg">예산(원)</label><input id="bg" v-model.number="plan.budget" type="number" min="0" step="10000" class="form-control" /></div>
+            <div class="col-6 d-flex align-items-end"><div class="form-check form-switch mb-2"><input id="pub" v-model="plan.isPublic" class="form-check-input" type="checkbox" /><label class="form-check-label small" for="pub">공개(메이트 모집 가능)</label></div></div>
+            <div class="col-12"><textarea v-model="plan.memo" class="form-control" rows="2" maxlength="1000" placeholder="메모 (준비물, 예약 정보 등)" aria-label="메모"></textarea></div>
           </div>
         </form>
 
-        <div class="px-3 pt-2 d-flex align-items-center gap-1 flex-wrap">
-          <button v-for="d in dayCount" :key="d" class="btn btn-sm rounded-pill" :class="day === d ? 'bg-ink' : 'btn-light'" @click="day = d">{{ d }}일차</button>
-          <button class="btn btn-sm btn-outline-coral ms-auto" @click="optimize"><i class="bi bi-magic me-1" aria-hidden="true"></i>동선 최적화</button>
-        </div>
-        <div class="px-3 pt-2">
-          <div class="btn-group btn-group-sm w-100" role="group" aria-label="이동 수단">
-            <button v-for="m in MODES" :key="m.key" type="button" class="btn" :class="mode === m.key ? 'bg-ink' : 'btn-light border'" :aria-pressed="mode === m.key" @click="mode = m.key">
+        <div class="plan-tools">
+          <div class="d-flex align-items-center gap-1 flex-wrap">
+            <button v-for="d in dayCount" :key="d" class="btn btn-sm rounded-pill" :class="day === d ? 'bg-ink' : 'btn-light'" @click="day = d">{{ d }}일차</button>
+            <button class="btn btn-sm mm-btn-quiet ms-auto" @click="optimize"><i class="bi bi-magic me-1" aria-hidden="true"></i>동선 최적화</button>
+          </div>
+          <div class="mm-seg mt-2" role="group" aria-label="이동 수단">
+            <button v-for="m in MODES" :key="m.key" type="button" :class="{ on: mode === m.key }" :aria-pressed="mode === m.key" @click="mode = m.key">
               <i :class="['bi', m.icon, 'me-1']" aria-hidden="true"></i>{{ m.label }}
             </button>
           </div>
-          <div v-if="mode !== 'line'" class="small mt-1" aria-live="polite">
+          <div v-if="mode !== 'line'" class="route-sum" aria-live="polite">
             <span v-if="dayItems.length < 2" class="text-secondary">방문지가 2곳 이상이면 경로가 표시됩니다.</span>
             <span v-else-if="routeLoading" class="text-secondary"><span class="spinner-border spinner-border-sm me-1"></span>경로를 찾는 중…</span>
             <span v-else-if="routeError" class="text-danger">{{ routeError }} <button class="btn btn-link btn-sm p-0 align-baseline" @click="loadRoute">다시 시도</button></span>
             <template v-else-if="routeInfo">
-              <strong class="text-coral">총 {{ routeInfo.distanceKm }}km<span v-if="routeInfo.durationMin"> · 약 {{ fmtMin(routeInfo.durationMin) }}</span></strong>
+              <strong>총 {{ routeInfo.distanceKm }}km<span v-if="routeInfo.durationMin">, 약 {{ fmtMin(routeInfo.durationMin) }}</span></strong>
               <span v-if="routeInfo.message" class="text-secondary d-block">{{ routeInfo.message }}</span>
             </template>
           </div>
+          <button v-if="!isNew && draft.count" class="btn btn-sm mm-btn-quiet w-100 mt-2" @click="addDraft"><i class="bi bi-bag-plus me-1" aria-hidden="true"></i>지도에서 담은 장소 {{ draft.count }}곳을 {{ day }}일차에 추가</button>
+          <div v-if="notice" :class="['alert py-2 px-3 mt-2 mb-0 small', 'alert-' + notice.type]" role="status">{{ notice.text }}</div>
         </div>
-        <div v-if="!isNew && draft.count" class="px-3 pt-2">
-          <button class="btn btn-sm btn-light border w-100" @click="addDraft"><i class="bi bi-bag-plus me-1" aria-hidden="true"></i>지도에서 담은 장소 {{ draft.count }}곳을 {{ day }}일차에 추가</button>
-        </div>
-        <div v-if="notice" :class="['alert py-2 px-3 mx-3 mt-2 mb-0 small', 'alert-' + notice.type]" role="status">{{ notice.text }}</div>
 
-        <div class="mm-panel-body p-3">
+        <div class="mm-panel-body px-3 pb-3">
           <div v-if="!dayItems.length" class="mm-empty py-4">
             <i class="bi bi-geo"></i>{{ day }}일차에 담긴 장소가 없습니다.
             <div class="mt-2"><RouterLink to="/" class="btn btn-sm btn-outline-coral">지도에서 장소 담기</RouterLink></div>
             <p v-if="!isNew" class="small mt-2 mb-0">지도에서 담은 장소는 '담은 장소'에서 새 플랜으로 만들 수 있습니다.</p>
           </div>
-          <draggable v-else v-model="dayItems" item-key="attractionNo" handle=".drag-handle" :animation="180">
+          <!-- 방문지: 번호와 선으로 이어진 일정표 -->
+          <draggable v-else v-model="dayItems" item-key="attractionNo" handle=".drag-handle" :animation="180" class="stops">
             <template #item="{ element, index }">
-              <div>
-              <div v-if="index > 0 && routeInfo?.legs?.[index - 1]" class="leg small text-secondary">
-                <i class="bi bi-arrow-down" aria-hidden="true"></i>
-                {{ routeInfo.legs[index - 1].distanceKm }}km<span v-if="routeInfo.legs[index - 1].durationMin"> · {{ fmtMin(routeInfo.legs[index - 1].durationMin) }}</span>
-                <a v-if="routeInfo.legs[index - 1].link" :href="routeInfo.legs[index - 1].link" target="_blank" rel="noopener noreferrer" class="ms-1">카카오맵 대중교통 길찾기 <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
-              </div>
-              <div class="mm-card p-2 mb-2">
-                <div class="d-flex align-items-center gap-2">
-                  <i class="bi bi-grip-vertical drag-handle fs-5" title="드래그해서 순서 변경" aria-hidden="true"></i>
-                  <span class="mm-num">{{ index + 1 }}</span>
+              <div class="stop">
+                <div v-if="index > 0 && routeInfo?.legs?.[index - 1]" class="leg">
+                  {{ routeInfo.legs[index - 1].distanceKm }}km<span v-if="routeInfo.legs[index - 1].durationMin">, {{ fmtMin(routeInfo.legs[index - 1].durationMin) }}</span>
+                  <a v-if="routeInfo.legs[index - 1].link" :href="routeInfo.legs[index - 1].link" target="_blank" rel="noopener noreferrer" class="ms-1">카카오맵 길찾기 <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+                </div>
+                <div class="stop-row">
+                  <span class="mm-num stop-num">{{ index + 1 }}</span>
+                  <img v-if="element.firstImage1" :src="element.firstImage1" class="stop-thumb" alt="" loading="lazy" @error="element.firstImage1 = ''" />
                   <div class="flex-grow-1 min-w-0">
-                    <div class="fw-bold text-truncate">{{ element.title }}</div>
-                    <div class="small text-secondary text-truncate">{{ element.contentTypeName }} · {{ element.addr1 }}</div>
+                    <div class="mm-item-title text-truncate">{{ element.title }}</div>
+                    <div class="mm-item-meta text-truncate">{{ element.contentTypeName }}<template v-if="Number(element.cost)">, {{ Number(element.cost).toLocaleString() }}원</template></div>
+                    <div v-if="element.memo && openNo !== element.attractionNo" class="stop-memo text-truncate"><i class="bi bi-sticky me-1" aria-hidden="true"></i>{{ element.memo }}</div>
                   </div>
-                  <button class="btn btn-sm btn-light" :aria-label="element.title + ' 삭제'" @click="removeItem(element)"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                  <button class="stop-btn" :aria-expanded="openNo === element.attractionNo" :aria-label="element.title + ' 일차·경비·메모 수정'" @click="openNo = openNo === element.attractionNo ? null : element.attractionNo"><i :class="['bi', openNo === element.attractionNo ? 'bi-chevron-up' : 'bi-pencil']" aria-hidden="true"></i></button>
+                  <button class="stop-btn" :aria-label="element.title + ' 삭제'" @click="removeItem(element)"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                  <i class="bi bi-grip-vertical drag-handle fs-5" title="드래그해서 순서 변경" aria-hidden="true"></i>
                 </div>
-                <div class="row g-1 mt-1">
-                  <div class="col-3">
-                    <select v-model.number="element.dayNo" class="form-select form-select-sm" aria-label="일차">
-                      <option v-for="d in dayCount" :key="d" :value="d">{{ d }}일차</option>
-                    </select>
+                <div v-if="openNo === element.attractionNo" class="stop-edit row g-2">
+                  <div class="col-4">
+                    <label class="form-label small mb-1" :for="'day' + element.attractionNo">일차</label>
+                    <select :id="'day' + element.attractionNo" v-model.number="element.dayNo" class="form-select form-select-sm"><option v-for="d in dayCount" :key="d" :value="d">{{ d }}일차</option></select>
                   </div>
-                  <div class="col-4"><input v-model.number="element.cost" type="number" min="0" step="1000" class="form-control form-control-sm" placeholder="경비(원)" aria-label="경비" /></div>
-                  <div class="col-5"><input v-model="element.memo" class="form-control form-control-sm" maxlength="500" placeholder="메모" aria-label="메모" /></div>
+                  <div class="col-8">
+                    <label class="form-label small mb-1" :for="'cost' + element.attractionNo">경비(원)</label>
+                    <input :id="'cost' + element.attractionNo" v-model.number="element.cost" type="number" min="0" step="1000" class="form-control form-control-sm" />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label small mb-1" :for="'memo' + element.attractionNo">메모</label>
+                    <input :id="'memo' + element.attractionNo" v-model="element.memo" class="form-control form-control-sm" maxlength="500" />
+                  </div>
                 </div>
-              </div>
               </div>
             </template>
           </draggable>
@@ -249,34 +289,60 @@ async function findMeeting() {
           <div v-if="members.length > 1" class="mm-card p-3 mt-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <strong class="small"><i class="bi bi-people me-1" aria-hidden="true"></i>함께하는 메이트 {{ members.length }}명</strong>
-              <button class="btn btn-sm btn-outline-coral" @click="findMeeting">중간 집결지 찾기</button>
+              <button class="btn btn-sm mm-btn-quiet" @click="findMeeting">중간 집결지 찾기</button>
             </div>
             <span v-for="m in members" :key="m.id" class="badge badge-ink me-1">{{ m.name }}{{ m.role === 'OWNER' ? ' (모집자)' : '' }}</span>
             <ul v-if="meeting?.nearby?.length" class="list-unstyled small mt-2 mb-0">
               <li class="text-secondary">집결지 주변 추천 장소</li>
-              <li v-for="n in meeting.nearby" :key="n.no">· {{ n.title }} ({{ n.distance }}km)</li>
+              <li v-for="n in meeting.nearby" :key="n.no">{{ n.title }} ({{ n.distance }}km)</li>
             </ul>
           </div>
         </div>
 
-        <div class="p-3 border-top d-flex align-items-center gap-2">
-          <div class="small flex-grow-1">
-            총 경비 <strong :class="{ 'text-danger': overBudget }">{{ totalCost.toLocaleString() }}원</strong>
-            <span v-if="plan.budget" class="text-secondary"> / 예산 {{ Number(plan.budget).toLocaleString() }}원</span>
-            <div v-if="overBudget" class="text-danger">예산을 {{ (totalCost - plan.budget).toLocaleString() }}원 초과했습니다.</div>
+        <div class="plan-foot">
+          <div class="flex-grow-1 min-w-0">
+            <div class="mm-item-meta">총 경비<template v-if="plan.budget"> / 예산 {{ Number(plan.budget).toLocaleString() }}원</template></div>
+            <strong class="plan-cost" :class="{ 'text-danger': overBudget }">{{ totalCost.toLocaleString() }}원</strong>
+            <div v-if="overBudget" class="small text-danger">예산을 {{ (totalCost - plan.budget).toLocaleString() }}원 넘었습니다.</div>
           </div>
-          <button class="btn btn-coral" :disabled="saving" @click="save">
+          <button class="btn btn-coral px-4" :disabled="saving" @click="save">
             <span v-if="saving" class="spinner-border spinner-border-sm me-1"></span>{{ isNew ? '플랜 만들기' : '저장' }}
           </button>
         </div>
       </template>
     </aside>
-    <div class="mm-map"><KakaoMap :markers="markers" path :route-path="routeInfo?.path" :dashed="mode === 'transit'" /></div>
+    <div class="mm-map"><KakaoMap :markers="markers" path :route-path="routeInfo?.path" :dashed="mode === 'transit'" :pad-left="padLeft" /></div>
   </div>
 </template>
 
 <style scoped>
 .plan-panel { width: 440px; }
-.leg { padding: 0 0 6px 38px; }
+@media (min-width: 768px) { .mm-split--float .plan-panel { width: 440px; } }
 @media (max-width: 767.98px) { .plan-panel { width: 100%; } }
+
+.plan-skel { height: 64px; border-radius: var(--mm-r-md); margin-top: var(--mm-sp-4); }
+.plan-head { display: flex; align-items: center; gap: var(--mm-sp-2); padding: var(--mm-sp-4) var(--mm-sp-4) var(--mm-sp-3); }
+.plan-title { font-size: var(--mm-fs-lg); font-weight: 700; letter-spacing: -0.02em; color: var(--mm-ink); margin: 0 0 2px; }
+.plan-tools { padding: var(--mm-sp-3) var(--mm-sp-4); border-top: 1px solid var(--mm-line); border-bottom: 1px solid var(--mm-line); }
+.route-sum { font-size: var(--mm-fs-sm); margin-top: var(--mm-sp-2); color: var(--mm-route); }
+
+/* 일정표: 번호를 세로 선으로 잇는다 */
+.stops { padding-top: var(--mm-sp-4); }
+.stop { position: relative; padding-bottom: var(--mm-sp-4); }
+.stop::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: var(--mm-route-tint); }
+.stop:first-child::before { top: 24px; }
+.stop:last-child::before { bottom: auto; height: 24px; }
+.stop:only-child::before { display: none; }
+.stop-row { position: relative; display: flex; align-items: center; gap: var(--mm-sp-3); }
+.stop-num { position: relative; z-index: 1; box-shadow: 0 0 0 3px #fff; }
+.stop-thumb { width: 48px; height: 48px; border-radius: var(--mm-r-sm); object-fit: cover; flex-shrink: 0; background: var(--mm-surface); }
+.stop-memo { font-size: var(--mm-fs-sm); color: var(--mm-text); margin-top: 2px; }
+.stop-btn { width: 32px; height: 32px; flex-shrink: 0; border: 0; border-radius: 50%; background: transparent; color: var(--mm-muted); display: inline-flex; align-items: center; justify-content: center; }
+.stop-btn:hover { background: var(--mm-surface); color: var(--mm-ink); }
+.stop-edit { margin: var(--mm-sp-2) 0 0 38px; padding: var(--mm-sp-3); background: var(--mm-surface); border-radius: var(--mm-r-sm); }
+.leg { position: relative; z-index: 1; display: inline-block; margin: 0 0 var(--mm-sp-4) 30px; padding: 2px 10px; border-radius: var(--mm-r-pill); background: var(--mm-route-tint); color: var(--mm-route); font-size: var(--mm-fs-xs); font-weight: 600; }
+.leg a { color: inherit; }
+
+.plan-foot { display: flex; align-items: center; gap: var(--mm-sp-3); padding: var(--mm-sp-3) var(--mm-sp-4); border-top: 1px solid var(--mm-line); }
+.plan-cost { font-size: var(--mm-fs-lg); color: var(--mm-ink); letter-spacing: -0.01em; }
 </style>

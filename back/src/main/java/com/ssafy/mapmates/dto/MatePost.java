@@ -19,6 +19,10 @@ public class MatePost {
     private String startDate;
     private String endDate;
     private Integer joinedCount;
+    /** 플랜에 담긴 방문지 수 */
+    private Integer placeCount;
+    /** 방문지 사진 주소를 '|' 로 이은 값 (카드 표지용) */
+    private String coverImages;
     /** 로그인 사용자의 취향 태그와의 일치도(0~100) */
     private Integer matchRate;
     /** 로그인 사용자의 신청 상태 */
