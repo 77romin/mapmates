@@ -18,6 +18,8 @@ const props = defineProps({
   picked: { type: Object, default: null },
   // 지도 왼쪽을 덮는 패널의 폭(px). 이만큼을 뺀 영역을 '보이는 지도'로 본다
   padLeft: { type: Number, default: 0 },
+  // 지도 오른쪽을 덮는 창(AI 길잡이)의 폭(px). 범위를 맞출 때 그만큼을 비운다
+  padRight: { type: Number, default: 0 },
   // 목록에서 가리키고 있는 장소. 해당 핀을 키워서 맨 위로 올린다
   hoverId: { type: [Number, String], default: null },
   // true 면 화면에서 서로 겹치는 핀을 하나로 묶고 개수를 보여 준다
@@ -156,7 +158,7 @@ function draw(fit = true) {
     if (map.getLevel() > 8) map.setLevel(6) // 전국 축척에서는 핀 하나가 잘 보이도록 확대
     centerOn(points[0])
   }
-  if (fit && points.length > 1) map.setBounds(bounds, 60, 60, 60, 60 + props.padLeft)
+  if (fit && points.length > 1) map.setBounds(bounds, 60, 60 + props.padRight, 60, 60 + props.padLeft)
 }
 
 /** 패널에 가려지지 않은 영역의 가운데에 pos 가 오도록 지도를 옮긴다 */
@@ -255,6 +257,10 @@ watch(() => props.hoverId, (id, old) => {
 })
 watch(() => props.picked, drawPicked, { deep: true })
 watch(() => [props.routePath, props.dashed], () => draw(false))
+// 마커는 그대로인데 다시 맞춰 달라는 요청(같은 코스를 다시 보기 등)에도 반응한다
+watch(() => props.fitKey, () => draw(shouldFit()))
+// 경로선·묶음 사용 여부가 바뀌면 다시 그린다
+watch(() => [props.path, props.cluster], () => draw(false))
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   overlays.forEach((o) => o.setMap(null))

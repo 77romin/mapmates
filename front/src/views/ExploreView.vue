@@ -3,11 +3,21 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import http from '@/api/http'
 import KakaoMap from '@/components/KakaoMap.vue'
 import AttractionDetail from '@/components/AttractionDetail.vue'
+import { useRouter } from 'vue-router'
 import { useDraftStore } from '@/stores/draft'
+import { useAuthStore } from '@/stores/auth'
+import { useAiMapStore } from '@/stores/aiMap'
+import { courseSpan, planFromCourse } from '@/utils/coursePlan'
 import { typeIcon } from '@/utils/place'
 import { usePanelPad } from '@/utils/panelPad'
 
 const draft = useDraftStore()
+const auth = useAuthStore()
+const router = useRouter()
+const ai = useAiMapStore() // AI 길잡이가 넘긴 코스. 있으면 검색 목록 대신 코스를 지도와 패널에 보여 준다
+const aiDay = ref(0) // 코스에서 보고 있는 일차 (0 = 전체)
+const making = ref(false)
+const makeError = ref('')
 const sidos = ref([])
 const guguns = ref([])
 const types = ref([])
@@ -28,7 +38,42 @@ const fitKey = ref(0) // 바뀔 때만 지도가 검색 결과에 맞춰 이동�
 const hovered = ref(null) // 목록에서 가리키고 있는 장소 번호
 const padLeft = usePanelPad(400) // 넓은 화면에서 패널이 지도를 가리는 폭
 
-const markers = computed(() => [
+// 코스를 보여 줄 때 오른쪽에 떠 있는 채팅창이 핀을 가리지 않게, 가려진 폭만큼 지도를 비워 맞춘다 (지도 폭의 40% 까지만)
+const padRight = computed(() => {
+  const box = ai.chatBox
+  if (!ai.course || !box || !padLeft.value || box.x < window.innerWidth / 2) return 0
+  return Math.round(Math.min(window.innerWidth - box.x, window.innerWidth * 0.4))
+})
+const aiStops = computed(() => (ai.course ? ai.course.stops.filter((s) => !aiDay.value || s.dayNo === aiDay.value) : []))
+// 코스가 넘어오거나 다시 보여 달라고 하면: 상세를 닫고 전체 일차로 돌아가 지도를 코스에 맞춘다
+watch(() => ai.seq, () => {
+  selected.value = null
+  extraMarkers.value = []
+  aiDay.value = 0
+  makeError.value = ''
+  fitKey.value++
+})
+watch(aiDay, () => fitKey.value++)
+function closeCourse() {
+  ai.clear()
+  fitKey.value++ // 검색 결과로 지도를 되돌린다
+}
+async function makePlan() {
+  making.value = true
+  makeError.value = ''
+  try {
+    await planFromCourse(ai.course, { auth, draft, router })
+  } catch (e) {
+    makeError.value = '플랜을 만들지 못했습니다. ' + e.message
+  } finally {
+    making.value = false
+  }
+}
+
+const markers = computed(() => ai.course
+  ? [...aiStops.value.map((s, i) => ({ id: s.no, latitude: s.latitude, longitude: s.longitude, title: s.title, label: i + 1, kind: 'hot' })), ...extraMarkers.value]
+  : listMarkers.value)
+const listMarkers = computed(() => [
   ...items.value.map((a) => ({ id: a.no, latitude: a.latitude, longitude: a.longitude, title: a.title, image: a.firstImage1 || null, icon: typeIcon(a.contentTypeId) })),
   ...extraMarkers.value,
 ])
@@ -111,6 +156,48 @@ function onLoaded(detail) {
       <!-- 상세 -->
       <AttractionDetail v-if="selected" :no="selected" @close="selected = null; extraMarkers = []" @extra="extraMarkers = $event" @loaded="onLoaded" />
 
+      <!-- AI 길잡이가 짠 코스 -->
+      <template v-else-if="ai.course">
+        <div class="ai-head">
+          <div class="min-w-0 flex-grow-1">
+            <div class="ai-kicker"><i class="bi bi-stars me-1" aria-hidden="true"></i>AI 길잡이 추천</div>
+            <h1 class="ai-title text-truncate">{{ ai.course.title }}</h1>
+            <div class="mm-item-meta">{{ ai.course.stops.length }}곳<template v-if="ai.course.days > 1">, {{ courseSpan(ai.course.days) }}</template></div>
+          </div>
+          <button class="mm-add" aria-label="추천 닫고 검색으로 돌아가기" @click="closeCourse"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+        </div>
+        <div v-if="ai.course.days > 1" class="px-3 pb-3 d-flex flex-wrap gap-1" role="group" aria-label="일차 선택">
+          <button class="btn btn-sm rounded-pill" :class="aiDay === 0 ? 'bg-ink' : 'btn-light'" @click="aiDay = 0">전체</button>
+          <button v-for="d in ai.course.days" :key="d" class="btn btn-sm rounded-pill" :class="aiDay === d ? 'bg-ink' : 'btn-light'" @click="aiDay = d">{{ d }}일차</button>
+        </div>
+        <div class="mm-panel-body border-top">
+          <template v-for="d in ai.course.days" :key="d">
+            <section v-if="!aiDay || aiDay === d" class="ai-day">
+              <div class="ai-day-head"><strong>{{ d }}일차</strong><span v-if="ai.course.dayKm?.[d - 1]">이동 약 {{ ai.course.dayKm[d - 1] }}km</span></div>
+              <ol class="ai-stops">
+                <li v-for="s in ai.course.stops.filter((x) => x.dayNo === d)" :key="s.no" role="button" tabindex="0" @click="open(s.no)" @keyup.enter="open(s.no)" @mouseenter="hovered = s.no" @mouseleave="hovered = null">
+                  <span class="mm-num ai-num">{{ aiStops.findIndex((x) => x.no === s.no) + 1 }}</span>
+                  <img v-if="s.image" :src="s.image" class="ai-thumb" alt="" loading="lazy" @error="s.image = null" />
+                  <span v-else class="ai-thumb ai-noimg" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
+                  <span class="min-w-0 flex-grow-1">
+                    <span class="mm-item-title d-block text-truncate">{{ s.title }}</span>
+                    <span class="mm-item-meta d-block">{{ s.type }}</span>
+                    <span v-if="s.summary" class="ai-sum">{{ s.summary }}</span>
+                  </span>
+                </li>
+              </ol>
+            </section>
+          </template>
+        </div>
+        <div class="ai-foot">
+          <div v-if="makeError" class="alert alert-danger py-2 small mb-2" role="alert">{{ makeError }}</div>
+          <button class="btn w-100" :class="ai.course.planId ? 'mm-btn-quiet' : 'btn-coral'" :disabled="making" @click="makePlan">
+            <span v-if="making" class="spinner-border spinner-border-sm me-1"></span>
+            <i v-else :class="['bi me-1', ai.course.planId ? 'bi-box-arrow-up-right' : 'bi-signpost-2']" aria-hidden="true"></i>{{ ai.course.planId ? '만든 플랜 열기' : '이 코스로 플랜 만들기' }}
+          </button>
+        </div>
+      </template>
+
       <!-- 검색 + 목록 -->
       <template v-else>
         <form class="p-3 border-bottom" @submit.prevent="search(1)">
@@ -182,8 +269,8 @@ function onLoaded(detail) {
     </aside>
 
     <div class="mm-map">
-      <KakaoMap :markers="markers" :selected-id="selected" :fit-key="fitKey" :pad-left="padLeft" :hover-id="hovered" cluster @marker-click="(m) => typeof m.id === 'number' && open(m.id)" @view-change="onViewChange" />
-      <button v-if="moved && !selected" class="btn btn-sm bg-ink research" @click="search(1, 'area')">
+      <KakaoMap :markers="markers" :selected-id="selected" :fit-key="fitKey" :pad-left="padLeft" :pad-right="padRight" :hover-id="hovered" :cluster="!ai.course" :path="!!ai.course" @marker-click="(m) => typeof m.id === 'number' && open(m.id)" @view-change="onViewChange" />
+      <button v-if="moved && !selected && !ai.course" class="btn btn-sm bg-ink research" @click="search(1, 'area')">
         <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>이 지역에서 다시 검색
       </button>
     </div>
@@ -191,6 +278,23 @@ function onLoaded(detail) {
 </template>
 
 <style scoped>
+/* AI 길잡이 코스 패널 */
+.ai-head { display: flex; align-items: flex-start; gap: var(--mm-sp-2); padding: var(--mm-sp-4); }
+.ai-kicker { font-size: var(--mm-fs-xs); font-weight: 700; color: var(--mm-route); margin-bottom: 2px; }
+.ai-title { font-size: var(--mm-fs-lg); font-weight: 700; letter-spacing: -0.02em; color: var(--mm-ink); margin: 0 0 2px; }
+.ai-day { padding: var(--mm-sp-4) var(--mm-sp-4) 0; }
+.ai-day-head { display: flex; justify-content: space-between; align-items: baseline; color: var(--mm-route); font-size: var(--mm-fs-sm); margin-bottom: var(--mm-sp-2); }
+.ai-day-head strong { font-size: var(--mm-fs-md); }
+.ai-stops { list-style: none; padding: 0; margin: 0; }
+.ai-stops li { position: relative; display: flex; align-items: flex-start; gap: var(--mm-sp-3); padding: var(--mm-sp-2) var(--mm-sp-2) var(--mm-sp-4); margin: 0 calc(var(--mm-sp-2) * -1); border-radius: var(--mm-r-sm); cursor: pointer; }
+.ai-stops li:hover, .ai-stops li:focus-visible { background: var(--mm-surface); outline: 0; }
+.ai-stops li::before { content: ''; position: absolute; left: 20px; top: 34px; bottom: -8px; width: 2px; background: var(--mm-route-tint); }
+.ai-stops li:last-child::before { display: none; }
+.ai-num { position: relative; z-index: 1; margin-top: 10px; }
+.ai-thumb { width: 52px; height: 52px; border-radius: var(--mm-r-sm); object-fit: cover; flex-shrink: 0; background: var(--mm-surface); }
+.ai-noimg { display: inline-flex; align-items: center; justify-content: center; color: var(--mm-placeholder); }
+.ai-sum { display: block; font-size: var(--mm-fs-sm); line-height: 1.5; color: var(--mm-text); margin-top: 2px; }
+.ai-foot { padding: var(--mm-sp-3) var(--mm-sp-4); border-top: 1px solid var(--mm-line); }
 /* 사진이 주인공인 2열 카드 */
 .place-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--mm-sp-5) var(--mm-sp-3); padding: var(--mm-sp-4); }
 .place-card { min-width: 0; cursor: pointer; border-radius: var(--mm-r-md); }

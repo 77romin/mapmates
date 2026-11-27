@@ -1,13 +1,17 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import http, { AI_SERVER } from '@/api/http'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useDraftStore } from '@/stores/draft'
 import { useAuthStore } from '@/stores/auth'
+import { useAiMapStore } from '@/stores/aiMap'
+import { planFromCourse } from '@/utils/coursePlan'
 
 const draft = useDraftStore()
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
+const aiMap = useAiMapStore()
 // ---------- 창 상태: 열림·접힘·위치·크기를 기억한다 ----------
 const UI_KEY = 'mm_chat_ui'
 const MIN_W = 300
@@ -97,6 +101,10 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', clamp)
   wide.removeEventListener('change', onWide)
 })
+// 지도가 채팅창에 가려지는 폭을 알 수 있게 창의 자리를 알려 둔다
+watch([open, mini, floating, () => [rect.x, rect.y, rect.w, rect.h]], () => {
+  aiMap.chatBox = open.value && !mini.value && floating.value ? { x: rect.x, y: rect.y, w: rect.w, h: rect.h } : null
+}, { immediate: true })
 watch(mini, () => {
   clamp() // 펼칠 때 아래로 넘치지 않게
   scrollDown()
@@ -140,7 +148,10 @@ async function send() {
       const history = messages.value.slice(1, -1).filter((m) => m.role === 'user' || (m.role === 'ai' && m.trip))
         .slice(-6).map((m) => ({ role: m.role, text: m.text }))
       const res = await http.post('/ai/chat', { message: text, mode: 'planner', history })
-      messages.value.push({ role: 'ai', trip: true, text: (res.answer || '').replace(/\*\*/g, ''), tools: (res.steps || []).map((s) => TOOL_LABEL[s.tool] || s.tool), places: res.places || [], course: res.course || null })
+      const view = asCourse(res)
+      messages.value.push({ role: 'ai', trip: true, text: (res.answer || '').replace(/\*\*/g, ''), tools: (res.steps || []).map((s) => TOOL_LABEL[s.tool] || s.tool), places: res.places || [], course: res.course || null, view })
+      // 메인 지도를 보고 있으면 추천 결과를 바로 지도에 올린다. 다른 화면에서는 '지도에서 보기'를 눌러야 옮겨 간다
+      if (view && route.path === '/') aiMap.show(messages.value[messages.value.length - 1].view)
     } else {
       // 문서 Q&A: fetch API 로 FastAPI RAG 서버의 /chat 호출
       const response = await fetch(`${AI_SERVER}/chat`, {
@@ -188,28 +199,20 @@ async function upload(e) {
 function addPlace(p) {
   draft.add(p)
 }
-/** '1박 2일' 처럼 코스 길이를 말로 */
-const span = (days) => (days > 1 ? `${days - 1}박 ${days}일` : '당일')
+/** 응답에 코스가 없고 장소만 있으면(한두 곳 추천) 지도에 보여 줄 수 있게 하루짜리 묶음으로 만든다 */
+const asCourse = (res) =>
+  res.course || (res.places?.length ? { title: '추천 장소', days: 1, stops: res.places.map((p) => ({ ...p, dayNo: 1 })) } : null)
 
-/**
- * AI 가 짠 코스를 일차를 유지한 채 플랜으로 만든다.
- * 로그인 상태면 바로 저장하고 그 플랜을 연다. 아니면 일차를 유지해 담아 두고 로그인 뒤 새 플랜 화면으로 보낸다.
- */
+/** 코스를 메인 지도에 보여 준다. 다른 화면에 있으면 지도 탐색으로 옮겨 간다 */
+function showOnMap(course) {
+  aiMap.show(course)
+  if (route.path !== '/') router.push('/')
+}
+
 async function makePlan(m) {
-  if (m.planId) return router.push(`/plans/${m.planId}`)
-  const { title, stops } = m.course
-  if (!auth.isLogin) {
-    draft.addCourse(stops)
-    return router.push('/plans/new') // 로그인 화면을 거쳐 돌아온다
-  }
   m.making = true
   try {
-    const created = await http.post('/plans', {
-      title, startDate: null, endDate: null, budget: 0, memo: '', isPublic: false,
-      items: stops.map((s) => ({ attractionNo: s.no, dayNo: s.dayNo, memo: '', cost: 0 })),
-    })
-    m.planId = created.id
-    router.push(`/plans/${created.id}`)
+    await planFromCourse(m.course, { auth, draft, router })
   } catch (e) {
     messages.value.push({ role: 'error', text: '플랜을 만들지 못했습니다. ' + e.message })
     scrollDown()
@@ -266,12 +269,16 @@ async function makePlan(m) {
                 </li>
               </ol>
             </div>
-            <button class="btn btn-sm w-100" :class="m.planId ? 'mm-btn-quiet' : 'btn-coral'" :disabled="m.making" @click="makePlan(m)">
-              <span v-if="m.making" class="spinner-border spinner-border-sm me-1"></span>
-              <i v-else :class="['bi me-1', m.planId ? 'bi-box-arrow-up-right' : 'bi-signpost-2']" aria-hidden="true"></i>{{ m.planId ? '만든 플랜 열기' : `${span(m.course.days)} 코스로 플랜 만들기` }}
-            </button>
-            <div v-if="!auth.isLogin && !m.planId" class="meta">로그인 화면을 거쳐 새 플랜으로 이어집니다.</div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm mm-btn-quiet flex-shrink-0" @click="showOnMap(m.course)"><i class="bi bi-map me-1" aria-hidden="true"></i>지도에서 보기</button>
+              <button class="btn btn-sm flex-grow-1" :class="m.course.planId ? 'mm-btn-quiet' : 'btn-coral'" :disabled="m.making" @click="makePlan(m)">
+                <span v-if="m.making" class="spinner-border spinner-border-sm me-1"></span>
+                <i v-else :class="['bi me-1', m.course.planId ? 'bi-box-arrow-up-right' : 'bi-signpost-2']" aria-hidden="true"></i>{{ m.course.planId ? '플랜 열기' : '플랜 만들기' }}
+              </button>
+            </div>
+            <div v-if="!auth.isLogin && !m.course.planId" class="meta">플랜 만들기는 로그인 화면을 거쳐 새 플랜으로 이어집니다.</div>
           </div>
+          <button v-else-if="m.view" class="btn btn-sm mm-btn-quiet mt-2" @click="showOnMap(m.view)"><i class="bi bi-map me-1" aria-hidden="true"></i>지도에서 보기</button>
           <div v-if="m.places?.length" class="meta">한 곳씩 담으려면 아래에서 고르세요.</div>
           <div v-if="m.places?.length" class="places">
             <button v-for="p in m.places" :key="p.no" class="place-chip" :class="{ on: draft.has(p.no) }" :disabled="draft.has(p.no)" @click="addPlace(p)">
