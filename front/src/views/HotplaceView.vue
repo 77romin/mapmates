@@ -3,8 +3,10 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import http, { fileUrl } from '@/api/http'
 import KakaoMap from '@/components/KakaoMap.vue'
+import { usePanelPad } from '@/utils/panelPad'
 import { useAuthStore } from '@/stores/auth'
 
+const padLeft = usePanelPad(400) // 넓은 화면에서 패널이 지도를 가리는 폭
 const auth = useAuthStore()
 const router = useRouter()
 const list = ref([])
@@ -88,7 +90,7 @@ async function remove(h) {
 </script>
 
 <template>
-  <div class="mm-split">
+  <div class="mm-split mm-split--float">
     <aside class="mm-panel">
       <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
         <h1 class="h5 mm-title mb-0">{{ adding ? '핫플 등록' : '우리의 핫플레이스' }}</h1>
@@ -116,28 +118,29 @@ async function remove(h) {
       </form>
 
       <div v-else class="mm-panel-body">
-        <div v-if="loading" class="mm-empty"><div class="spinner-border text-secondary" role="status"></div></div>
+        <div v-if="loading" role="status" aria-busy="true" aria-label="핫플레이스를 불러오는 중"><div v-for="n in 4" :key="n" class="mm-item" aria-hidden="true"><div class="mm-thumb mm-skel"></div><div class="flex-grow-1 align-self-center"><div class="mm-skel mm-skel-line w-75"></div><div class="mm-skel mm-skel-line w-50"></div></div></div></div>
         <div v-else-if="error" class="mm-empty"><i class="bi bi-wifi-off"></i>{{ error }}</div>
         <div v-else-if="!list.length" class="mm-empty"><i class="bi bi-camera"></i>아직 등록된 핫플레이스가 없습니다.<br />다녀온 곳의 사진을 첫 번째로 남겨 보세요.</div>
         <div v-for="h in list" :key="h.id" class="mm-item" :class="{ active: selected === h.id }" role="button" tabindex="0" @click="selected = h.id" @keyup.enter="selected = h.id">
           <img v-if="h.imagePath" :src="fileUrl(h.imagePath)" class="mm-thumb" alt="" loading="lazy" />
           <div v-else class="mm-thumb"><i class="bi bi-camera" aria-hidden="true"></i></div>
-          <div class="flex-grow-1 min-w-0">
-            <span class="badge badge-soft">{{ h.placeType }}</span>
-            <div class="fw-bold text-truncate">{{ h.title }}</div>
-            <div class="small text-secondary">{{ h.writerName }}<span v-if="h.visitedDate"> · {{ h.visitedDate }} 방문</span></div>
-            <div v-if="selected === h.id" class="small pre-line mt-1">{{ h.description }}</div>
+          <div class="flex-grow-1 min-w-0 align-self-center">
+            <div class="mm-item-title text-truncate">{{ h.title }}</div>
+            <div class="mm-item-kind">{{ h.placeType }}</div>
+            <div class="mm-item-meta">{{ h.writerName }}<span v-if="h.visitedDate">, {{ h.visitedDate }} 방문</span></div>
+            <div v-if="selected === h.id" class="hot-desc pre-line">{{ h.description }}</div>
           </div>
           <button v-if="auth.member?.id === h.memberId || auth.isAdmin" class="btn btn-sm btn-light align-self-start" aria-label="삭제" @click.stop="remove(h)"><i class="bi bi-trash" aria-hidden="true"></i></button>
         </div>
       </div>
     </aside>
     <div class="mm-map">
-      <KakaoMap :markers="markers" :selected-id="selected" :clickable="adding" :picked="picked" @marker-click="selected = $event.id" @map-click="picked = $event" />
+      <KakaoMap :markers="markers" :selected-id="selected" :clickable="adding" :picked="picked" :pad-left="padLeft" @marker-click="selected = $event.id" @map-click="picked = $event" />
     </div>
   </div>
 </template>
 
 <style scoped>
 .hot-preview { max-height: 160px; object-fit: cover; }
+.hot-desc { font-size: var(--mm-fs-sm); color: var(--mm-text); margin-top: var(--mm-sp-2); }
 </style>
