@@ -1,10 +1,109 @@
 <script setup>
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import http, { AI_SERVER } from '@/api/http'
 import { useDraftStore } from '@/stores/draft'
 
 const draft = useDraftStore()
-const open = ref(false)
+// ---------- 창 상태: 열림·접힘·위치·크기를 기억한다 ----------
+const UI_KEY = 'mm_chat_ui'
+const MIN_W = 300
+const MIN_H = 320
+const EDGE = 12 // 화면 가장자리와 띄우는 최소 간격
+const DEFAULT = { w: 380, h: 580 }
+const saved = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(UI_KEY)) || {}
+  } catch {
+    return {}
+  }
+})()
+const wide = window.matchMedia('(min-width: 768px)')
+const floating = ref(wide.matches) // 넓은 화면에서만 옮기고 크기를 바꿀 수 있다
+// 기본은 열림. 좁은 화면에서는 화면을 가리므로 닫힌 채로 시작한다. 직접 닫거나 연 선택은 기억한다
+const open = ref(saved.open ?? wide.matches)
+const mini = ref(!!saved.mini) // 제목 줄만 남기고 접었는지
+const rect = reactive({ w: saved.w || DEFAULT.w, h: saved.h || DEFAULT.h, x: saved.x ?? null, y: saved.y ?? null })
+
+/** 창이 화면 밖으로 나가지 않게 위치와 크기를 맞춘다 */
+function clamp() {
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  rect.w = Math.min(Math.max(rect.w, MIN_W), vw - EDGE * 2)
+  rect.h = Math.min(Math.max(rect.h, MIN_H), vh - EDGE * 2)
+  if (rect.x == null) rect.x = vw - rect.w - 20 // 처음에는 오른쪽 아래
+  if (rect.y == null) rect.y = vh - rect.h - 20
+  rect.x = Math.min(Math.max(rect.x, EDGE), vw - rect.w - EDGE)
+  rect.y = Math.min(Math.max(rect.y, EDGE), vh - (mini.value ? 48 : rect.h) - EDGE)
+}
+const boxStyle = computed(() =>
+  floating.value ? { left: rect.x + 'px', top: rect.y + 'px', width: rect.w + 'px', height: mini.value ? 'auto' : rect.h + 'px' } : {},
+)
+function resetBox(e) {
+  if (e.target.closest('button')) return
+  Object.assign(rect, DEFAULT, { x: null, y: null })
+  clamp()
+}
+
+// 끌어서 옮기기(move), 모서리를 끌어 크기 바꾸기(tl: 왼쪽 위, br: 오른쪽 아래)
+let drag = null
+function dragStart(e, kind) {
+  if (!floating.value || (kind === 'move' && e.target.closest('button'))) return
+  drag = { kind, px: e.clientX, py: e.clientY, x: rect.x, y: rect.y, w: rect.w, h: rect.h }
+  e.currentTarget.setPointerCapture(e.pointerId)
+  e.preventDefault()
+}
+function dragMove(e) {
+  if (!drag) return
+  const dx = e.clientX - drag.px
+  const dy = e.clientY - drag.py
+  if (drag.kind === 'move') {
+    rect.x = drag.x + dx
+    rect.y = drag.y + dy
+  } else if (drag.kind === 'br') {
+    rect.w = Math.min(Math.max(drag.w + dx, MIN_W), window.innerWidth - EDGE - drag.x)
+    rect.h = Math.min(Math.max(drag.h + dy, MIN_H), window.innerHeight - EDGE - drag.y)
+  } else {
+    // 왼쪽 위 모서리: 오른쪽 아래는 제자리에 둔다
+    const right = drag.x + drag.w
+    const bottom = drag.y + drag.h
+    rect.w = Math.min(Math.max(drag.w - dx, MIN_W), right - EDGE)
+    rect.h = Math.min(Math.max(drag.h - dy, MIN_H), bottom - EDGE)
+    rect.x = right - rect.w
+    rect.y = bottom - rect.h
+  }
+  clamp()
+}
+function dragEnd(e) {
+  if (!drag) return
+  drag = null
+  e.currentTarget.releasePointerCapture?.(e.pointerId)
+}
+
+const onWide = (e) => {
+  floating.value = e.matches
+  clamp()
+}
+onMounted(() => {
+  clamp()
+  window.addEventListener('resize', clamp)
+  wide.addEventListener('change', onWide)
+  if (open.value) scrollDown()
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', clamp)
+  wide.removeEventListener('change', onWide)
+})
+watch(mini, () => {
+  clamp() // 펼칠 때 아래로 넘치지 않게
+  scrollDown()
+})
+watch([open, mini, () => [rect.x, rect.y, rect.w, rect.h]], () => {
+  try {
+    localStorage.setItem(UI_KEY, JSON.stringify({ open: open.value, mini: mini.value, ...rect }))
+  } catch {
+    /* 저장소를 쓸 수 없으면 기억하지 않는다 */
+  }
+})
 const mode = ref('trip') // trip: Spring AI Planner, doc: FastAPI RAG
 const input = ref('')
 const loading = ref(false)
@@ -95,11 +194,16 @@ function addAll(places) {
     <i class="bi bi-stars" aria-hidden="true"></i><span class="chat-fab-text">AI 길잡이</span>
   </button>
 
-  <section v-else class="chat-box" aria-label="AI 길잡이">
-    <header class="chat-head">
+  <section v-else class="chat-box" :class="{ floating, mini }" :style="boxStyle" aria-label="AI 길잡이">
+    <!-- 제목 줄을 잡고 끌면 창이 움직인다. 두 번 누르면 처음 위치와 크기로 돌아간다 -->
+    <header class="chat-head" :title="floating ? '끌어서 옮기기, 두 번 눌러 처음 위치로' : null" @pointerdown="dragStart($event, 'move')" @pointermove="dragMove" @pointerup="dragEnd" @pointercancel="dragEnd" @dblclick="resetBox">
       <strong><i class="bi bi-stars me-1" aria-hidden="true"></i>AI 길잡이</strong>
-      <button class="btn-close btn-close-white" aria-label="닫기" @click="open = false"></button>
+      <div class="d-flex gap-1">
+        <button class="head-btn" :aria-label="mini ? '창 펼치기' : '창 접기'" :aria-expanded="!mini" @click="mini = !mini"><i :class="['bi', mini ? 'bi-arrows-angle-expand' : 'bi-dash-lg']" aria-hidden="true"></i></button>
+        <button class="head-btn" aria-label="닫기" @click="open = false"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+      </div>
     </header>
+    <div v-show="!mini" class="chat-main">
     <div class="chat-modes" role="tablist">
       <button role="tab" :aria-selected="mode === 'trip'" :class="{ active: mode === 'trip' }" @click="mode = 'trip'">여행 도우미</button>
       <button role="tab" :aria-selected="mode === 'doc'" :class="{ active: mode === 'doc' }" @click="mode = 'doc'">문서 Q&amp;A</button>
@@ -141,6 +245,12 @@ function addAll(places) {
       <input v-model="input" class="form-control" maxlength="1000" :placeholder="mode === 'trip' ? '여행에 대해 물어보세요' : '업로드한 문서에 대해 물어보세요'" aria-label="질문 입력" />
       <button class="btn btn-coral" :disabled="loading || !input.trim()" aria-label="보내기"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
     </form>
+    </div>
+    <!-- 모서리를 끌어 크기를 바꾼다 -->
+    <template v-if="floating && !mini">
+      <span class="rz tl" aria-hidden="true" @pointerdown="dragStart($event, 'tl')" @pointermove="dragMove" @pointerup="dragEnd" @pointercancel="dragEnd"></span>
+      <span class="rz br" aria-hidden="true" @pointerdown="dragStart($event, 'br')" @pointermove="dragMove" @pointerup="dragEnd" @pointercancel="dragEnd"></span>
+    </template>
   </section>
 </template>
 
@@ -153,7 +263,19 @@ function addAll(places) {
 .place-chip.on { background: var(--mm-surface); color: var(--mm-muted); border-color: var(--mm-surface); }
 .chat-fab:hover { background: var(--mm-coral-dark); }
 .chat-box { position: fixed; right: 20px; bottom: 20px; width: 380px; max-width: calc(100vw - 24px); height: 580px; max-height: calc(100vh - 90px); background: #fff; border-radius: var(--mm-r-lg); box-shadow: var(--mm-shadow-3); display: flex; flex-direction: column; overflow: hidden; z-index: 1040; }
-.chat-head { background: var(--mm-ink); color: #fff; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+.chat-head { background: var(--mm-ink); color: #fff; padding: 10px 10px 10px 16px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+/* 넓은 화면: 위치와 크기를 직접 정한다 */
+.chat-box.floating { right: auto; bottom: auto; max-width: none; max-height: none; }
+.chat-box.floating .chat-head { cursor: grab; touch-action: none; user-select: none; }
+.chat-box.floating .chat-head:active { cursor: grabbing; }
+.chat-main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.head-btn { width: 30px; height: 30px; border: 0; border-radius: 50%; background: transparent; color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+.head-btn:hover, .head-btn:focus-visible { background: rgba(255, 255, 255, 0.18); outline: 0; }
+.rz { position: absolute; width: 18px; height: 18px; z-index: 2; touch-action: none; }
+.rz.tl { top: 0; left: 0; cursor: nwse-resize; }
+.rz.br { right: 0; bottom: 0; cursor: nwse-resize; }
+/* 오른쪽 아래 모서리의 손잡이 표시 */
+.rz.br::after { content: ''; position: absolute; right: 4px; bottom: 4px; width: 8px; height: 8px; border-right: 2px solid var(--mm-placeholder); border-bottom: 2px solid var(--mm-placeholder); border-bottom-right-radius: 3px; }
 .chat-modes { display: flex; border-bottom: 1px solid var(--mm-line); }
 .chat-modes button { flex: 1; border: 0; background: #fff; padding: 9px; font-weight: 600; font-size: var(--mm-fs-sm); color: var(--mm-muted); border-bottom: 2px solid transparent; }
 .chat-modes button.active { color: var(--mm-coral-dark); border-bottom-color: var(--mm-coral-dark); }
