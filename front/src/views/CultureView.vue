@@ -150,18 +150,18 @@ const safe = (url) => (/^https?:\/\//.test(url || '') ? url : null)
     <!-- 상세 -->
     <div v-if="detail" class="mm-modal" role="dialog" aria-modal="true" aria-label="상세 정보" @click.self="detail = null; popup = null">
       <div class="mm-modal-body wide">
-        <div class="d-flex justify-content-between align-items-start gap-2">
-          <h2 class="h5 mm-title">{{ detail.title }}</h2>
-          <button class="btn-close flex-shrink-0" aria-label="닫기" @click="detail = null"></button>
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+          <h2 class="cd-title">{{ detail.title }}</h2>
+          <button class="mm-add" aria-label="닫기" @click="detail = null"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
         </div>
-        <div v-if="detailLoading" class="text-center py-4"><div class="spinner-border text-secondary" role="status"></div></div>
+        <div v-if="detailLoading" class="row g-3" role="status" aria-busy="true" aria-label="상세 정보를 불러오는 중"><div class="col-md-4"><div class="poster mm-skel"></div></div><div class="col-md-8"><div v-for="n in 6" :key="n" class="mm-skel mm-skel-line"></div></div></div>
         <div v-else-if="detail.error" class="alert alert-danger">{{ detail.error }}</div>
         <div v-else class="row g-3">
           <div class="col-md-4">
-            <img v-if="detail.poster || detail.image" :src="detail.poster || detail.image" class="w-100 rounded" :alt="detail.title + ' 포스터'" />
+            <img v-if="detail.poster || detail.image" :src="detail.poster || detail.image" class="w-100 cd-poster" :alt="detail.title + ' 포스터'" />
           </div>
           <div class="col-md-8">
-            <dl class="row small mb-2">
+            <dl class="row cd-facts mb-3">
               <template v-if="detail.kind === 'performance'">
                 <dt class="col-3">기간</dt><dd class="col-9">{{ detail.startDate }} ~ {{ detail.endDate }}</dd>
                 <dt class="col-3">공연장</dt><dd class="col-9">{{ detail.venue }}</dd>
@@ -186,15 +186,15 @@ const safe = (url) => (/^https?:\/\//.test(url || '') ? url : null)
             </dl>
             <div v-if="place()?.latitude" class="venue-map mb-2"><KakaoMap :markers="markers()" selected-id="venue" @marker-click="(m) => typeof m.id === 'number' && (popup = { no: m.id, distance: nearby.find((n) => n.no === m.id)?.distance ?? null })" /></div>
             <template v-if="nearby.length">
-              <div class="small fw-bold mb-1">주변 2km · 함께 가기 좋은 곳 <span class="fw-normal text-secondary">— 눌러서 정보를 보고 담아 보세요</span></div>
-              <ul class="list-unstyled small mb-0">
+              <h3 class="cd-h">주변 2km 안, 함께 가기 좋은 곳</h3>
+              <ul class="list-unstyled mb-0">
                 <li v-for="n in nearby.slice(0, 5)" :key="n.no" class="border-top">
                   <button class="nearby-item" :aria-label="n.title + ' 정보 보기'" @click="popup = { no: n.no, distance: n.distance }">
                     <img v-if="n.firstImage1" :src="n.firstImage1" class="nearby-thumb" alt="" loading="lazy" @error="n.firstImage1 = ''" />
                     <span v-else class="nearby-thumb d-flex align-items-center justify-content-center"><i :class="['bi', typeIcon(n.contentTypeId)]" aria-hidden="true"></i></span>
                     <span class="flex-grow-1 min-w-0">
-                      <span class="d-block fw-semibold text-truncate">{{ n.title }}</span>
-                      <span class="d-block text-secondary text-truncate">{{ n.contentTypeName }} · {{ n.distance }}km</span>
+                      <span class="d-block mm-item-title text-truncate">{{ n.title }}</span>
+                      <span class="d-block mm-item-meta text-truncate">{{ n.contentTypeName }}, {{ n.distance }}km</span>
                     </span>
                     <span v-if="draft.has(n.no)" class="badge badge-soft flex-shrink-0"><i class="bi bi-check-lg" aria-hidden="true"></i> 담김</span>
                     <i class="bi bi-chevron-right text-secondary flex-shrink-0" aria-hidden="true"></i>
@@ -223,8 +223,16 @@ const safe = (url) => (/^https?:\/\//.test(url || '') ? url : null)
 .poster-chip.free { left: auto; right: var(--mm-sp-2); background: var(--mm-ink); color: #fff; }
 .title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
 @media (prefers-reduced-motion: reduce) { .poster { transition: none; } }
-.wide { max-width: 760px; }
-.nearby-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 4px; border: 0; background: transparent; text-align: left; border-radius: var(--mm-r-sm); color: inherit; }
+.wide { max-width: 820px; }
+.cd-title { font-size: var(--mm-fs-xl); font-weight: 700; letter-spacing: -0.02em; line-height: 1.3; color: var(--mm-ink); margin: 0; }
+.cd-poster { border-radius: var(--mm-r-md); }
+/* 좁은 화면에서는 포스터가 화면을 다 차지하지 않게 줄인다 */
+@media (max-width: 767.98px) { .cd-poster { max-width: 180px; display: block; } }
+.cd-facts { font-size: var(--mm-fs-sm); row-gap: var(--mm-sp-2); }
+.cd-facts dt { font-weight: 400; color: var(--mm-muted); }
+.cd-facts dd { margin: 0; color: var(--mm-text); }
+.cd-h { font-size: var(--mm-fs-md); font-weight: 700; color: var(--mm-ink); margin: var(--mm-sp-4) 0 var(--mm-sp-1); }
+.nearby-item { display: flex; align-items: center; gap: var(--mm-sp-3); width: 100%; padding: var(--mm-sp-2) var(--mm-sp-1); border: 0; background: transparent; text-align: left; border-radius: var(--mm-r-sm); color: inherit; }
 .nearby-item:hover, .nearby-item:focus-visible { background: var(--mm-surface); }
 .nearby-thumb { width: 44px; height: 44px; border-radius: var(--mm-r-sm); object-fit: cover; background: var(--mm-surface); color: var(--mm-placeholder); flex-shrink: 0; }
 .venue-map { position: relative; height: 200px; border-radius: var(--mm-r-md); overflow: hidden; border: 1px solid var(--mm-line); }
