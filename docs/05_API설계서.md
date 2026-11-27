@@ -43,6 +43,8 @@
 | GET | `/attractions/{no}/sun` | 일출·일몰 | - | `{ sunrise, sunset }` |
 | GET | `/attractions/{no}/chargers` | 전기차 충전소 | `radius=3(km)` | `{ available, stations:[{ name, addr, latitude, longitude, distance, total, availableCount }] }` |
 
+`/attractions` 정렬: 유형을 지정하지 않으면 유형별 순위를 매겨(윈도 함수 `ROW_NUMBER() OVER (PARTITION BY content_type_id)`) 관광지·문화시설·축제·음식점 등이 번갈아 나온다. 사진이 있는 장소가 먼저다.
+
 콘텐츠 유형: 12 관광지, 14 문화시설, 15 축제공연행사, 25 여행코스, 28 레포츠, 32 숙박, 38 쇼핑, 39 음식점
 
 ## 3. 여행 계획
