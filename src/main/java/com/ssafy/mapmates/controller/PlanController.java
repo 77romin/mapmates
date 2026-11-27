@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ssafy.mapmates.common.AuthInterceptor;
 import com.ssafy.mapmates.dto.Plan;
 import com.ssafy.mapmates.service.PlanService;
+import com.ssafy.mapmates.service.RouteService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class PlanController {
     private final PlanService planService;
+    private final RouteService routeService;
 
     @GetMapping
     public List<Plan> mine(HttpServletRequest req) {
@@ -55,6 +57,16 @@ public class PlanController {
     @PostMapping("/optimize")
     public Map<String, Object> optimize(@RequestBody Map<String, List<Integer>> body) {
         return planService.optimize(body.get("attractionNos"));
+    }
+
+    /** 이동 수단별 경로. body: { mode: car | walk | transit, attractionNos: [..] } */
+    @PostMapping("/route")
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> route(@RequestBody Map<String, Object> body) {
+        Object nos = body.get("attractionNos");
+        if (!(nos instanceof List<?> list)) throw com.ssafy.mapmates.common.ApiException.badRequest("attractionNos 가 필요합니다.");
+        List<Integer> ids = list.stream().filter(o -> o instanceof Number).map(o -> ((Number) o).intValue()).toList();
+        return routeService.route(String.valueOf(body.get("mode")), ids);
     }
 
     @GetMapping("/{id}/meeting-point")
