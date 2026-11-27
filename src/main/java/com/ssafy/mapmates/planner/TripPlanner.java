@@ -49,10 +49,10 @@ public class TripPlanner {
     @Value("classpath:/prompts/planner.txt")
     private Resource plannerPrompt;
 
-    public ExecutionPlan plan(String question, boolean loggedIn) {
+    public ExecutionPlan plan(String question, boolean loggedIn, String history) {
         ExecutionPlan raw;
         try {
-            raw = chatClient.prompt().system(plannerPrompt).user(question).call().entity(ExecutionPlan.class);
+            raw = chatClient.prompt().system(plannerPrompt).user(withHistory(history, question)).call().entity(ExecutionPlan.class);
         } catch (Exception e) {
             log.warn("LLM 계획 수립 실패, 규칙 기반 계획으로 대체: {}", e.getMessage());
             raw = ruleBasedPlan(question);
@@ -81,7 +81,13 @@ public class TripPlanner {
         return new ExecutionPlan(steps, nvl(raw.region()), nvl(raw.keyword()), nvl(raw.contentType()), count, docQuery, types, days, intent);
     }
 
-    public List<StepResult> execute(ExecutionPlan plan, Integer memberId) {
+    /** 이전 대화가 있으면 이번 요청 앞에 붙인다. (후속 요청에서 지역·조건을 이어받기 위함) */
+    public static String withHistory(String history, String question) {
+        if (history == null || history.isBlank()) return question;
+        return "[이전 대화]\n" + history + "\n\n[이번 요청]\n" + question;
+    }
+
+    public List<StepResult> execute(ExecutionPlan plan, Integer memberId, String history) {
         List<StepResult> results = new ArrayList<>();
         List<Place> places = List.of();
         for (ToolStep step : plan.steps()) {
@@ -92,30 +98,51 @@ public class TripPlanner {
                         List<String> types = plan.contentTypes().isEmpty() && !plan.contentType().isBlank()
                                 ? List.of(plan.contentType()) : plan.contentTypes();
                         double radius = plan.days() <= 1 ? 5 : 12;
+                        // 음식점이 섞인 코스라면 하루에 한 곳은 식사 장소가 들어가게 자리를 잡아 둔다
+                        boolean mixedWithFood = types.contains("음식점") && types.size() > 1;
+                        int foodNeed = mixedWithFood ? Math.min(plan.days(), Math.max(1, plan.count() / 3)) : 0;
+                        int spotNeed = plan.count() - foodNeed;
 
                         // 1) AI 가 조건에 맞는 장소를 직접 추천한다
-                        List<String> suggested = suggestPlaceNames(plan, types);
+                        List<String> suggested = suggestPlaceNames(plan, types, history);
                         // 2) 추천된 장소가 실제 DB 에 있는지 하나씩 확인한다 (없는 장소는 버린다)
                         Map<Integer, Place> verified = new java.util.LinkedHashMap<>();
-                        for (String name : suggested) {
-                            if (verified.size() >= plan.count()) break;
-                            Place p = attractionTool.findPlaceByName(plan.region(), name);
-                            if (p != null) verified.putIfAbsent(p.no(), p);
+                        for (Place p : resolvePlaces(plan.region(), suggested)) verified.putIfAbsent(p.no(), p);
+                        List<Place> spots = new ArrayList<>(mixedWithFood
+                                ? verified.values().stream().filter(p -> !isFood(p)).limit(spotNeed).toList()
+                                : verified.values().stream().limit(plan.count()).toList());
+                        List<Place> foods = new ArrayList<>(mixedWithFood
+                                ? verified.values().stream().filter(TripPlanner::isFood).limit(foodNeed).toList() : List.<Place>of());
+                        int fromAi = spots.size() + foods.size();
+
+                        // 3) 부족한 만큼은 확인된 장소 주변(없으면 지역 내)의 실제 장소 중에서 AI 가 조건에 맞게 골라 채운다
+                        if (spots.size() < spotNeed) {
+                            List<String> spotTypes = mixedWithFood ? types.stream().filter(t -> !"음식점".equals(t)).toList() : types;
+                            List<Place> pool = spots.isEmpty()
+                                    ? attractionTool.findCourseCandidates(plan.region(), spotTypes, plan.keyword(), radius)
+                                    : attractionTool.candidatesNear(spots.get(0), plan.region(), spotTypes, radius);
+                            if (pool.isEmpty()) pool = attractionTool.findCourseCandidates(plan.region(), spotTypes, "", radius);
+                            List<Place> taken = spots;
+                            spots.addAll(selectPlaces(pool.stream().filter(p -> taken.stream().noneMatch(t -> t.no() == p.no())).toList(),
+                                    plan, spotNeed - spots.size()));
                         }
-                        List<Place> chosen = new ArrayList<>(verified.values());
-                        int fromAi = chosen.size();
-                        // 3) 확인된 장소가 부족하면, 확인된 장소 주변(없으면 지역 내)의 실제 장소 중에서 AI 가 조건에 맞게 골라 채운다
-                        if (chosen.size() < plan.count()) {
-                            List<Place> pool = chosen.isEmpty()
-                                    ? attractionTool.findCourseCandidates(plan.region(), types, plan.keyword(), radius)
-                                    : attractionTool.candidatesNear(chosen.get(0), plan.region(), types, radius);
-                            if (pool.isEmpty()) pool = attractionTool.findCourseCandidates(plan.region(), types, "", radius);
-                            List<Place> rest = pool.stream().filter(p -> !verified.containsKey(p.no())).toList();
-                            chosen.addAll(selectPlaces(rest, plan, plan.count() - chosen.size()));
+                        if (foods.size() < foodNeed) {
+                            List<Place> pool = spots.isEmpty()
+                                    ? attractionTool.findCourseCandidates(plan.region(), List.of("음식점"), plan.keyword(), radius)
+                                    : attractionTool.candidatesNear(spots.get(0), plan.region(), List.of("음식점"), 3);
+                            List<Place> taken = foods;
+                            foods.addAll(selectPlaces(pool.stream().filter(p -> taken.stream().noneMatch(t -> t.no() == p.no())).toList(),
+                                    plan, foodNeed - foods.size()));
                         }
-                        places = chosen;
-                        results.add(new StepResult(step.name(), "region=%s, 조건=%s, AI 추천 %d곳 중 등록 확인 %d곳, 주변에서 보충 %d곳"
-                                .formatted(plan.region(), plan.intent(), suggested.size(), fromAi, places.size() - fromAi), places));
+                        // 식사 장소가 일정 중간에 오도록 섞는다 (첫 장소는 관광 장소로 둔다)
+                        List<Place> merged = new ArrayList<>(spots);
+                        for (int i = 0; i < foods.size(); i++) {
+                            int pos = Math.min(merged.size(), (i + 1) * Math.max(2, merged.size() / (foods.size() + 1) + 1) + i);
+                            merged.add(Math.max(1, Math.min(pos, merged.size())), foods.get(i));
+                        }
+                        places = merged;
+                        results.add(new StepResult(step.name(), "region=%s, 조건=%s, AI 추천 %d곳 중 등록 확인 %d곳, 주변에서 보충 %d곳 (음식점 %d곳 포함)"
+                                .formatted(plan.region(), plan.intent(), suggested.size(), fromAi, places.size() - fromAi, foods.size()), places));
                     }
                     case GET_WEATHER -> {
                         if (places.isEmpty()) continue; // 앞 단계 결과가 없으면 호출하지 않는다
@@ -142,17 +169,76 @@ public class TripPlanner {
         return results;
     }
 
+    private static boolean isFood(Place p) {
+        return "음식점".equals(p.type());
+    }
+
+    /** 추천 이름과 실제 장소 번호의 짝 */
+    record Pick(String name, Integer no) {}
+
+    record Resolution(List<Pick> picks) {}
+
+    /**
+     * AI 가 추천한 이름을 DB 의 실제 장소와 맞춘다.
+     * 이름이 정확히 같은 장소가 있으면 그것을 쓰고, 없으면 이름이 비슷한 후보들을 모아
+     * "같은 장소가 어느 것인지"를 AI 에게 한 번에 물어 정한다. (예: 창덕궁 -> 창덕궁과 후원, 남산타워 -> 남산서울타워)
+     * 후보에 같은 장소가 없으면 그 추천은 버린다.
+     */
+    List<Place> resolvePlaces(String region, List<String> names) {
+        Map<String, Place> resolved = new HashMap<>();
+        Map<String, List<Place>> unclear = new java.util.LinkedHashMap<>();
+        for (String name : names) {
+            List<Place> cands = attractionTool.findCandidatesByName(region, name);
+            if (cands.isEmpty()) continue;
+            String key = name.replace(" ", "");
+            Place exact = cands.stream().filter(c -> c.title().replace(" ", "").equals(key)).findFirst().orElse(null);
+            if (exact != null) resolved.put(name, exact);
+            else unclear.put(name, cands);
+        }
+        if (!unclear.isEmpty()) {
+            try {
+                StringBuilder sb = new StringBuilder();
+                unclear.forEach((name, cands) -> {
+                    sb.append("추천 이름: ").append(name).append("\n");
+                    for (Place c : cands) sb.append("  ").append(c.no()).append(" | ").append(c.title()).append(" | ").append(c.type()).append(" | ").append(c.address()).append("\n");
+                });
+                String system = "추천 이름마다 후보 중에서 같은 장소를 가리키는 번호를 하나 고른다. "
+                        + "장소 전체를 가리키는 대표 항목을 우선하고, 그 안의 일부 시설(문, 나무, 체험관, 행사, 지점, 숙소)은 고르지 않는다. "
+                        + "후보에 같은 장소가 없으면 no 를 0 으로 둔다. 추천 이름은 받은 그대로 name 에 적는다.";
+                Resolution r = chatClient.prompt().system(system).user(sb.toString()).call().entity(Resolution.class);
+                if (r != null && r.picks() != null) {
+                    for (Pick pick : r.picks()) {
+                        List<Place> cands = pick == null ? null : unclear.get(pick.name());
+                        if (cands == null || pick.no() == null) continue;
+                        cands.stream().filter(c -> c.no() == pick.no()).findFirst().ifPresent(c -> resolved.put(pick.name(), c));
+                        unclear.remove(pick.name()); // 0 이면 버린다
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("추천 이름 확인 실패, 첫 후보 사용: {}", e.getClass().getSimpleName());
+                unclear.forEach((name, cands) -> resolved.put(name, cands.get(0)));
+                unclear.clear();
+            }
+        }
+        // AI 가 추천한 순서를 유지한다
+        return names.stream().map(resolved::get).filter(p -> p != null).toList();
+    }
+
     /** AI 가 추천한 장소 이름 목록 */
     record Suggestion(List<String> names) {}
 
     /** AI 에게 조건에 맞는 실제 장소를 추천받는다. 여유 있게 받아 DB 확인에서 탈락하는 경우에 대비한다. */
-    List<String> suggestPlaceNames(ExecutionPlan plan, List<String> types) {
+    List<String> suggestPlaceNames(ExecutionPlan plan, List<String> types, String history) {
         try {
             String system = "너는 한국 여행 전문가다. 사용자의 조건에 가장 잘 맞는 실제 장소를 추천한다. "
                     + "지정된 지역 안에 실제로 있는 장소만, 서로 이동하기 가까운 곳 위주로 고른다. "
                     + "이름은 지도에서 검색되는 짧은 공식 명칭으로 쓴다(예: 경복궁, 남산서울타워, 광장시장). 설명 없이 이름만 반환한다. "
-                    + "매번 뻔한 곳만 고르지 말고 조건에 어울리는 다양한 곳을 섞는다.";
-            String user = "지역: " + (plan.region().isBlank() ? "전국" : plan.region())
+                    + "매번 뻔한 곳만 고르지 말고 조건에 어울리는 다양한 곳을 섞는다. "
+                    + "사용자가 꼭 넣어 달라고 이름을 말한 장소는 목록 맨 앞에 둔다. "
+                    + "원하는 유형에 음식점이 있으면 그 동네의 실제 식당이나 카페 이름도 서너 곳 포함한다. "
+                    + "이전 대화가 있고 이번 요청이 그 추천을 고쳐 달라는 것이면, 바꾸라고 한 부분만 바꾸고 나머지 장소 이름은 그대로 다시 포함한다.";
+            String user = (history == null || history.isBlank() ? "" : "[이전 대화]\n" + history + "\n\n")
+                    + "지역: " + (plan.region().isBlank() ? "전국" : plan.region())
                     + (plan.keyword().isBlank() ? "" : "\n동네/키워드: " + plan.keyword())
                     + "\n조건: " + plan.intent() + "\n일수: " + plan.days() + "일"
                     + "\n원하는 유형: " + (types.isEmpty() ? "관광지, 문화시설, 음식점" : String.join(", ", types))
@@ -207,7 +293,7 @@ public class TripPlanner {
         }
         if (q.contains("내 계획") || q.contains("내 일정") || q.contains("내 여행")) steps.add(ToolStep.GET_MY_PLANS);
         if (!region.isEmpty() || q.matches(".*(추천|코스|가볼|관광|맛집|숙소).*")) steps.add(ToolStep.SEARCH_ATTRACTIONS);
-        if (q.matches(".*(날씨|비|기온|우산|옷).*")) steps.add(ToolStep.GET_WEATHER);
+        if (q.matches(".*(날씨|비|기온|우산|옷|오늘|내일|모레|주말).*")) steps.add(ToolStep.GET_WEATHER);
         if (q.matches(".*(코스|동선|경로|순서|일정).*")) steps.add(ToolStep.OPTIMIZE_ROUTE);
         if (q.matches(".*(공연|뮤지컬|연극|콘서트|전시).*")) steps.add(ToolStep.SEARCH_PERFORMANCES);
         if (q.matches(".*(문서|가이드|규정|팁|자료).*")) steps.add(ToolStep.SEARCH_DOCUMENTS);

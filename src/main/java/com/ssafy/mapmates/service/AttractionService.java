@@ -102,6 +102,23 @@ public class AttractionService {
         return attractionDao.findBestByName(sidoCode, name.trim());
     }
 
+    /**
+     * 이름으로 후보 여러 곳을 찾는다. 그대로 포함된 이름이 없으면 글자를 두 자씩 끊어 느슨하게 찾는다.
+     * (예: "남산타워" -> %남산%타워% -> "남산서울타워")
+     */
+    public List<Attraction> findCandidatesByName(Integer sidoCode, String name, int size) {
+        if (name == null || name.trim().length() < 2) return List.of();
+        String n = name.trim().replace("%", "").replace("_", "");
+        List<Attraction> found = attractionDao.findCandidatesByName(sidoCode, n, "%" + n + "%", size);
+        String compact = n.replace(" ", "");
+        if (found.isEmpty() && compact.length() >= 4) {
+            StringBuilder loose = new StringBuilder("%");
+            for (int i = 0; i < compact.length(); i += 2) loose.append(compact, i, Math.min(i + 2, compact.length())).append('%');
+            found = attractionDao.findCandidatesByName(sidoCode, n, loose.toString(), size);
+        }
+        return found;
+    }
+
     /** 기준 장소 주변의 후보 묶음 */
     public List<Attraction> candidatesNear(Attraction anchor, Integer sidoCode, List<Integer> types, double radiusKm, int poolSize) {
         List<Attraction> around = new ArrayList<>(nearby(anchor.getLatitude(), anchor.getLongitude(), radiusKm, types, 300).stream()

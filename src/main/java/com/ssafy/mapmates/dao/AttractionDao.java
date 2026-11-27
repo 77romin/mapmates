@@ -76,11 +76,21 @@ public interface AttractionDao {
     List<Attraction> findRandom(@Param("sidoCode") Integer sidoCode, @Param("types") List<Integer> types,
             @Param("keyword") String keyword, @Param("size") int size);
 
+    /** 이름 패턴(LIKE)에 맞는 후보들. 정확히 같은 이름, 그 이름으로 시작하는 이름, 사진 있는 곳, 짧은 이름 순 */
+    @Select("<script>SELECT " + COLS + JOINS
+            + "WHERE a.title LIKE #{pattern} AND a.latitude BETWEEN 33 AND 39 AND a.longitude BETWEEN 124 AND 132"
+            + "<if test='sidoCode != null'> AND a.area_code = #{sidoCode}</if>"
+            + " ORDER BY (a.title = #{name}) DESC, (a.title LIKE CONCAT(#{name}, '%')) DESC,"
+            + " (a.first_image1 IS NULL OR a.first_image1 = ''), CHAR_LENGTH(a.title) LIMIT #{size}</script>")
+    List<Attraction> findCandidatesByName(@Param("sidoCode") Integer sidoCode, @Param("name") String name,
+            @Param("pattern") String pattern, @Param("size") int size);
+
     /** 이름이 포함된 장소 중 가장 잘 맞는 한 곳 (사진 있는 곳, 이름이 짧은 곳 우선) */
     @Select("<script>SELECT " + COLS + JOINS
             + "WHERE a.title LIKE CONCAT('%', #{name}, '%') AND a.latitude BETWEEN 33 AND 39 AND a.longitude BETWEEN 124 AND 132"
             + "<if test='sidoCode != null'> AND a.area_code = #{sidoCode}</if>"
-            + " ORDER BY (a.title = #{name}) DESC, (a.first_image1 IS NULL OR a.first_image1 = ''), CHAR_LENGTH(a.title) LIMIT 1</script>")
+            + " ORDER BY (a.title = #{name}) DESC, (a.title LIKE CONCAT(#{name}, '%')) DESC, (a.content_type_id IN (12, 14, 38, 39)) DESC,"
+            + " (a.first_image1 IS NULL OR a.first_image1 = ''), CHAR_LENGTH(a.title) LIMIT 1</script>")
     Attraction findBestByName(@Param("sidoCode") Integer sidoCode, @Param("name") String name);
 
     @Update("UPDATE attractions SET first_image1 = #{url} WHERE no = #{no}")

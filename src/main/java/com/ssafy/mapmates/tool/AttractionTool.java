@@ -50,6 +50,11 @@ public class AttractionTool {
         return a == null ? null : toPlace(a);
     }
 
+    /** 이름이 비슷한 등록 장소 후보들 (Planner 가 AI 추천 이름을 실제 장소와 맞출 때 사용) */
+    public List<Place> findCandidatesByName(String region, String name) {
+        return attractionService.findCandidatesByName(attractionService.findSidoCode(region), name, 6).stream().map(this::toPlace).toList();
+    }
+
     /** 기준 장소 주변에서 부족한 수만큼 채울 후보 (Planner 가 사용) */
     public List<Place> candidatesNear(Place center, String region, List<String> contentTypes, double radiusKm) {
         Attraction anchor = attractionService.get(center.no());
