@@ -1,7 +1,8 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import http from '@/api/http'
+import KakaoMap from '@/components/KakaoMap.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -33,6 +34,7 @@ onMounted(load)
 async function open(id) {
   try {
     detail.value = await http.get(`/mates/${id}`)
+    detailDay.value = 0
     applyMessage.value = ''
   } catch (e) {
     alert(e.message)
@@ -89,6 +91,13 @@ async function remove() {
   detail.value = null
   load()
 }
+// 상세: 여행 경로를 일차별로 묶고, 지도에는 방문 순서대로 번호 핀과 경로선을 그린다
+const detailDay = ref(0) // 0 = 전체
+const days = computed(() => [...new Set((detail.value?.items || []).map((i) => i.dayNo || 1))].sort((a, b) => a - b))
+const shownItems = computed(() => (detail.value?.items || []).filter((i) => !detailDay.value || (i.dayNo || 1) === detailDay.value))
+const routeMarkers = computed(() => shownItems.value.map((i, idx) => ({ id: i.id, latitude: i.latitude, longitude: i.longitude, title: i.title, label: idx + 1, kind: 'hot' })))
+const totalCost = computed(() => (detail.value?.items || []).reduce((sum, i) => sum + (i.cost || 0), 0))
+
 const STATUS = { PENDING: '수락 대기 중', ACCEPTED: '참여 확정', REJECTED: '거절됨' }
 </script>
 
@@ -121,20 +130,56 @@ const STATUS = { PENDING: '수락 대기 중', ACCEPTED: '참여 확정', REJECT
 
     <!-- 상세 -->
     <div v-if="detail" class="mm-modal" role="dialog" aria-modal="true" aria-label="모집글 상세" @click.self="detail = null">
-      <div class="mm-modal-body">
-        <div class="d-flex justify-content-between align-items-start">
-          <h2 class="h4 mm-title">{{ detail.post.title }}</h2>
-          <button class="btn-close" aria-label="닫기" @click="detail = null"></button>
+      <div class="mm-modal-body mate-detail">
+        <div class="d-flex justify-content-between align-items-start gap-2">
+          <div>
+            <span class="badge me-1" :class="detail.post.status === 'OPEN' ? 'badge-soft' : 'bg-secondary'">{{ detail.post.status === 'OPEN' ? '모집 중' : '마감' }}</span>
+            <span v-if="detail.post.matchRate != null" class="small fw-bold text-coral"><i class="bi bi-heart-fill" aria-hidden="true"></i> 취향 일치 {{ detail.post.matchRate }}%</span>
+            <h2 class="h4 mm-title mt-1 mb-1">{{ detail.post.title }}</h2>
+          </div>
+          <button class="btn-close flex-shrink-0" aria-label="닫기" @click="detail = null"></button>
         </div>
-        <p class="small text-secondary">{{ detail.post.writerName }} · {{ detail.post.startDate || '날짜 미정' }}<span v-if="detail.post.endDate"> ~ {{ detail.post.endDate }}</span> · {{ detail.post.joinedCount }}/{{ detail.post.capacity }}명</p>
-        <p class="pre-line">{{ detail.post.content || '소개 글이 없습니다.' }}</p>
-        <h3 class="h6 fw-bold">여행 경로</h3>
-        <ol v-if="detail.items.length" class="small ps-3">
-          <li v-for="i in detail.items" :key="i.id">{{ i.dayNo }}일차 · {{ i.title }}</li>
-        </ol>
-        <p v-else class="small text-secondary">아직 방문지가 없습니다.</p>
-        <h3 class="h6 fw-bold">참여 메이트</h3>
-        <p><span v-for="m in detail.members" :key="m.id" class="badge badge-ink me-1">{{ m.name }}</span></p>
+        <p class="small text-secondary mb-2">
+          <i class="bi bi-person-circle" aria-hidden="true"></i> {{ detail.post.writerName }}
+          · <i class="bi bi-calendar3" aria-hidden="true"></i> {{ detail.post.startDate || '날짜 미정' }}<span v-if="detail.post.endDate && detail.post.endDate !== detail.post.startDate"> ~ {{ detail.post.endDate }}</span>
+          · <i class="bi bi-people" aria-hidden="true"></i> {{ detail.post.joinedCount }}/{{ detail.post.capacity }}명
+        </p>
+        <div class="mb-3"><span v-for="t in (detail.post.tags || '').split(',').filter(Boolean)" :key="t" class="badge badge-ink me-1">#{{ t }}</span></div>
+
+        <div class="row g-3">
+          <div class="col-lg-6">
+            <h3 class="h6 fw-bold">소개</h3>
+            <p class="pre-line intro">{{ detail.post.content || '소개 글이 없습니다.' }}</p>
+
+            <h3 class="h6 fw-bold d-flex align-items-center justify-content-between">
+              <span>여행 경로 <span class="fw-normal text-secondary small">{{ detail.post.planTitle }}</span></span>
+            </h3>
+            <div v-if="days.length > 1" class="d-flex flex-wrap gap-1 mb-2" role="group" aria-label="일차 선택">
+              <button class="btn btn-sm rounded-pill" :class="detailDay === 0 ? 'bg-ink' : 'btn-light border'" @click="detailDay = 0">전체</button>
+              <button v-for="d in days" :key="d" class="btn btn-sm rounded-pill" :class="detailDay === d ? 'bg-ink' : 'btn-light border'" @click="detailDay = d">{{ d }}일차</button>
+            </div>
+            <p v-if="!detail.items.length" class="small text-secondary">아직 방문지가 없습니다.</p>
+            <ol v-else class="list-unstyled route-list mb-2">
+              <li v-for="(i, idx) in shownItems" :key="i.id" class="d-flex gap-2 align-items-start">
+                <span class="mm-num">{{ idx + 1 }}</span>
+                <div class="min-w-0 small">
+                  <div class="fw-semibold">{{ i.title }} <span v-if="days.length > 1 && !detailDay" class="badge badge-ink">{{ i.dayNo }}일차</span></div>
+                  <div class="text-secondary text-truncate">{{ i.contentTypeName }} · {{ i.addr1 }}</div>
+                  <div v-if="i.memo" class="text-secondary"><i class="bi bi-sticky" aria-hidden="true"></i> {{ i.memo }}</div>
+                </div>
+              </li>
+            </ol>
+            <p v-if="totalCost" class="small text-secondary">예상 경비 합계 {{ totalCost.toLocaleString() }}원 (1인 기준 메모)</p>
+
+            <h3 class="h6 fw-bold">참여 메이트</h3>
+            <p><span v-for="m in detail.members" :key="m.id" class="badge badge-ink me-1">{{ m.name }}{{ m.role === 'OWNER' ? ' (모집자)' : '' }}</span></p>
+          </div>
+          <div class="col-lg-6">
+            <div class="route-map"><KakaoMap :markers="routeMarkers" path /></div>
+            <p class="small text-secondary mt-1 mb-0"><i class="bi bi-signpost-2" aria-hidden="true"></i> 번호는 방문 순서입니다.</p>
+          </div>
+        </div>
+        <hr />
 
         <template v-if="auth.member?.id === detail.post.memberId">
           <h3 class="h6 fw-bold">참여 신청</h3>
@@ -194,6 +239,12 @@ const STATUS = { PENDING: '수락 대기 중', ACCEPTED: '참여 확정', REJECT
 </template>
 
 <style scoped>
+.mate-detail { max-width: 940px; }
+.intro { line-height: 1.7; }
+.route-list li { padding: 6px 0; border-bottom: 1px solid var(--mm-line); }
+.route-list li:last-child { border-bottom: 0; }
+.route-map { position: relative; height: 380px; border-radius: 12px; overflow: hidden; border: 1px solid var(--mm-line); }
+@media (max-width: 991.98px) { .route-map { height: 260px; } }
 .mate-card { transition: transform 0.15s, box-shadow 0.15s; }
 .mate-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(31, 42, 68, 0.1); }
 </style>
