@@ -31,11 +31,22 @@ public class AttractionService {
     public List<Map<String, Object>> contentTypes() { return attractionDao.contentTypes(); }
 
     public Map<String, Object> search(Integer sidoCode, Integer gugunCode, Integer contentTypeId, String keyword, int page, int size) {
+        return search(sidoCode, gugunCode, contentTypeId, keyword, null, page, size);
+    }
+
+    /** box = {minLat, maxLat, minLng, maxLng}. 지도에 보이는 영역 안에서만 찾을 때 준다. (이 경우 시도·구군 조건은 쓰지 않는다) */
+    public Map<String, Object> search(Integer sidoCode, Integer gugunCode, Integer contentTypeId, String keyword, double[] box, int page, int size) {
+        Double minLat = box == null ? null : box[0], maxLat = box == null ? null : box[1];
+        Double minLng = box == null ? null : box[2], maxLng = box == null ? null : box[3];
+        if (box != null) {
+            sidoCode = null;
+            gugunCode = null;
+        }
         size = Math.max(1, Math.min(size, 100));
         page = Math.max(1, page);
         Map<String, Object> result = new HashMap<>();
-        result.put("items", attractionDao.search(sidoCode, gugunCode, contentTypeId, keyword, (page - 1) * size, size));
-        result.put("total", attractionDao.count(sidoCode, gugunCode, contentTypeId, keyword));
+        result.put("items", attractionDao.search(sidoCode, gugunCode, contentTypeId, keyword, minLat, maxLat, minLng, maxLng, (page - 1) * size, size));
+        result.put("total", attractionDao.count(sidoCode, gugunCode, contentTypeId, keyword, minLat, maxLat, minLng, maxLng));
         result.put("page", page);
         result.put("size", size);
         return result;

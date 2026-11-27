@@ -36,9 +36,14 @@ public class AttractionController {
     @GetMapping
     public Map<String, Object> search(@RequestParam(required = false) Integer sidoCode,
             @RequestParam(required = false) Integer gugunCode, @RequestParam(required = false) Integer contentTypeId,
-            @RequestParam(required = false) String keyword, @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "30") int size) {
-        return attractionService.search(sidoCode, gugunCode, contentTypeId, keyword, page, size);
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Double minLat, @RequestParam(required = false) Double maxLat,
+            @RequestParam(required = false) Double minLng, @RequestParam(required = false) Double maxLng,
+            @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "30") int size) {
+        // 네 값이 모두 있으면 지도에 보이는 영역 안에서 검색한다
+        double[] box = minLat != null && maxLat != null && minLng != null && maxLng != null
+                ? new double[] { minLat, maxLat, minLng, maxLng } : null;
+        return attractionService.search(sidoCode, gugunCode, contentTypeId, keyword, box, page, size);
     }
 
     @GetMapping("/{no}")

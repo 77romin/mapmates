@@ -33,10 +33,15 @@ public interface AttractionDao {
             + "<if test='gugunCode != null'> AND a.si_gun_gu_code = #{gugunCode}</if>"
             + "<if test='contentTypeId != null'> AND a.content_type_id = #{contentTypeId}</if>"
             + "<if test=\"keyword != null and keyword != ''\"> AND (a.title LIKE CONCAT('%', #{keyword}, '%') OR a.addr1 LIKE CONCAT('%', #{keyword}, '%'))</if>"
+            + "<if test='minLat != null'> AND a.latitude BETWEEN #{minLat} AND #{maxLat} AND a.longitude BETWEEN #{minLng} AND #{maxLng}</if>"
             + "</where>"
-            + " ORDER BY (a.first_image1 IS NULL OR a.first_image1 = ''), a.no LIMIT #{offset}, #{size}</script>")
+            + " ORDER BY (a.first_image1 IS NULL OR a.first_image1 = ''),"
+            // 지도 영역 검색이면 화면 중심에 가까운 장소부터 보여준다
+            + "<if test='minLat != null'> POW(a.latitude - (#{minLat} + #{maxLat}) / 2, 2) + POW(a.longitude - (#{minLng} + #{maxLng}) / 2, 2),</if>"
+            + " a.no LIMIT #{offset}, #{size}</script>")
     List<Attraction> search(@Param("sidoCode") Integer sidoCode, @Param("gugunCode") Integer gugunCode,
             @Param("contentTypeId") Integer contentTypeId, @Param("keyword") String keyword,
+            @Param("minLat") Double minLat, @Param("maxLat") Double maxLat, @Param("minLng") Double minLng, @Param("maxLng") Double maxLng,
             @Param("offset") int offset, @Param("size") int size);
 
     @Select("<script>SELECT COUNT(*) FROM attractions a"
@@ -45,9 +50,11 @@ public interface AttractionDao {
             + "<if test='gugunCode != null'> AND a.si_gun_gu_code = #{gugunCode}</if>"
             + "<if test='contentTypeId != null'> AND a.content_type_id = #{contentTypeId}</if>"
             + "<if test=\"keyword != null and keyword != ''\"> AND (a.title LIKE CONCAT('%', #{keyword}, '%') OR a.addr1 LIKE CONCAT('%', #{keyword}, '%'))</if>"
+            + "<if test='minLat != null'> AND a.latitude BETWEEN #{minLat} AND #{maxLat} AND a.longitude BETWEEN #{minLng} AND #{maxLng}</if>"
             + "</where></script>")
     int count(@Param("sidoCode") Integer sidoCode, @Param("gugunCode") Integer gugunCode,
-            @Param("contentTypeId") Integer contentTypeId, @Param("keyword") String keyword);
+            @Param("contentTypeId") Integer contentTypeId, @Param("keyword") String keyword,
+            @Param("minLat") Double minLat, @Param("maxLat") Double maxLat, @Param("minLng") Double minLng, @Param("maxLng") Double maxLng);
 
     @Select("SELECT " + COLS + ", a.homepage, a.overview " + JOINS + "WHERE a.no = #{no}")
     Attraction findByNo(int no);
