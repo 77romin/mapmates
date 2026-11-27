@@ -1,0 +1,11 @@
+target/
+.idea/
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+*.iml
+uploads/
+application-private.properties
+.env

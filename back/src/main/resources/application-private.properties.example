@@ -1,0 +1,9 @@
+# 이 파일을 application-private.properties 로 복사한 뒤 값을 채우세요. (git 에 올라가지 않습니다)
+# SSAFY GMS 키
+spring.ai.openai.api-key=
+# 공공데이터포털 일반 인증키(Decoding)
+datago.service-key=
+# KOPIS 공연예술통합전산망 서비스 키
+kopis.service-key=
+# 서울 열린데이터 광장 인증키
+seoul.api-key=
