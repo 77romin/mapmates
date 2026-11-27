@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -15,7 +16,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -43,7 +46,7 @@ public class CultureService {
             Map.entry(33, "43"), Map.entry(34, "44"), Map.entry(35, "47"), Map.entry(36, "48"), Map.entry(37, "45"),
             Map.entry(38, "46"), Map.entry(39, "50"));
 
-    private final RestClient restClient = RestClient.create();
+    private final RestClient restClient = RestClient.builder().requestFactory(timeoutFactory()).build();
     private final Map<String, Object[]> cache = new ConcurrentHashMap<>();
 
     @Value("${kopis.service-key:}")
@@ -190,8 +193,12 @@ public class CultureService {
                     }
                 }
             }
+        } catch (ResourceAccessException e) {
+            log.warn("서울 열린데이터 서버 연결 실패");
+            throw new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY,
+                    "서울 열린데이터 서버에 연결할 수 없습니다. 현재 네트워크에서 접속이 차단되었을 수 있습니다.");
         } catch (Exception e) {
-            log.warn("서울 문화행사 조회 실패: {}", e.getMessage());
+            log.warn("서울 문화행사 조회 실패: {}", e.getClass().getSimpleName());
             throw new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY, "서울 문화행사 정보를 불러오지 못했습니다.");
         }
         result.put("items", items);
@@ -204,6 +211,14 @@ public class CultureService {
 
     public boolean kopisAvailable() {
         return kopisKey != null && !kopisKey.isBlank();
+    }
+
+    /** 외부 서버가 응답하지 않을 때 화면이 오래 멈추지 않도록 연결 5초, 응답 15초로 제한한다. */
+    private static SimpleClientHttpRequestFactory timeoutFactory() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(5));
+        factory.setReadTimeout(Duration.ofSeconds(15));
+        return factory;
     }
 
     // ---------- 내부 유틸 ----------
@@ -219,7 +234,7 @@ public class CultureService {
             for (int i = 0; i < nodes.getLength(); i++) list.add((Element) nodes.item(i));
             return list;
         } catch (Exception e) {
-            log.warn("KOPIS 조회 실패: {}", e.getMessage());
+            log.warn("KOPIS 조회 실패: {}", e.getClass().getSimpleName());
             throw new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY, "공연 정보를 불러오지 못했습니다.");
         }
     }

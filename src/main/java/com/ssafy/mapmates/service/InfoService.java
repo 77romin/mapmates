@@ -88,7 +88,7 @@ public class InfoService {
             if (forecasts.isEmpty()) result.put("message", "예보 데이터를 받지 못했습니다.");
             else toCache(cacheKey, result, 30);
         } catch (Exception e) {
-            log.warn("날씨 조회 실패: {}", e.getMessage());
+            log.warn("날씨 조회 실패: {}", e.getClass().getSimpleName());
             result.put("message", "날씨 정보를 불러오지 못했습니다.");
         }
         return result;
@@ -145,7 +145,7 @@ public class InfoService {
             result.put("available", true);
             result.put("stations", list.stream().limit(20).toList());
         } catch (Exception e) {
-            log.warn("충전소 조회 실패: {}", e.getMessage());
+            log.warn("충전소 조회 실패: {}", e.getClass().getSimpleName());
             result.put("message", "충전소 정보를 불러오지 못했습니다.");
         }
         return result;
