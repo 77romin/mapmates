@@ -20,6 +20,7 @@ let map = null
 let overlays = []
 let polyline = null
 let pickedMarker = null
+let resizeObserver = null
 const KEY = import.meta.env.VITE_KAKAO_MAP_KEY
 
 function loadSdk() {
@@ -61,11 +62,13 @@ function pinEl(m) {
 function draw(fit = true) {
   if (!map) return
   const { maps } = window.kakao
+  map.relayout() // 컨테이너 크기가 바뀐 뒤에도 범위 계산이 맞도록 한다
   overlays.forEach((o) => o.setMap(null))
   overlays = []
   polyline?.setMap(null)
   polyline = null
-  const valid = props.markers.filter((m) => m.latitude && m.longitude)
+  // 원본 데이터에 국내 범위를 벗어난 좌표가 일부 있어, 지도 범위 계산에서 제외한다
+  const valid = props.markers.filter((m) => m.latitude > 32.5 && m.latitude < 39.5 && m.longitude > 123.5 && m.longitude < 132.5)
   const bounds = new maps.LatLngBounds()
   const points = valid.map((m) => {
     const pos = new maps.LatLng(m.latitude, m.longitude)
@@ -79,8 +82,11 @@ function draw(fit = true) {
     polyline = new maps.Polyline({ path: points, strokeWeight: 4, strokeColor: '#FF6B4A', strokeOpacity: 0.9, strokeStyle: 'solid' })
     polyline.setMap(map)
   }
-  if (fit && points.length === 1) map.setCenter(points[0])
-  else if (fit && points.length > 1) map.setBounds(bounds, 60, 60, 60, 60)
+  if (fit && points.length === 1) {
+    if (map.getLevel() > 8) map.setLevel(6) // 전국 축척에서는 핀 하나가 잘 보이도록 확대
+    map.setCenter(points[0])
+  }
+  if (fit && points.length > 1) map.setBounds(bounds, 60, 60, 60, 60)
 }
 
 function drawPicked() {
@@ -105,6 +111,14 @@ onMounted(async () => {
     })
     draw()
     drawPicked()
+    // 패널 전환·창 크기 변경으로 지도 영역이 바뀌면 다시 배치한다
+    resizeObserver = new ResizeObserver(() => {
+      if (!map) return
+      const center = map.getCenter()
+      map.relayout()
+      map.setCenter(center)
+    })
+    resizeObserver.observe(el.value)
   } catch (e) {
     error.value = e.message
   }
@@ -118,6 +132,7 @@ watch(() => props.selectedId, (id) => {
 })
 watch(() => props.picked, drawPicked, { deep: true })
 onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
   overlays.forEach((o) => o.setMap(null))
   map = null
 })
