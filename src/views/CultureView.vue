@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref, watch } from 'vue'
 import http from '@/api/http'
 import KakaoMap from '@/components/KakaoMap.vue'
+import AttractionPopup from '@/components/AttractionPopup.vue'
 import { useDraftStore } from '@/stores/draft'
 
 const draft = useDraftStore()
@@ -16,6 +17,7 @@ const error = ref('')
 const detail = ref(null) // 선택한 공연/행사
 const detailLoading = ref(false)
 const nearby = ref([])
+const popup = ref(null) // 주변 장소 팝업: { no, distance }
 
 async function load(p = 1) {
   loading.value = true
@@ -138,7 +140,7 @@ const STATE_CLASS = { 공연중: 'badge-soft', 공연예정: 'badge-ink' }
     </template>
 
     <!-- 상세 -->
-    <div v-if="detail" class="mm-modal" role="dialog" aria-modal="true" aria-label="상세 정보" @click.self="detail = null">
+    <div v-if="detail" class="mm-modal" role="dialog" aria-modal="true" aria-label="상세 정보" @click.self="detail = null; popup = null">
       <div class="mm-modal-body wide">
         <div class="d-flex justify-content-between align-items-start gap-2">
           <h2 class="h5 mm-title">{{ detail.title }}</h2>
@@ -174,13 +176,21 @@ const STATE_CLASS = { 공연중: 'badge-soft', 공연예정: 'badge-ink' }
                 <dt v-if="safe(detail.homepage)" class="col-3">링크</dt><dd v-if="safe(detail.homepage)" class="col-9"><a :href="safe(detail.homepage)" target="_blank" rel="noopener noreferrer">상세 페이지 열기</a></dd>
               </template>
             </dl>
-            <div v-if="place()?.latitude" class="venue-map mb-2"><KakaoMap :markers="markers()" selected-id="venue" /></div>
+            <div v-if="place()?.latitude" class="venue-map mb-2"><KakaoMap :markers="markers()" selected-id="venue" @marker-click="(m) => typeof m.id === 'number' && (popup = { no: m.id, distance: nearby.find((n) => n.no === m.id)?.distance ?? null })" /></div>
             <template v-if="nearby.length">
-              <div class="small fw-bold mb-1">주변 2km · 함께 가기 좋은 곳</div>
+              <div class="small fw-bold mb-1">주변 2km · 함께 가기 좋은 곳 <span class="fw-normal text-secondary">— 눌러서 정보를 보고 담아 보세요</span></div>
               <ul class="list-unstyled small mb-0">
-                <li v-for="n in nearby.slice(0, 5)" :key="n.no" class="d-flex justify-content-between align-items-center border-top py-1 gap-2">
-                  <span class="text-truncate">{{ n.title }} <span class="text-secondary">{{ n.contentTypeName }} · {{ n.distance }}km</span></span>
-                  <button class="btn btn-sm btn-outline-coral flex-shrink-0" :disabled="draft.has(n.no)" @click="draft.add(n)">{{ draft.has(n.no) ? '담김' : '담기' }}</button>
+                <li v-for="n in nearby.slice(0, 5)" :key="n.no" class="border-top">
+                  <button class="nearby-item" :aria-label="n.title + ' 정보 보기'" @click="popup = { no: n.no, distance: n.distance }">
+                    <img v-if="n.firstImage1" :src="n.firstImage1" class="nearby-thumb" alt="" loading="lazy" @error="n.firstImage1 = ''" />
+                    <span v-else class="nearby-thumb d-flex align-items-center justify-content-center"><i class="bi bi-image" aria-hidden="true"></i></span>
+                    <span class="flex-grow-1 min-w-0">
+                      <span class="d-block fw-semibold text-truncate">{{ n.title }}</span>
+                      <span class="d-block text-secondary text-truncate">{{ n.contentTypeName }} · {{ n.distance }}km</span>
+                    </span>
+                    <span v-if="draft.has(n.no)" class="badge badge-soft flex-shrink-0"><i class="bi bi-check-lg" aria-hidden="true"></i> 담김</span>
+                    <i class="bi bi-chevron-right text-secondary flex-shrink-0" aria-hidden="true"></i>
+                  </button>
                 </li>
               </ul>
             </template>
@@ -188,6 +198,9 @@ const STATE_CLASS = { 공연중: 'badge-soft', 공연예정: 'badge-ink' }
         </div>
       </div>
     </div>
+
+    <!-- 주변 장소 정보 팝업 -->
+    <AttractionPopup v-if="popup" :no="popup.no" :distance="popup.distance" @close="popup = null" />
   </div>
 </template>
 
@@ -197,5 +210,8 @@ const STATE_CLASS = { 공연중: 'badge-soft', 공연예정: 'badge-ink' }
 .poster { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: #f1ebe2; color: #c9bba7; }
 .title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 3em; }
 .wide { max-width: 760px; }
+.nearby-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 4px; border: 0; background: transparent; text-align: left; border-radius: 8px; color: inherit; }
+.nearby-item:hover, .nearby-item:focus-visible { background: #fff4ee; }
+.nearby-thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; background: #f1ebe2; color: #c9bba7; flex-shrink: 0; }
 .venue-map { position: relative; height: 200px; border-radius: 12px; overflow: hidden; border: 1px solid var(--mm-line); }
 </style>
