@@ -153,7 +153,13 @@ function onLoaded(detail) {
         </div>
 
         <div class="mm-panel-body">
-          <div v-if="loading" class="mm-empty"><div class="spinner-border text-secondary" role="status"></div><p class="mt-2 mb-0">불러오는 중…</p></div>
+          <div v-if="loading" class="place-grid" role="status" aria-busy="true" aria-label="장소를 불러오는 중">
+            <div v-for="n in 6" :key="n" aria-hidden="true">
+              <div class="place-photo mm-skel"></div>
+              <div class="mm-skel mm-skel-line w-75"></div>
+              <div class="mm-skel mm-skel-line w-50"></div>
+            </div>
+          </div>
           <div v-else-if="error" class="mm-empty"><i class="bi bi-wifi-off"></i>{{ error }}<br /><button class="btn btn-sm btn-outline-coral mt-2" @click="search(page)">다시 시도</button></div>
           <div v-else-if="!items.length" class="mm-empty"><i class="bi bi-search"></i>조건에 맞는 장소가 없습니다.<br />지역이나 유형을 바꿔 보세요.</div>
           <template v-else>

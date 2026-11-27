@@ -159,3 +159,9 @@ body { word-break: keep-all; }
 /* 필터 칩: 선택 전에는 흰 바탕에 테두리 */
 .btn.rounded-pill.btn-light { --bs-btn-bg: #fff; --bs-btn-border-color: var(--mm-line-strong); --bs-btn-hover-bg: var(--mm-surface); --bs-btn-hover-border-color: var(--mm-ink); }
 .btn.rounded-pill { padding-inline: 12px; }
+
+/* 불러오는 동안 자리를 지키는 뼈대. 내용이 들어와도 배치가 흔들리지 않는다 */
+.mm-skel { background: linear-gradient(90deg, var(--mm-surface) 25%, var(--mm-line) 37%, var(--mm-surface) 63%); background-size: 400% 100%; animation: mm-skel 1.4s ease infinite; }
+.mm-skel-line { height: 14px; border-radius: var(--mm-r-sm); margin-top: var(--mm-sp-2); }
+@keyframes mm-skel { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
+@media (prefers-reduced-motion: reduce) { .mm-skel { animation: none; } }
