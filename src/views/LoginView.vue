@@ -48,8 +48,3 @@ async function submit() {
     </form>
   </div>
 </template>
-
-<style>
-.auth-wrap { min-height: calc(100vh - var(--mm-nav-h)); display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
-.auth-card { width: 100%; max-width: 400px; padding: 32px; }
-</style>

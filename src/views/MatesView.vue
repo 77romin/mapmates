@@ -193,9 +193,7 @@ const STATUS = { PENDING: '수락 대기 중', ACCEPTED: '참여 확정', REJECT
   </div>
 </template>
 
-<style>
-.mm-modal { position: fixed; inset: 0; background: rgba(31, 42, 68, 0.45); z-index: 1050; display: flex; align-items: center; justify-content: center; padding: 16px; }
-.mm-modal-body { background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto; }
+<style scoped>
 .mate-card { transition: transform 0.15s, box-shadow 0.15s; }
 .mate-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(31, 42, 68, 0.1); }
 </style>
