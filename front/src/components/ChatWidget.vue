@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useDraftStore } from '@/stores/draft'
 import { useAuthStore } from '@/stores/auth'
 import { useAiMapStore } from '@/stores/aiMap'
-import { planFromCourse } from '@/utils/coursePlan'
+import { daySlots, planFromCourse } from '@/utils/coursePlan'
 
 const draft = useDraftStore()
 const auth = useAuthStore()
@@ -257,17 +257,21 @@ async function makePlan(m) {
             <div class="course-head">{{ m.course.title }}, {{ m.course.stops.length }}곳</div>
             <div v-for="d in m.course.days" :key="d" class="course-day">
               <div class="course-day-head"><strong>{{ d }}일차</strong><span v-if="m.course.dayKm?.[d - 1]">이동 약 {{ m.course.dayKm[d - 1] }}km</span></div>
-              <ol class="course-stops">
-                <li v-for="s in m.course.stops.filter((x) => x.dayNo === d)" :key="s.no">
-                  <img v-if="s.image" :src="s.image" alt="" loading="lazy" @error="s.image = null" />
-                  <span v-else class="course-noimg" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
-                  <span class="min-w-0">
-                    <span class="course-name">{{ s.title }}</span>
-                    <span class="course-kind">{{ s.type }}</span>
-                    <span v-if="s.summary" class="course-sum">{{ s.summary }}</span>
-                  </span>
-                </li>
-              </ol>
+              <div class="course-stops">
+                <div v-for="g in daySlots(m.course, d)" :key="g.slot + g.stops[0].no" class="course-slot">
+                  <div v-if="g.slot" class="course-slot-name">{{ g.slot }}</div>
+                  <ol>
+                    <li v-for="s in g.stops" :key="s.no">
+                      <img v-if="s.image" :src="s.image" alt="" loading="lazy" @error="s.image = null" />
+                      <span v-else class="course-noimg" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
+                      <span class="min-w-0">
+                        <span class="course-name">{{ s.title }}</span>
+                        <span class="course-kind">{{ s.type }}</span>
+                      </span>
+                    </li>
+                  </ol>
+                </div>
+              </div>
             </div>
             <div class="d-flex gap-2">
               <button class="btn btn-sm mm-btn-quiet flex-shrink-0" @click="showOnMap(m.course)"><i class="bi bi-map me-1" aria-hidden="true"></i>지도에서 보기</button>
@@ -349,10 +353,14 @@ async function makePlan(m) {
 .course-day { margin-bottom: var(--mm-sp-3); }
 .course-day-head { display: flex; justify-content: space-between; align-items: baseline; font-size: var(--mm-fs-xs); color: var(--mm-route); margin-bottom: var(--mm-sp-1); }
 .course-day-head strong { font-size: var(--mm-fs-sm); font-weight: 700; }
-.course-stops { list-style: none; padding: 0; margin: 0; background: #fff; border-radius: var(--mm-r-sm); }
-.course-stops li { display: flex; gap: var(--mm-sp-2); align-items: flex-start; padding: var(--mm-sp-2); }
-.course-stops li + li { border-top: 1px solid var(--mm-line); }
-.course-stops img, .course-noimg { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: var(--mm-surface); }
+.course-stops { background: #fff; border-radius: var(--mm-r-sm); }
+.course-slot { display: flex; gap: var(--mm-sp-2); padding: var(--mm-sp-2); }
+.course-slot + .course-slot { border-top: 1px solid var(--mm-line); }
+.course-slot-name { flex: 0 0 30px; padding-top: 2px; font-size: var(--mm-fs-xs); font-weight: 700; color: var(--mm-route); }
+.course-slot ol { list-style: none; padding: 0; margin: 0; flex: 1; min-width: 0; }
+.course-stops li { display: flex; gap: var(--mm-sp-2); align-items: center; }
+.course-stops li + li { margin-top: var(--mm-sp-2); }
+.course-stops img, .course-noimg { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: var(--mm-surface); }
 .course-noimg { display: inline-flex; align-items: center; justify-content: center; color: var(--mm-placeholder); }
 .course-name { display: block; font-weight: 700; color: var(--mm-ink); line-height: 1.3; }
 .course-kind { display: block; font-size: var(--mm-fs-xs); color: var(--mm-muted); }

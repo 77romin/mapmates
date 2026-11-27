@@ -7,7 +7,7 @@ import { useRouter } from 'vue-router'
 import { useDraftStore } from '@/stores/draft'
 import { useAuthStore } from '@/stores/auth'
 import { useAiMapStore } from '@/stores/aiMap'
-import { courseSpan, planFromCourse } from '@/utils/coursePlan'
+import { courseSpan, daySlots, planFromCourse } from '@/utils/coursePlan'
 import { typeIcon } from '@/utils/place'
 import { usePanelPad } from '@/utils/panelPad'
 
@@ -174,8 +174,10 @@ function onLoaded(detail) {
           <template v-for="d in ai.course.days" :key="d">
             <section v-if="!aiDay || aiDay === d" class="ai-day">
               <div class="ai-day-head"><strong>{{ d }}일차</strong><span v-if="ai.course.dayKm?.[d - 1]">이동 약 {{ ai.course.dayKm[d - 1] }}km</span></div>
+              <template v-for="g in daySlots(ai.course, d)" :key="g.slot + g.stops[0].no">
+              <div v-if="g.slot" class="ai-slot">{{ g.slot }}</div>
               <ol class="ai-stops">
-                <li v-for="s in ai.course.stops.filter((x) => x.dayNo === d)" :key="s.no" role="button" tabindex="0" @click="open(s.no)" @keyup.enter="open(s.no)" @mouseenter="hovered = s.no" @mouseleave="hovered = null">
+                <li v-for="s in g.stops" :key="s.no" role="button" tabindex="0" @click="open(s.no)" @keyup.enter="open(s.no)" @mouseenter="hovered = s.no" @mouseleave="hovered = null">
                   <span class="mm-num ai-num">{{ aiStops.findIndex((x) => x.no === s.no) + 1 }}</span>
                   <img v-if="s.image" :src="s.image" class="ai-thumb" alt="" loading="lazy" @error="s.image = null" />
                   <span v-else class="ai-thumb ai-noimg" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
@@ -186,6 +188,7 @@ function onLoaded(detail) {
                   </span>
                 </li>
               </ol>
+              </template>
             </section>
           </template>
         </div>
@@ -285,11 +288,10 @@ function onLoaded(detail) {
 .ai-day { padding: var(--mm-sp-4) var(--mm-sp-4) 0; }
 .ai-day-head { display: flex; justify-content: space-between; align-items: baseline; color: var(--mm-route); font-size: var(--mm-fs-sm); margin-bottom: var(--mm-sp-2); }
 .ai-day-head strong { font-size: var(--mm-fs-md); }
+.ai-slot { display: inline-block; font-size: var(--mm-fs-xs); font-weight: 700; color: var(--mm-route); background: var(--mm-route-tint); border-radius: var(--mm-r-pill); padding: 2px 10px; margin: var(--mm-sp-2) 0 var(--mm-sp-1); }
 .ai-stops { list-style: none; padding: 0; margin: 0; }
 .ai-stops li { position: relative; display: flex; align-items: flex-start; gap: var(--mm-sp-3); padding: var(--mm-sp-2) var(--mm-sp-2) var(--mm-sp-4); margin: 0 calc(var(--mm-sp-2) * -1); border-radius: var(--mm-r-sm); cursor: pointer; }
 .ai-stops li:hover, .ai-stops li:focus-visible { background: var(--mm-surface); outline: 0; }
-.ai-stops li::before { content: ''; position: absolute; left: 20px; top: 34px; bottom: -8px; width: 2px; background: var(--mm-route-tint); }
-.ai-stops li:last-child::before { display: none; }
 .ai-num { position: relative; z-index: 1; margin-top: 10px; }
 .ai-thumb { width: 52px; height: 52px; border-radius: var(--mm-r-sm); object-fit: cover; flex-shrink: 0; background: var(--mm-surface); }
 .ai-noimg { display: inline-flex; align-items: center; justify-content: center; color: var(--mm-placeholder); }

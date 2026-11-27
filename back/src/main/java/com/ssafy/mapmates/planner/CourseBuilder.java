@@ -16,9 +16,12 @@ import com.ssafy.mapmates.tool.AttractionTool.Place;
 public final class CourseBuilder {
     private CourseBuilder() {}
 
-    /** 코스의 방문지 하나. dayNo 는 1부터 시작한다. image·summary 는 등록된 사진과 소개 글 첫머리(없으면 null). */
+    /**
+     * 코스의 방문지 하나. dayNo 는 1부터 시작한다.
+     * slot 은 하루 중 자리(오전, 점심, 오후, 저녁, 숙박). image·summary 는 등록된 사진과 소개 글 첫머리(없으면 null).
+     */
     public record Stop(int no, String title, String type, String address, double latitude, double longitude, int dayNo,
-            String image, String summary) {}
+            String slot, String image, String summary) {}
 
     /** 동선 최적화 결과(order)가 있으면 그 순서로, 없으면 추천 순서 그대로 둔다. */
     public static List<Place> order(List<Place> places, Object route) {
@@ -34,17 +37,19 @@ public final class CourseBuilder {
     }
 
     /**
-     * 하루 일정처럼 보이도록 일차를 나눈다.
+     * 하루를 "오전 볼거리 → 점심 → 오후 볼거리 → 저녁 → 숙박" 틀로 짠다.
      * 1) 볼거리는 동선 순서를 유지한 채 일수만큼 고르게 나눈다. (동선상 가까운 곳끼리 같은 날이 된다)
-     * 2) 음식점은 하루에 한 곳씩, 그날 볼거리와 가장 가까운 곳을 일정 가운데(점심)에 넣는다.
-     * 3) 음식점이 남으면 하루에 한 곳씩, 그날 마지막 장소와 가장 가까운 곳을 끝(저녁)에 넣는다.
+     * 2) 하루의 볼거리를 앞 절반(오전)과 뒤 절반(오후)으로 나눈다.
+     * 3) 점심은 오전 마지막 장소와 오후 첫 장소의 중간에서 가장 가까운 음식점, 저녁은 그날 마지막 볼거리와 가장 가까운 음식점.
+     *    점심을 모든 날에 먼저 채운 뒤 저녁을 채운다. (음식점이 모자라면 저녁이 비는 날이 생긴다)
      * 4) 숙박은 마지막 날을 뺀 날의 끝에 하나씩 둔다.
      */
     public static List<Stop> assign(List<Place> ordered, int days) {
         List<Place> stays = new ArrayList<>(ordered.stream().filter(p -> "숙박".equals(p.type())).toList());
         List<Place> foods = new ArrayList<>(ordered.stream().filter(p -> "음식점".equals(p.type())).toList());
         List<Place> visits = new ArrayList<>(ordered.stream().filter(p -> !"숙박".equals(p.type()) && !"음식점".equals(p.type())).toList());
-        if (visits.isEmpty()) { // 맛집 위주 요청: 음식점이 곧 방문지다
+        boolean foodOnly = visits.isEmpty(); // 맛집 위주 요청: 음식점이 곧 방문지다. 오전·오후로 나누지 않는다
+        if (foodOnly) {
             visits = foods;
             foods = new ArrayList<>();
         }
@@ -53,27 +58,44 @@ public final class CourseBuilder {
         for (int d = 0; d < dayCount; d++) byDay.add(new ArrayList<>());
         for (int i = 0; i < visits.size(); i++) byDay.get(i * dayCount / visits.size()).add(visits.get(i));
 
-        for (List<Place> day : byDay) { // 점심: 그날 장소들의 가운데 지점과 가장 가까운 음식점
-            if (foods.isEmpty() || day.isEmpty()) continue;
-            double lat = day.stream().mapToDouble(Place::latitude).average().orElse(0);
-            double lng = day.stream().mapToDouble(Place::longitude).average().orElse(0);
-            day.add((day.size() + 1) / 2, takeNearest(foods, lat, lng));
+        Place[] lunch = new Place[dayCount];
+        Place[] dinner = new Place[dayCount];
+        for (int d = 0; d < dayCount && !foods.isEmpty(); d++) { // 점심
+            List<Place> day = byDay.get(d);
+            if (day.isEmpty()) continue;
+            int am = (day.size() + 1) / 2;
+            Place before = day.get(am - 1);
+            Place after = day.get(Math.min(am, day.size() - 1));
+            lunch[d] = takeNearest(foods, (before.latitude() + after.latitude()) / 2, (before.longitude() + after.longitude()) / 2);
         }
-        for (List<Place> day : byDay) { // 저녁: 그날 마지막 장소와 가장 가까운 음식점
-            if (foods.isEmpty() || day.isEmpty()) continue;
+        for (int d = 0; d < dayCount && !foods.isEmpty(); d++) { // 저녁
+            List<Place> day = byDay.get(d);
+            if (day.isEmpty()) continue;
             Place last = day.get(day.size() - 1);
-            day.add(takeNearest(foods, last.latitude(), last.longitude()));
+            dinner[d] = takeNearest(foods, last.latitude(), last.longitude());
         }
-        for (int i = 0; !foods.isEmpty(); i++) byDay.get(i % dayCount).add(foods.remove(0)); // 그래도 남으면 차례로 뒤에
-
         int nights = Math.max(1, dayCount - 1);
-        for (int i = 0; i < stays.size(); i++) byDay.get(Math.min(i, nights - 1)).add(stays.get(i));
 
         List<Stop> stops = new ArrayList<>();
         for (int d = 0; d < dayCount; d++) {
-            for (Place p : byDay.get(d)) stops.add(new Stop(p.no(), p.title(), p.type(), p.address(), p.latitude(), p.longitude(), d + 1, null, null));
+            List<Place> day = byDay.get(d);
+            int am = (day.size() + 1) / 2;
+            for (int i = 0; i < day.size(); i++) {
+                if (i == am && lunch[d] != null) stops.add(stop(lunch[d], d + 1, "점심"));
+                // 볼거리가 한 곳뿐인 날은 오전·오후를 나누지 않는다
+                stops.add(stop(day.get(i), d + 1, foodOnly ? "" : day.size() == 1 ? "오후" : i < am ? "오전" : "오후"));
+            }
+            if (lunch[d] != null && am >= day.size()) stops.add(stop(lunch[d], d + 1, "점심")); // 볼거리가 한 곳이면 그 뒤에 점심
+            if (dinner[d] != null) stops.add(stop(dinner[d], d + 1, "저녁"));
+            for (int i = 0; i < stays.size(); i++) {
+                if (Math.min(i, nights - 1) == d) stops.add(stop(stays.get(i), d + 1, "숙박"));
+            }
         }
         return stops;
+    }
+
+    private static Stop stop(Place p, int dayNo, String slot) {
+        return new Stop(p.no(), p.title(), p.type(), p.address(), p.latitude(), p.longitude(), dayNo, slot, null, null);
     }
 
     private static Place takeNearest(List<Place> from, double lat, double lng) {
@@ -91,7 +113,7 @@ public final class CourseBuilder {
             Brief b = briefs.get(s.no());
             if (b == null) return s;
             String summary = b.overview().isBlank() ? null : firstSentence(b.overview());
-            return new Stop(s.no(), s.title(), s.type(), s.address(), s.latitude(), s.longitude(), s.dayNo(), b.image(), summary);
+            return new Stop(s.no(), s.title(), s.type(), s.address(), s.latitude(), s.longitude(), s.dayNo(), s.slot(), b.image(), summary);
         }).toList();
     }
 
@@ -122,7 +144,7 @@ public final class CourseBuilder {
         return where + (dayCount <= 1 ? "당일" : (dayCount - 1) + "박 " + dayCount + "일") + " 코스";
     }
 
-    /** 답변을 쓰는 모델에게 넘길 일차 배정 설명 (일차별 이동 거리 포함) */
+    /** 답변을 쓰는 모델에게 넘길 일차 배정 설명 (하루 중 자리와 일차별 이동 거리 포함) */
     public static String describe(List<Stop> stops) {
         List<Double> km = dayKm(stops);
         StringBuilder sb = new StringBuilder();
@@ -134,7 +156,7 @@ public final class CourseBuilder {
                 seq = 0;
                 sb.append(day).append("일차 (이동 약 ").append(km.get(day - 1)).append("km):\n");
             }
-            sb.append("  ").append(++seq).append(". ").append(s.title()).append(" (").append(s.type()).append(")\n");
+            sb.append("  ").append(++seq).append(". ").append(s.slot().isBlank() ? "" : "[" + s.slot() + "] ").append(s.title()).append(" (").append(s.type()).append(")\n");
         }
         return sb.toString();
     }

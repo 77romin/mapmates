@@ -33,11 +33,12 @@ export const useDraftStore = defineStore('draft', {
     addCourse(stops) {
       for (const s of stops) {
         const found = this.items.find((i) => i.attractionNo === s.no)
+        const memo = s.slot === '점심' || s.slot === '저녁' ? s.slot : ''
         if (found) found.dayNo = s.dayNo
         else
           this.items.push({
             attractionNo: s.no, title: s.title, addr1: s.address ?? '', firstImage1: '',
-            latitude: s.latitude, longitude: s.longitude, contentTypeName: s.type ?? '', dayNo: s.dayNo || 1, cost: 0, memo: '',
+            latitude: s.latitude, longitude: s.longitude, contentTypeName: s.type ?? '', dayNo: s.dayNo || 1, cost: 0, memo,
           })
       }
       this.persist()

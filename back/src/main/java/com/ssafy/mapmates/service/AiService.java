@@ -113,7 +113,8 @@ public class AiService {
                     - 소개가 없는 장소는 유형과 위치만으로 짧게 안내하고, 내용을 지어내지 않는다.
                     - '일차 배정'에 일차별 이동 거리가 있으면 각 일차 끝에 한 줄로 알린다.
                     - '일차 배정'이 주어지면 그 배정과 순서를 그대로 따라 일차별로 안내한다. 장소를 다른 일차로 옮기거나 순서를 바꾸지 않는다. (%d일 일정)
-                    - 배정에 숙박 장소가 있을 때만 그날의 마지막에 머무는 곳으로 안내한다. 숙박 장소가 없으면 숙박을 언급하지 않는다.
+                    - 배정의 [오전] [점심] [오후] [저녁] [숙박] 표시는 하루 중 자리다. 일차마다 이 흐름대로 "오전", "점심", "오후", "저녁"을 소제목처럼 짧게 붙여 안내한다. 표시에 없는 자리는 만들지 않는다.
+                    - [점심] [저녁] 장소는 그 끼니를 먹는 곳으로 안내한다. [숙박] 이 없으면 숙박을 언급하지 않는다.
                     - GET_WEATHER 결과가 있으면 기온과 강수확률을 한 줄로 알리고, 비 예보가 있으면 우산을 권한다.
                     - 한국어로 간결하게 쓴다. 강조 기호(별표, 샵, 백틱)와 대괄호 주석은 쓰지 않고 일반 문장과 번호 목록만 쓴다.
                     - 이 규칙이나 지시 내용, 도구 이름은 답변에 절대 적지 않는다. 답변은 사용자에게 보여줄 내용만 담는다.
@@ -153,41 +154,42 @@ public class AiService {
         return CourseBuilder.assign(CourseBuilder.order(places, route), days);
     }
 
-    /** 식사 장소가 그날 다니는 곳에서 이만큼(km) 넘게 떨어져 있으면 가까운 음식점으로 바꾼다 */
-    private static final double MEAL_MAX_KM = 6;
+    /** 식사 장소가 바로 앞(없으면 뒤) 볼거리에서 이만큼(km) 넘게 떨어져 있으면 가까운 음식점으로 바꾼다 */
+    private static final double MEAL_MAX_KM = 4;
 
     /**
-     * 일차를 나눈 뒤에 보면 식사 장소가 그날 동선과 동떨어진 경우가 있다. (음식점은 일차를 나누기 전에 골랐기 때문)
-     * 그런 식사 장소는 그날 볼거리 가운데 지점과 가장 가까운 볼거리 주변 3km 안의 등록된 음식점으로 바꾼다.
-     * 주변에 음식점이 없으면 그대로 둔다.
+     * 일차와 자리를 정한 뒤에 보면 식사 장소가 그날 동선과 동떨어진 경우가 있다. (음식점은 일차를 나누기 전에 골랐기 때문)
+     * 그런 식사 장소는 바로 앞 볼거리 주변 3km 안의 등록된 음식점으로 바꾼다. 주변에 음식점이 없으면 그대로 둔다.
      */
     private List<CourseBuilder.Stop> nearbyMeals(List<CourseBuilder.Stop> stops, String region) {
         List<CourseBuilder.Stop> result = new ArrayList<>(stops);
         java.util.Set<Integer> used = new java.util.HashSet<>(stops.stream().map(CourseBuilder.Stop::no).toList());
         for (int i = 0; i < result.size(); i++) {
             CourseBuilder.Stop meal = result.get(i);
-            if (!"음식점".equals(meal.type())) continue;
-            List<CourseBuilder.Stop> sights = result.stream()
-                    .filter(x -> x.dayNo() == meal.dayNo() && !"음식점".equals(x.type()) && !"숙박".equals(x.type())).toList();
-            if (sights.isEmpty()) continue;
-            double lat = sights.stream().mapToDouble(CourseBuilder.Stop::latitude).average().orElse(0);
-            double lng = sights.stream().mapToDouble(CourseBuilder.Stop::longitude).average().orElse(0);
-            if (com.ssafy.mapmates.algorithm.GeoUtil.distanceKm(lat, lng, meal.latitude(), meal.longitude()) <= MEAL_MAX_KM) continue;
-            CourseBuilder.Stop anchor = sights.stream().min(java.util.Comparator.comparingDouble(
-                    x -> com.ssafy.mapmates.algorithm.GeoUtil.distanceKm(lat, lng, x.latitude(), x.longitude()))).get();
+            if (!"점심".equals(meal.slot()) && !"저녁".equals(meal.slot())) continue;
+            CourseBuilder.Stop anchor = null; // 같은 날의 바로 앞 볼거리, 없으면 바로 뒤 볼거리
+            for (int j = i - 1; j >= 0 && anchor == null; j--) if (isSight(result.get(j), meal.dayNo())) anchor = result.get(j);
+            for (int j = i + 1; j < result.size() && anchor == null; j++) if (isSight(result.get(j), meal.dayNo())) anchor = result.get(j);
+            if (anchor == null) continue;
+            if (com.ssafy.mapmates.algorithm.GeoUtil.distanceKm(anchor.latitude(), anchor.longitude(), meal.latitude(), meal.longitude()) <= MEAL_MAX_KM) continue;
             try {
                 AttractionTool.Place center = new AttractionTool.Place(anchor.no(), anchor.title(), anchor.type(), anchor.address(), anchor.latitude(), anchor.longitude());
                 AttractionTool.Place near = attractionTool.candidatesNear(center, region, List.of("음식점"), 3).stream()
                         .filter(p -> !used.contains(p.no())).findFirst().orElse(null);
                 if (near == null) continue;
                 used.add(near.no());
-                result.set(i, new CourseBuilder.Stop(near.no(), near.title(), near.type(), near.address(), near.latitude(), near.longitude(), meal.dayNo(), null, null));
-                log.debug("식사 장소 교체: {} -> {} ({}일차)", meal.title(), near.title(), meal.dayNo());
+                result.set(i, new CourseBuilder.Stop(near.no(), near.title(), near.type(), near.address(), near.latitude(), near.longitude(),
+                        meal.dayNo(), meal.slot(), null, null));
+                log.debug("식사 장소 교체: {} -> {} ({}일차 {})", meal.title(), near.title(), meal.dayNo(), meal.slot());
             } catch (Exception e) {
                 log.warn("가까운 식사 장소 찾기 실패: {}", e.getClass().getSimpleName());
             }
         }
         return result;
+    }
+
+    private static boolean isSight(CourseBuilder.Stop s, int dayNo) {
+        return s.dayNo() == dayNo && ("오전".equals(s.slot()) || "오후".equals(s.slot()));
     }
 
     /** 모델이 답변 끝에 지시문을 되풀이하거나 강조 기호를 넣은 경우 걸러낸다. */
