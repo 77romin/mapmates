@@ -63,6 +63,8 @@
   --mm-nav-h: 60px;
 
   /* Bootstrap 변수 연결 */
+  /* 페이지 제목 전용 서체. 로고의 굵고 둥근 글자와 맞춘다. 본문·카드·사용자가 쓴 글에는 쓰지 않는다 */
+  --mm-font-display: 'Cafe24 Ssurround', 'Pretendard', sans-serif;
   --bs-body-font-family: 'Pretendard', -apple-system, 'Segoe UI', sans-serif;
   --bs-body-color: var(--mm-text);
   --bs-body-bg: var(--mm-bg);
@@ -99,6 +101,7 @@ body { word-break: keep-all; }
 .mm-card { background: #fff; border: 1px solid var(--mm-line); border-radius: var(--mm-r-md); }
 .mm-page { max-width: 1040px; margin: 0 auto; padding: var(--mm-sp-6) var(--mm-sp-4) 80px; }
 .mm-title { font-weight: 700; letter-spacing: -0.02em; color: var(--mm-ink); }
+h1.mm-title { font-family: var(--mm-font-display); font-weight: 400; letter-spacing: 0; }
 .mm-empty { text-align: center; color: var(--mm-muted); padding: var(--mm-sp-7) var(--mm-sp-4); }
 .mm-empty i { font-size: 2rem; display: block; margin-bottom: var(--mm-sp-2); color: var(--mm-placeholder); }
 
