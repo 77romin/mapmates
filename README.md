@@ -1,5 +1,7 @@
 # 너랑 갈.지도 (mapmates) — Frontend
 
+<img src="public/logo.webp" alt="너랑 갈.지도 로고" width="280" />
+
 > 너랑 갈 다음 여행을 지도 위에 · Find your route. Meet your mates.
 
 Vue 3 + Vite + Pinia + Bootstrap 5 + Kakao Maps 기반 SPA다.

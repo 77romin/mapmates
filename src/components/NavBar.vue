@@ -27,7 +27,7 @@ async function logout() {
   <nav class="navbar navbar-expand-lg fixed-top mm-nav" aria-label="주 메뉴">
     <div class="container-fluid px-3">
       <RouterLink class="navbar-brand mm-brand" to="/" aria-label="너랑 갈.지도 홈">
-        너랑 갈<i class="bi bi-geo-alt-fill brand-pin" aria-hidden="true"></i>지도
+        <img src="/logo-wordmark.png" alt="너랑 갈.지도" class="brand-img" />
       </RouterLink>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mmNav" aria-controls="mmNav" aria-expanded="false" aria-label="메뉴 열기">
         <span class="navbar-toggler-icon"></span>
@@ -61,8 +61,8 @@ async function logout() {
 
 <style scoped>
 .mm-nav { background: rgba(255, 255, 255, 0.96); border-bottom: 1px solid var(--mm-line); min-height: var(--mm-nav-h); backdrop-filter: blur(6px); }
-.mm-brand { font-weight: 800; letter-spacing: -0.03em; color: var(--mm-ink); font-size: 1.25rem; }
-.brand-pin { color: var(--mm-coral); font-size: 0.95rem; margin: 0 1px; vertical-align: baseline; }
+.mm-brand { padding: 0; margin-right: 14px; }
+.brand-img { height: 30px; width: auto; display: block; }
 .nav-link { font-weight: 600; color: #4b5563; border-radius: 8px; padding-inline: 12px !important; }
 .nav-link.active { color: var(--mm-coral-dark); background: #fff1ec; }
 </style>

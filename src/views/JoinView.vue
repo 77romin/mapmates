@@ -49,7 +49,8 @@ async function submit() {
 <template>
   <div class="auth-wrap">
     <form class="mm-card auth-card" novalidate @submit.prevent="submit">
-      <h1 class="h4 mm-title mb-4">회원가입</h1>
+      <img src="/logo.webp" alt="너랑 갈.지도 로고 — 너랑 갈 다음 여행을 지도 위에" class="auth-logo small" />
+      <h1 class="h4 mm-title mb-4 text-center">회원가입</h1>
       <div class="mb-3">
         <label class="form-label small fw-semibold" for="jId">아이디</label>
         <input id="jId" v-model.trim="form.userId" :class="['form-control', cls('userId')]" autocomplete="username" @blur="touched.userId = true" />
