@@ -13,7 +13,7 @@ Spring Boot 4.1 + MyBatis + MySQL + Spring AI 2.0 기반 REST API 서버다.
 | DB | MySQL 8, MyBatis (어노테이션 Mapper) |
 | AI | Spring AI 2.0.2 (OpenAI 호환, SSAFY GMS) |
 | 인증 | JWT(HS256), 비밀번호 PBKDF2 해시 |
-| 외부 데이터 | 한국관광공사 관광지, 기상청 단기예보, 한국환경공단 전기차 충전소, 뉴스 RSS |
+| 외부 데이터 | 한국관광공사 관광지, 기상청 단기예보, 한국환경공단 전기차 충전소, KOPIS 공연, 서울시 문화행사, 뉴스 RSS |
 
 ## 패키지 구조
 
@@ -23,7 +23,7 @@ com.ssafy.mapmates
 ├── service      비즈니스 로직, 외부 API 연동
 ├── dao          MyBatis Mapper
 ├── dto          데이터 객체
-├── tool         Spring AI Tool 5종 (관광지 검색, 날씨, 경로, 내 플랜, 문서 검색)
+├── tool         Spring AI Tool 6종 (관광지 검색, 날씨, 경로, 내 플랜, 문서 검색, 공연 검색)
 ├── planner      다중 Tool 호출 계획·검증·실행 (TripPlanner)
 ├── algorithm    동선 최적화, 추천, 거리·일출일몰 계산
 ├── config       Web, Spring AI, 초기 데이터
@@ -41,6 +41,8 @@ mysql -ussafy -p --default-character-set=utf8mb4 < src/main/resources/sql/data.s
 cp src/main/resources/application-private.properties.example src/main/resources/application-private.properties
 #   spring.ai.openai.api-key = SSAFY GMS 키
 #   datago.service-key       = 공공데이터포털 인증키
+#   kopis.service-key        = KOPIS 공연예술통합전산망 서비스 키
+#   seoul.api-key            = 서울 열린데이터 광장 인증키
 
 # 3) 실행 (http://localhost:8080)
 ./mvnw spring-boot:run
@@ -60,6 +62,7 @@ cp src/main/resources/application-private.properties.example src/main/resources/
 - **핫플레이스**: 사진·좌표·방문일·유형·설명 등록
 - **메이트**: 모집글, 참여 신청, 수락·거절, 공동 편집, 취향 일치도, 중간 집결지
 - **부가정보**: 날씨, 일출·일몰, 전기차 충전소, 주변 축제·상권
+- **공연·행사**: KOPIS 공연 목록·상세·시설, 서울시 문화행사, 공연장 주변 장소 추천
 
 ### 심화 기능
 - **공지사항·게시판**: CRUD, 검색, 댓글 (공지는 관리자만 작성)
