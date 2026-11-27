@@ -16,6 +16,8 @@ const props = defineProps({
   selectedId: { type: [Number, String], default: null },
   clickable: { type: Boolean, default: false },
   picked: { type: Object, default: null },
+  // 지도 왼쪽을 덮는 패널의 폭(px). 이만큼을 뺀 영역을 '보이는 지도'로 본다
+  padLeft: { type: Number, default: 0 },
 })
 const emit = defineEmits(['marker-click', 'map-click', 'view-change'])
 
@@ -120,9 +122,17 @@ function draw(fit = true) {
   if (fit && points.length) programmatic = true
   if (fit && points.length === 1) {
     if (map.getLevel() > 8) map.setLevel(6) // 전국 축척에서는 핀 하나가 잘 보이도록 확대
-    map.setCenter(points[0])
+    centerOn(points[0])
   }
-  if (fit && points.length > 1) map.setBounds(bounds, 60, 60, 60, 60)
+  if (fit && points.length > 1) map.setBounds(bounds, 60, 60, 60, 60 + props.padLeft)
+}
+
+/** 패널에 가려지지 않은 영역의 가운데에 pos 가 오도록 지도를 옮긴다 */
+function centerOn(pos) {
+  if (!props.padLeft) return map.setCenter(pos)
+  const proj = map.getProjection()
+  const p = proj.containerPointFromCoords(pos)
+  map.setCenter(proj.coordsFromContainerPoint(new window.kakao.maps.Point(p.x - props.padLeft / 2, p.y)))
 }
 
 function drawPicked() {
@@ -185,7 +195,9 @@ function currentView() {
   const b = map.getBounds()
   const sw = b.getSouthWest()
   const ne = b.getNorthEast()
-  return { minLat: sw.getLat(), maxLat: ne.getLat(), minLng: sw.getLng(), maxLng: ne.getLng(), level: map.getLevel() }
+  // 패널에 가려진 왼쪽은 보이는 영역에서 뺀다
+  const minLng = props.padLeft ? map.getProjection().coordsFromContainerPoint(new window.kakao.maps.Point(props.padLeft, 0)).getLng() : sw.getLng()
+  return { minLat: sw.getLat(), maxLat: ne.getLat(), minLng, maxLng: ne.getLng(), level: map.getLevel() }
 }
 watch(() => props.markers, () => draw(shouldFit()), { deep: true })
 watch(() => props.selectedId, (id) => {
@@ -193,7 +205,7 @@ watch(() => props.selectedId, (id) => {
   const m = props.markers.find((x) => x.id === id)
   // 재배치 직후의 panTo(애니메이션)는 무시되는 경우가 있어 setCenter 로 바로 옮긴다
   if (m && map && m.latitude > 32.5 && m.latitude < 39.5) programmatic = true
-  if (m && map && m.latitude > 32.5 && m.latitude < 39.5) map.setCenter(new window.kakao.maps.LatLng(m.latitude, m.longitude))
+  if (m && map && m.latitude > 32.5 && m.latitude < 39.5) centerOn(new window.kakao.maps.LatLng(m.latitude, m.longitude))
 })
 watch(() => props.picked, drawPicked, { deep: true })
 watch(() => [props.routePath, props.dashed], () => draw(false))

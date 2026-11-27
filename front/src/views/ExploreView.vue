@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import http from '@/api/http'
 import KakaoMap from '@/components/KakaoMap.vue'
 import AttractionDetail from '@/components/AttractionDetail.vue'
@@ -24,6 +24,12 @@ const mode = ref('region')
 const view = ref(null) // 지도에 보이는 영역
 const moved = ref(false) // 마지막 검색 뒤 사용자가 지도를 옮겼는지
 const fitKey = ref(0) // 바뀔 때만 지도가 검색 결과에 맞춰 이동한다
+// 넓은 화면에서는 패널이 지도 위에 뜬다. 패널이 가리는 폭(패널 400 + 여백 16 × 2)
+const wide = window.matchMedia('(min-width: 768px)')
+const padLeft = ref(wide.matches ? 432 : 0)
+const onWide = (e) => (padLeft.value = e.matches ? 432 : 0)
+wide.addEventListener('change', onWide)
+onBeforeUnmount(() => wide.removeEventListener('change', onWide))
 
 const markers = computed(() => [
   ...items.value.map((a) => ({ id: a.no, latitude: a.latitude, longitude: a.longitude, title: a.title, image: a.firstImage1 || null, icon: typeIcon(a.contentTypeId) })),
@@ -101,7 +107,7 @@ function onLoaded(detail) {
 </script>
 
 <template>
-  <div class="mm-split">
+  <div class="mm-split mm-split--float">
     <aside class="mm-panel">
       <!-- 상세 -->
       <AttractionDetail v-if="selected" :no="selected" @close="selected = null; extraMarkers = []" @extra="extraMarkers = $event" @loaded="onLoaded" />
@@ -170,7 +176,7 @@ function onLoaded(detail) {
     </aside>
 
     <div class="mm-map">
-      <KakaoMap :markers="markers" :selected-id="selected" :fit-key="fitKey" @marker-click="(m) => typeof m.id === 'number' && open(m.id)" @view-change="onViewChange" />
+      <KakaoMap :markers="markers" :selected-id="selected" :fit-key="fitKey" :pad-left="padLeft" @marker-click="(m) => typeof m.id === 'number' && open(m.id)" @view-change="onViewChange" />
       <button v-if="moved && !selected" class="btn btn-sm bg-ink research" @click="search(1, 'area')">
         <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>이 지역에서 다시 검색
       </button>
@@ -179,5 +185,7 @@ function onLoaded(detail) {
 </template>
 
 <style scoped>
-.research { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 5; border-radius: var(--mm-r-pill); padding: 6px 16px; box-shadow: var(--mm-shadow-2); }
+.research { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 5; border-radius: var(--mm-r-pill); padding: 8px 18px; font-weight: 600; box-shadow: var(--mm-shadow-2); }
+/* 패널이 지도 위에 뜨는 넓은 화면에서는 가려지지 않은 영역의 가운데에 둔다 */
+@media (min-width: 768px) { .research { left: calc(50% + 216px); } }
 </style>

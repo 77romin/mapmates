@@ -110,6 +110,13 @@ body { word-break: keep-all; }
   .mm-panel-body { overflow: visible; }
 }
 
+/* 지도가 화면 전체를 쓰고 패널이 그 위에 뜨는 배치 (넓은 화면) */
+@media (min-width: 768px) {
+  .mm-split--float { position: relative; display: block; }
+  .mm-split--float .mm-map { position: absolute; inset: 0; }
+  .mm-split--float .mm-panel { position: absolute; z-index: 6; top: var(--mm-sp-4); left: var(--mm-sp-4); bottom: var(--mm-sp-4); width: 400px; border: 0; border-radius: var(--mm-r-lg); box-shadow: var(--mm-shadow-3); overflow: hidden; }
+}
+
 .mm-item { display: flex; gap: var(--mm-sp-3); padding: var(--mm-sp-3) var(--mm-sp-4); border-bottom: 1px solid var(--mm-line); cursor: pointer; background: #fff; text-align: left; width: 100%; border-left: 0; border-right: 0; border-top: 0; }
 .mm-item:hover, .mm-item.active { background: var(--mm-surface); }
 .mm-thumb { width: 84px; height: 84px; border-radius: var(--mm-r-md); object-fit: cover; background: var(--mm-surface); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--mm-placeholder); }
