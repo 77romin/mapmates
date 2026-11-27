@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" font-family="Pretendard, Malgun Gothic, sans-serif" font-size="13">
+<rect width="960" height="560" fill="#ffffff" stroke="#9aa3b2"/>
+<rect width="960" height="44" fill="#f1f3f7" stroke="#9aa3b2"/>
+<text x="16" y="28" font-weight="700" font-size="15">너랑 갈.지도</text>
+<text x="130" y="28" fill="#555">지도 탐색 | 내 플랜 | 메이트 | 핫플 | 커뮤니티 | 뉴스</text>
+<text x="770" y="28" fill="#555">[담은 장소] [로그인]</text>
+<rect x="0" y="44" width="340" height="516" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="10" y="64" fill="#333"></text>
+<rect x="12" y="56" width="316" height="30" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="76" fill="#333">[← 목록]  경복궁</text>
+<rect x="12" y="92" width="316" height="110" fill="#eef1f6" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="112" fill="#333">대표 사진</text>
+<rect x="12" y="208" width="316" height="44" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="228" fill="#333">(관광지) (서울 종로구)</text>
+<text x="22" y="246" fill="#333">경복궁 · 주소 · 전화</text>
+<rect x="12" y="258" width="316" height="32" fill="#ffe8e1" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="278" fill="#333">[        + 플랜에 담기        ]</text>
+<rect x="12" y="296" width="316" height="74" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="316" fill="#333">날씨 · 일출/일몰            07:24 / 17:16</text>
+<text x="22" y="334" fill="#333">[15시 16° 흐림 30%] [18시 13°] [21시 11°] →</text>
+<rect x="12" y="376" width="316" height="30" fill="#eef1f6" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="396" fill="#333">( 소개 )( 축제 )( 상권 )( 충전소 )</text>
+<rect x="12" y="412" width="316" height="136" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="432" fill="#333">탭 내용</text>
+<text x="22" y="450" fill="#333"> - 소개: 개요 텍스트</text>
+<text x="22" y="468" fill="#333"> - 축제/상권: 주변 장소 목록 + [담기]</text>
+<text x="22" y="486" fill="#333"> - 충전소: 이름, 거리, 사용 가능 n/m대</text>
+<rect x="340" y="44" width="620" height="516" fill="#e3ecf7" stroke="#9aa3b2" rx="6"/>
+<text x="350" y="64" fill="#333">지도</text>
+<text x="350" y="82" fill="#333"></text>
+<text x="350" y="100" fill="#333">  ● 선택 관광지 핀 강조</text>
+<text x="350" y="118" fill="#333">  ● 탭에서 조회한 주변 장소 / 충전소(⚡) 핀 추가 표시</text>
+<circle cx="920" cy="520" r="22" fill="#1f2a44"/><text x="911" y="525" fill="#fff" font-size="12">AI</text>
+<text x="16" y="550" fill="#888" font-size="12">S-02 관광지 상세 (좌측 패널 전환)</text></svg>

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" font-family="Pretendard, Malgun Gothic, sans-serif" font-size="13">
+<rect width="960" height="560" fill="#ffffff" stroke="#9aa3b2"/>
+<rect width="960" height="44" fill="#f1f3f7" stroke="#9aa3b2"/>
+<text x="16" y="28" font-weight="700" font-size="15">너랑 갈.지도</text>
+<text x="130" y="28" fill="#555">지도 탐색 | 내 플랜 | 메이트 | 핫플 | 커뮤니티 | 뉴스</text>
+<text x="770" y="28" fill="#555">[담은 장소] [로그인]</text>
+<rect x="0" y="44" width="380" height="516" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="10" y="64" fill="#333"></text>
+<rect x="12" y="56" width="356" height="30" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="76" fill="#333">플랜 제목 [ 너랑 갈 부산 1박 2일          ]</text>
+<rect x="12" y="92" width="356" height="54" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="112" fill="#333">시작일 [2026-12-05]   종료일 [2026-12-06]</text>
+<text x="22" y="130" fill="#333">예산 [300,000]   (●) 공개(메이트 모집 가능)</text>
+<rect x="12" y="152" width="356" height="30" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="172" fill="#333">[ 메모 (준비물, 예약 정보)              ]</text>
+<rect x="12" y="190" width="356" height="30" fill="#eef1f6" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="210" fill="#333">(1일차)(2일차)                 [✨ 동선 최적화]</text>
+<rect x="12" y="226" width="356" height="26" fill="#e6f6ec" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="246" fill="#333">동선을 최적화했습니다. 87.4km → 68.9km</text>
+<rect x="12" y="258" width="356" height="62" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="278" fill="#333">⋮⋮ ① 가덕도                               [x]</text>
+<text x="22" y="296" fill="#333">      [1일차 ▼] [경비] [메모]</text>
+<rect x="12" y="326" width="356" height="62" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="346" fill="#333">⋮⋮ ② 가덕도 등대                       [x]</text>
+<text x="22" y="364" fill="#333">      [1일차 ▼] [경비] [메모]</text>
+<rect x="12" y="394" width="356" height="62" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="414" fill="#333">⋮⋮ ③ 외양포전망대   ← 드래그로 순서 변경</text>
+<text x="22" y="432" fill="#333">      [1일차 ▼] [경비] [메모]</text>
+<rect x="12" y="462" width="356" height="40" fill="#fafbfc" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="482" fill="#333">메이트 3명  [중간 집결지 찾기]</text>
+<rect x="12" y="510" width="356" height="38" fill="#eef1f6" stroke="#9aa3b2" rx="6"/>
+<text x="22" y="530" fill="#333">총 경비 45,000원 / 예산 300,000원      [저장]</text>
+<rect x="380" y="44" width="580" height="516" fill="#e3ecf7" stroke="#9aa3b2" rx="6"/>
+<text x="390" y="64" fill="#333">지도</text>
+<text x="390" y="82" fill="#333"></text>
+<text x="390" y="100" fill="#333">  ①─②─③ 번호 핀 + 경로선(Polyline)</text>
+<text x="390" y="118" fill="#333">  ● 집결지 핀(초록)</text>
+<circle cx="920" cy="520" r="22" fill="#1f2a44"/><text x="911" y="525" fill="#fff" font-size="12">AI</text>
+<text x="16" y="550" fill="#888" font-size="12">S-04 플랜 보드 (여행 계획 편집)</text></svg>
