@@ -34,7 +34,7 @@ async function send() {
   try {
     if (mode.value === 'trip') {
       const res = await http.post('/ai/chat', { message: text, mode: 'planner' })
-      messages.value.push({ role: 'ai', text: res.answer, tools: (res.steps || []).map((s) => TOOL_LABEL[s.tool] || s.tool), places: res.places || [] })
+      messages.value.push({ role: 'ai', text: (res.answer || '').replace(/\*\*/g, ''), tools: (res.steps || []).map((s) => TOOL_LABEL[s.tool] || s.tool), places: res.places || [] })
     } else {
       // 문서 Q&A: fetch API 로 FastAPI RAG 서버의 /chat 호출
       const response = await fetch(`${AI_SERVER}/chat`, {
