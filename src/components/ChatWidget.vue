@@ -33,8 +33,11 @@ async function send() {
   scrollDown()
   try {
     if (mode.value === 'trip') {
-      const res = await http.post('/ai/chat', { message: text, mode: 'planner' })
-      messages.value.push({ role: 'ai', text: (res.answer || '').replace(/\*\*/g, ''), tools: (res.steps || []).map((s) => TOOL_LABEL[s.tool] || s.tool), places: res.places || [] })
+      // 후속 요청("한 곳만 바꿔줘")을 이해하도록 직전 대화를 함께 보낸다 (방금 입력한 질문은 제외)
+      const history = messages.value.slice(1, -1).filter((m) => m.role === 'user' || (m.role === 'ai' && m.trip))
+        .slice(-6).map((m) => ({ role: m.role, text: m.text }))
+      const res = await http.post('/ai/chat', { message: text, mode: 'planner', history })
+      messages.value.push({ role: 'ai', trip: true, text: (res.answer || '').replace(/\*\*/g, ''), tools: (res.steps || []).map((s) => TOOL_LABEL[s.tool] || s.tool), places: res.places || [] })
     } else {
       // 문서 Q&A: fetch API 로 FastAPI RAG 서버의 /chat 호출
       const response = await fetch(`${AI_SERVER}/chat`, {
@@ -82,6 +85,9 @@ async function upload(e) {
 function addPlace(p) {
   draft.add(p)
 }
+function addAll(places) {
+  places.forEach((p) => draft.add(p))
+}
 </script>
 
 <template>
@@ -109,6 +115,11 @@ function addPlace(p) {
           <div v-if="m.notice" class="meta">{{ m.notice }}</div>
           <div v-if="m.sources?.length" class="meta">출처: <span v-for="(s, j) in m.sources" :key="j">{{ s.source }} ({{ Math.round(s.score * 100) }}%){{ j < m.sources.length - 1 ? ', ' : '' }}</span></div>
           <div v-if="m.tools?.length" class="meta"><i class="bi bi-tools me-1" aria-hidden="true"></i>{{ m.tools.join(' → ') }}</div>
+          <div v-if="m.places?.length > 1" class="mt-2">
+            <button class="btn btn-sm w-100" :class="m.places.every((p) => draft.has(p.no)) ? 'btn-light' : 'btn-coral'" :disabled="m.places.every((p) => draft.has(p.no))" @click="addAll(m.places)">
+              <i :class="['bi me-1', m.places.every((p) => draft.has(p.no)) ? 'bi-check2-all' : 'bi-bag-plus']" aria-hidden="true"></i>{{ m.places.every((p) => draft.has(p.no)) ? '코스 전체를 담았어요' : `이 코스 ${m.places.length}곳 전체 담기` }}
+            </button>
+          </div>
           <div v-if="m.places?.length" class="places">
             <button v-for="p in m.places" :key="p.no" class="btn btn-sm" :class="draft.has(p.no) ? 'btn-light' : 'btn-outline-coral'" :disabled="draft.has(p.no)" @click="addPlace(p)">
               <i :class="['bi me-1', draft.has(p.no) ? 'bi-check2' : 'bi-plus']" aria-hidden="true"></i>{{ p.title }}
