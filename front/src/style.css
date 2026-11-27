@@ -23,6 +23,10 @@
   --mm-coral-darker: #ad3219;   /* 버튼 hover·active */
   --mm-coral-tint: #fff1ec;     /* 코랄 배지·선택 배경 */
 
+  /* 색: 지도 위 경로 (청록). 행동을 뜻하는 코랄과 구분한다 */
+  --mm-route: #0f8b8d;
+  --mm-route-tint: #e3f4f4;
+
   /* 색: 상태 */
   --mm-success: #0f9d76;
   --mm-danger: #a12828;

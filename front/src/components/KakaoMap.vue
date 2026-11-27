@@ -148,7 +148,7 @@ function draw(fit = true) {
   })
   if (props.path && points.length > 1) {
     const linePath = props.routePath?.length > 1 ? props.routePath.map((p) => new maps.LatLng(p[0], p[1])) : points
-    polyline = new maps.Polyline({ path: linePath, strokeWeight: 5, strokeColor: '#FF6B4A', strokeOpacity: 0.9, strokeStyle: props.dashed ? 'shortdash' : 'solid' })
+    polyline = new maps.Polyline({ path: linePath, strokeWeight: 5, strokeColor: getComputedStyle(document.documentElement).getPropertyValue('--mm-route').trim() || '#0f8b8d', strokeOpacity: 0.9, strokeStyle: props.dashed ? 'shortdash' : 'solid' })
     polyline.setMap(map)
   }
   if (fit && points.length) programmatic = true

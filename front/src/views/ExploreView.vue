@@ -1,10 +1,11 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import http from '@/api/http'
 import KakaoMap from '@/components/KakaoMap.vue'
 import AttractionDetail from '@/components/AttractionDetail.vue'
 import { useDraftStore } from '@/stores/draft'
 import { typeIcon } from '@/utils/place'
+import { usePanelPad } from '@/utils/panelPad'
 
 const draft = useDraftStore()
 const sidos = ref([])
@@ -25,12 +26,7 @@ const view = ref(null) // 지도에 보이는 영역
 const moved = ref(false) // 마지막 검색 뒤 사용자가 지도를 옮겼는지
 const fitKey = ref(0) // 바뀔 때만 지도가 검색 결과에 맞춰 이동한다
 const hovered = ref(null) // 목록에서 가리키고 있는 장소 번호
-// 넓은 화면에서는 패널이 지도 위에 뜬다. 패널이 가리는 폭(패널 400 + 여백 16 × 2)
-const wide = window.matchMedia('(min-width: 768px)')
-const padLeft = ref(wide.matches ? 432 : 0)
-const onWide = (e) => (padLeft.value = e.matches ? 432 : 0)
-wide.addEventListener('change', onWide)
-onBeforeUnmount(() => wide.removeEventListener('change', onWide))
+const padLeft = usePanelPad(400) // 넓은 화면에서 패널이 지도를 가리는 폭
 
 const markers = computed(() => [
   ...items.value.map((a) => ({ id: a.no, latitude: a.latitude, longitude: a.longitude, title: a.title, image: a.firstImage1 || null, icon: typeIcon(a.contentTypeId) })),
