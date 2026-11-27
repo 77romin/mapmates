@@ -37,6 +37,10 @@ com.ssafy.mapmates
 mysql -ussafy -p --default-character-set=utf8mb4 < src/main/resources/sql/schema.sql
 mysql -ussafy -p --default-character-set=utf8mb4 < src/main/resources/sql/data.sql
 
+# (선택) 시연용 더미 데이터: 커뮤니티 글·댓글, 메이트 모집글. 서버를 한 번 실행해 기본 계정이 생긴 뒤에 넣는다
+mysql -ussafy -p --default-character-set=utf8mb4 < src/main/resources/sql/dummy_community.sql
+mysql -ussafy -p --default-character-set=utf8mb4 < src/main/resources/sql/dummy_mates.sql
+
 # 2) 키 설정
 cp src/main/resources/application-private.properties.example src/main/resources/application-private.properties
 #   spring.ai.openai.api-key = SSAFY GMS 키
