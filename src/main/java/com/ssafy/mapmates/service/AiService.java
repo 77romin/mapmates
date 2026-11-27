@@ -13,6 +13,7 @@ import com.ssafy.mapmates.planner.ExecutionPlan;
 import com.ssafy.mapmates.planner.StepResult;
 import com.ssafy.mapmates.planner.TripPlanner;
 import com.ssafy.mapmates.tool.AttractionTool;
+import com.ssafy.mapmates.tool.CultureTool;
 import com.ssafy.mapmates.tool.DocumentTool;
 import com.ssafy.mapmates.tool.PlanTool;
 import com.ssafy.mapmates.tool.RouteTool;
@@ -39,6 +40,7 @@ public class AiService {
     private final RouteTool routeTool;
     private final PlanTool planTool;
     private final DocumentTool documentTool;
+    private final CultureTool cultureTool;
 
     public Map<String, Object> simple(String message) {
         return response("simple", chatClient.prompt().user(message).call().content(), List.of());
@@ -51,7 +53,8 @@ public class AiService {
             case "route" -> routeTool;
             case "plan" -> planTool;
             case "document" -> documentTool;
-            default -> throw ApiException.badRequest("tool 은 attraction, weather, route, plan, document 중 하나여야 합니다.");
+            case "culture" -> cultureTool;
+            default -> throw ApiException.badRequest("tool 은 attraction, weather, route, plan, document, culture 중 하나여야 합니다.");
         };
         String answer = chatClient.prompt().user(message).tools(tool)
                 .toolContext(Map.of(PlanTool.MEMBER_ID, memberId == null ? 0 : memberId)).call().content();
@@ -60,7 +63,7 @@ public class AiService {
 
     public Map<String, Object> multi(String message, Integer memberId) {
         String answer = chatClient.prompt().user(message)
-                .tools(attractionTool, weatherTool, routeTool, planTool, documentTool)
+                .tools(attractionTool, weatherTool, routeTool, planTool, documentTool, cultureTool)
                 .toolContext(Map.of(PlanTool.MEMBER_ID, memberId == null ? 0 : memberId)).call().content();
         return response("multi", answer, List.of());
     }

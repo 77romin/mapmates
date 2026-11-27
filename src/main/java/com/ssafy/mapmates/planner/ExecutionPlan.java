@@ -7,6 +7,6 @@ public record ExecutionPlan(List<ToolStep> steps, String region, String keyword,
         String documentQuery) {
 
     public enum ToolStep {
-        SEARCH_ATTRACTIONS, GET_WEATHER, OPTIMIZE_ROUTE, GET_MY_PLANS, SEARCH_DOCUMENTS
+        SEARCH_ATTRACTIONS, GET_WEATHER, OPTIMIZE_ROUTE, GET_MY_PLANS, SEARCH_PERFORMANCES, SEARCH_DOCUMENTS
     }
 }

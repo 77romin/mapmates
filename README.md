@@ -1,93 +1,116 @@
-# Back
+# 너랑 갈.지도 (mapmates) — Backend
 
+> 너랑 갈 다음 여행을 지도 위에 · Find your route. Meet your mates.
 
+Spring Boot 4.1 + MyBatis + MySQL + Spring AI 2.0 기반 REST API 서버다.
+설계 문서(요구사항, ERD, API 설계서, 클래스 다이어그램)는 `allfiles` 저장소의 `docs/`에 있다.
 
-## Getting started
+## 기술 스택
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+| 구분 | 사용 |
+|---|---|
+| 언어·프레임워크 | Java 21, Spring Boot 4.1.2 (Spring MVC) |
+| DB | MySQL 8, MyBatis (어노테이션 Mapper) |
+| AI | Spring AI 2.0.2 (OpenAI 호환, SSAFY GMS) |
+| 인증 | JWT(HS256), 비밀번호 PBKDF2 해시 |
+| 외부 데이터 | 한국관광공사 관광지, 기상청 단기예보, 한국환경공단 전기차 충전소, 뉴스 RSS |
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## 패키지 구조
 
 ```
-cd existing_repo
-git remote add origin https://lab.ssafy.com/s16/a11/project/finalproject/mapmates_3-kkm-mye/back.git
-git branch -M master
-git push -uf origin master
+com.ssafy.mapmates
+├── controller   REST API (Member, Attraction, Plan, Mate, Hotplace, Board, News, Ai)
+├── service      비즈니스 로직, 외부 API 연동
+├── dao          MyBatis Mapper
+├── dto          데이터 객체
+├── tool         Spring AI Tool 5종 (관광지 검색, 날씨, 경로, 내 플랜, 문서 검색)
+├── planner      다중 Tool 호출 계획·검증·실행 (TripPlanner)
+├── algorithm    동선 최적화, 추천, 거리·일출일몰 계산
+├── config       Web, Spring AI, 초기 데이터
+└── common       JWT, 인증 인터셉터, 예외 처리
 ```
 
-## Integrate with your tools
+## 실행 방법
 
-* [Set up project integrations](https://lab.ssafy.com/s16/a11/project/finalproject/mapmates_3-kkm-mye/back/-/settings/integrations)
+```bash
+# 1) DB 생성과 데이터 적재 (SSAFY 제공 ssafy_trip DB가 있어야 한다)
+mysql -ussafy -p --default-character-set=utf8mb4 < src/main/resources/sql/schema.sql
+mysql -ussafy -p --default-character-set=utf8mb4 < src/main/resources/sql/data.sql
 
-## Collaborate with your team
+# 2) 키 설정
+cp src/main/resources/application-private.properties.example src/main/resources/application-private.properties
+#   spring.ai.openai.api-key = SSAFY GMS 키
+#   datago.service-key       = 공공데이터포털 인증키
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+# 3) 실행 (http://localhost:8080)
+./mvnw spring-boot:run
+```
 
-## Test and Deploy
+최초 기동 시 시연용 계정(`admin`, `mate1`, `mate2`)과 공지 1건이 생성된다. (`config/DataInitializer`)
+문서 검색 Tool은 AI 서버(`allfiles/ai-server`, 8000번 포트)를 호출한다. AI 서버가 꺼져 있으면 빈 결과로 처리한다.
 
-Use the built-in continuous integration in GitLab.
+## 기능
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+### 기본 기능
+- **관광지**: 시도·구군·유형(8종) 필터, 이름·주소 검색, 상세 조회
+- **회원**: 가입, 수정, 조회, 탈퇴, 로그인, 로그아웃, 비밀번호 찾기(임시 비밀번호)
 
-***
+### 추가 기능
+- **여행 계획**: 일자별 방문지·경비·메모·예산 저장, 순서 변경
+- **핫플레이스**: 사진·좌표·방문일·유형·설명 등록
+- **메이트**: 모집글, 참여 신청, 수락·거절, 공동 편집, 취향 일치도, 중간 집결지
+- **부가정보**: 날씨, 일출·일몰, 전기차 충전소, 주변 축제·상권
 
-# Editing this README
+### 심화 기능
+- **공지사항·게시판**: CRUD, 검색, 댓글 (공지는 관리자만 작성)
+- **여행 뉴스**: 키워드별 RSS 수집 후 DB 저장·조회
+- **알고리즘**: 동선 최적화(Held-Karp / 최근접 이웃 + 2-opt), 코사인 유사도 추천, 기하 중앙값
+- **AI 길잡이**: 단일·다중 Tool 호출, Planner
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## Spring AI 구조
 
-## Suggestions for a good README
+| 역할 | 구현 |
+|---|---|
+| Client | `AiController`, `AiService` |
+| Tool | `tool` 패키지 — 로직은 Service에 위임 |
+| Resource | `planner/StepResult` (Tool 실행 결과) |
+| Prompt | `resources/prompts/system.txt`, `planner.txt` |
+| Planner | `planner/TripPlanner` — 계획(LLM) → 검증(서버) → 실행(서버) |
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+`POST /api/ai/chat` 의 `mode`로 호출 방식을 고른다.
 
-## Name
-Choose a self-explaining name for your project.
+| mode | 동작 |
+|---|---|
+| `simple` | LLM만 호출 |
+| `single` | `tool`로 지정한 Tool 하나만 제공 (단일 Tool 검증) |
+| `multi` | 모든 Tool 제공, LLM이 연쇄 호출 |
+| `planner` | Planner가 순서를 정하고 서버가 실행, 결과를 Prompt에 통합 (기본) |
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+```bash
+curl -X POST http://localhost:8080/api/ai/chat -H "Content-Type: application/json" \
+  -d '{"message":"Busan 2-day course with weather","mode":"planner"}'
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+Planner 실행 예 — "이번 주말 부산 1박2일 코스 짜줘. 날씨도 알려줘"
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+```
+SEARCH_ATTRACTIONS (region=부산, type=관광지, count=6)
+   └ 결과의 첫 장소 좌표 → GET_WEATHER (lat=35.0230, lng=128.8169)
+   └ 결과의 번호 목록   → OPTIMIZE_ROUTE (attractionNos=[58599, 58600, ...])
+→ 세 결과를 Prompt에 넣어 최종 응답 생성
+```
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+고찰(단일/다중 Tool 비교, 장단점, AI Server 분리 설계)은 `allfiles/docs/09_AI_고찰보고서.md`에 있다.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+## 주요 API
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+전체 목록은 `allfiles/docs/05_API설계서.md` 참고.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+| 영역 | 예 |
+|---|---|
+| 인증 | `POST /api/auth/join`, `/login`, `/find-password` |
+| 관광지 | `GET /api/attractions?sidoCode=6&contentTypeId=12`, `/{no}`, `/{no}/weather`, `/{no}/chargers`, `/{no}/nearby?kind=festival` |
+| 플랜 | `GET·POST /api/plans`, `PUT·DELETE /api/plans/{id}`, `POST /api/plans/optimize`, `GET /api/plans/{id}/meeting-point` |
+| 메이트 | `GET·POST /api/mates`, `POST /api/mates/{id}/apply`, `POST /api/mates/applications/{id}/accept` |
+| 커뮤니티 | `GET·POST /api/boards`, `POST /api/boards/{id}/comments`, `GET /api/news` |
+| AI | `POST /api/ai/chat` |

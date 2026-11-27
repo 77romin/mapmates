@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import com.ssafy.mapmates.planner.ExecutionPlan.ToolStep;
 import com.ssafy.mapmates.tool.AttractionTool;
 import com.ssafy.mapmates.tool.AttractionTool.Place;
+import com.ssafy.mapmates.tool.CultureTool;
 import com.ssafy.mapmates.tool.DocumentTool;
 import com.ssafy.mapmates.tool.PlanTool;
 import com.ssafy.mapmates.tool.RouteTool;
@@ -34,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 public class TripPlanner {
     /** 허용되는 실행 순서. 이 순서를 벗어난 계획은 재정렬된다. */
     private static final List<ToolStep> ORDER = List.of(ToolStep.GET_MY_PLANS, ToolStep.SEARCH_ATTRACTIONS,
-            ToolStep.GET_WEATHER, ToolStep.OPTIMIZE_ROUTE, ToolStep.SEARCH_DOCUMENTS);
+            ToolStep.GET_WEATHER, ToolStep.OPTIMIZE_ROUTE, ToolStep.SEARCH_PERFORMANCES, ToolStep.SEARCH_DOCUMENTS);
 
     private final ChatClient chatClient;
     private final AttractionTool attractionTool;
@@ -42,6 +43,7 @@ public class TripPlanner {
     private final RouteTool routeTool;
     private final PlanTool planTool;
     private final DocumentTool documentTool;
+    private final CultureTool cultureTool;
 
     @Value("classpath:/prompts/planner.txt")
     private Resource plannerPrompt;
@@ -100,6 +102,8 @@ public class TripPlanner {
                         Map<String, Object> route = routeTool.optimizeRoute(nos);
                         results.add(new StepResult(step.name(), "attractionNos=" + nos, route));
                     }
+                    case SEARCH_PERFORMANCES -> results.add(new StepResult(step.name(), "region=" + plan.region(),
+                            cultureTool.searchPerformances(plan.region(), "")));
                     case SEARCH_DOCUMENTS -> results.add(new StepResult(step.name(), "query=" + plan.documentQuery(),
                             documentTool.searchDocuments(plan.documentQuery())));
                 }
@@ -122,6 +126,7 @@ public class TripPlanner {
         if (!region.isEmpty() || q.matches(".*(추천|코스|가볼|관광|맛집|숙소).*")) steps.add(ToolStep.SEARCH_ATTRACTIONS);
         if (q.matches(".*(날씨|비|기온|우산|옷).*")) steps.add(ToolStep.GET_WEATHER);
         if (q.matches(".*(코스|동선|경로|순서|일정).*")) steps.add(ToolStep.OPTIMIZE_ROUTE);
+        if (q.matches(".*(공연|뮤지컬|연극|콘서트|전시).*")) steps.add(ToolStep.SEARCH_PERFORMANCES);
         if (q.matches(".*(문서|가이드|규정|팁|자료).*")) steps.add(ToolStep.SEARCH_DOCUMENTS);
         String type = q.contains("맛집") || q.contains("음식") ? "음식점" : q.contains("숙소") || q.contains("숙박") ? "숙박" : "";
         return new ExecutionPlan(steps, region, "", type, 5, q);
