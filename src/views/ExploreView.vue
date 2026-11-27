@@ -19,19 +19,39 @@ const loading = ref(false)
 const error = ref('')
 const selected = ref(null) // 상세 보기 중인 관광지 번호
 const extraMarkers = ref([]) // 상세의 주변 장소/충전소
+// 검색 기준: region(시도·구군) | area(지도에 보이는 영역)
+const mode = ref('region')
+const view = ref(null) // 지도에 보이는 영역
+const moved = ref(false) // 마지막 검색 뒤 사용자가 지도를 옮겼는지
+const fitKey = ref(0) // 바뀔 때만 지도가 검색 결과에 맞춰 이동한다
 
 const markers = computed(() => [
   ...items.value.map((a) => ({ id: a.no, latitude: a.latitude, longitude: a.longitude, title: a.title, image: a.firstImage1 || null, icon: typeIcon(a.contentTypeId) })),
   ...extraMarkers.value,
 ])
 
-async function search(p = 1) {
+/**
+ * by: 'region' = 시도·구군 기준으로 찾고 지도를 결과에 맞춘다.
+ *     'area'   = 지금 지도에 보이는 영역 안에서 찾고 지도는 그대로 둔다.
+ *     생략     = 직전 기준을 유지하되, 사용자가 지도를 옮겼으면 보이는 영역 기준으로 바꾼다.
+ */
+async function search(p = 1, by) {
+  const next = by || (moved.value && view.value ? 'area' : mode.value)
   loading.value = true
   error.value = ''
   try {
     const params = { page: p, size }
-    for (const k of ['sidoCode', 'gugunCode', 'contentTypeId', 'keyword']) if (filter[k] !== '') params[k] = filter[k]
+    for (const k of ['contentTypeId', 'keyword']) if (filter[k] !== '') params[k] = filter[k]
+    if (next === 'area' && view.value) {
+      const { minLat, maxLat, minLng, maxLng } = view.value
+      Object.assign(params, { minLat, maxLat, minLng, maxLng })
+    } else {
+      for (const k of ['sidoCode', 'gugunCode']) if (filter[k] !== '') params[k] = filter[k]
+    }
     const res = await http.get('/attractions', { params })
+    mode.value = next === 'area' && view.value ? 'area' : 'region'
+    if (mode.value === 'region') fitKey.value++ // 지역 검색일 때만 지도를 결과에 맞춘다
+    moved.value = false
     items.value = res.items
     total.value = res.total
     page.value = p
@@ -49,6 +69,15 @@ watch(() => filter.sidoCode, async (code) => {
   guguns.value = code === '' ? [] : await http.get('/attractions/guguns', { params: { sidoCode: code } }).catch(() => [])
 })
 
+/** 시도·구군을 바꾸면 그 지역으로 이동해 검색한다 */
+function changeRegion() {
+  search(1, 'region')
+}
+function onViewChange(v) {
+  view.value = v
+  if (v.byUser) moved.value = true
+}
+
 onMounted(async () => {
   try {
     ;[sidos.value, types.value] = await Promise.all([http.get('/attractions/sidos'), http.get('/attractions/content-types')])
@@ -56,7 +85,7 @@ onMounted(async () => {
     error.value = e.message
   }
   filter.sidoCode = 1
-  search()
+  search(1, 'region')
 })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size)))
@@ -83,13 +112,13 @@ function onLoaded(detail) {
           <h1 class="h6 mm-title mb-2">어디로 갈까요?</h1>
           <div class="row g-2">
             <div class="col-6">
-              <select v-model="filter.sidoCode" class="form-select form-select-sm" aria-label="시도">
+              <select v-model="filter.sidoCode" class="form-select form-select-sm" aria-label="시도" @change="changeRegion">
                 <option value="">전국</option>
                 <option v-for="s in sidos" :key="s.code" :value="s.code">{{ s.name }}</option>
               </select>
             </div>
             <div class="col-6">
-              <select v-model="filter.gugunCode" class="form-select form-select-sm" aria-label="구군" :disabled="!guguns.length">
+              <select v-model="filter.gugunCode" class="form-select form-select-sm" aria-label="구군" :disabled="!guguns.length" @change="changeRegion">
                 <option value="">구군 전체</option>
                 <option v-for="g in guguns" :key="g.code" :value="g.code">{{ g.name }}</option>
               </select>
@@ -110,7 +139,7 @@ function onLoaded(detail) {
         </form>
 
         <div class="px-3 py-2 small text-secondary border-bottom d-flex justify-content-between">
-          <span>검색 결과 <strong class="text-coral">{{ total.toLocaleString() }}</strong>곳</span>
+          <span><span v-if="mode === 'area'" class="badge badge-ink me-1"><i class="bi bi-bounding-box" aria-hidden="true"></i> 지도에 보이는 영역</span>검색 결과 <strong class="text-coral">{{ total.toLocaleString() }}</strong>곳</span>
           <span v-if="total">{{ page }} / {{ totalPages }}</span>
         </div>
 
@@ -141,7 +170,14 @@ function onLoaded(detail) {
     </aside>
 
     <div class="mm-map">
-      <KakaoMap :markers="markers" :selected-id="selected" @marker-click="(m) => typeof m.id === 'number' && open(m.id)" />
+      <KakaoMap :markers="markers" :selected-id="selected" :fit-key="fitKey" @marker-click="(m) => typeof m.id === 'number' && open(m.id)" @view-change="onViewChange" />
+      <button v-if="moved && !selected" class="btn btn-sm bg-ink research" @click="search(1, 'area')">
+        <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>이 지역에서 다시 검색
+      </button>
     </div>
   </div>
 </template>
+
+<style scoped>
+.research { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 5; border-radius: 20px; padding: 6px 16px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
+</style>

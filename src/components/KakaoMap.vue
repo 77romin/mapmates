@@ -11,11 +11,13 @@ const props = defineProps({
   // 실제 경로 좌표 [[위도, 경도], ...]. 있으면 직선 대신 이 경로를 그린다
   routePath: { type: Array, default: null },
   dashed: { type: Boolean, default: false },
+  // 주어지면 이 값이 바뀔 때만 마커에 맞춰 지도를 이동한다. (없으면 마커가 바뀔 때마다 맞춘다)
+  fitKey: { type: Number, default: undefined },
   selectedId: { type: [Number, String], default: null },
   clickable: { type: Boolean, default: false },
   picked: { type: Object, default: null },
 })
-const emit = defineEmits(['marker-click', 'map-click'])
+const emit = defineEmits(['marker-click', 'map-click', 'view-change'])
 
 const el = ref(null)
 const error = ref('')
@@ -24,6 +26,8 @@ let overlays = []
 let polyline = null
 let pickedMarker = null
 let resizeObserver = null
+let lastFitKey
+let programmatic = false // 코드가 지도를 옮기는 중인지 (사용자 조작과 구분)
 const KEY = import.meta.env.VITE_KAKAO_MAP_KEY
 
 function loadSdk() {
@@ -113,6 +117,7 @@ function draw(fit = true) {
     polyline = new maps.Polyline({ path: linePath, strokeWeight: 5, strokeColor: '#FF6B4A', strokeOpacity: 0.9, strokeStyle: props.dashed ? 'shortdash' : 'solid' })
     polyline.setMap(map)
   }
+  if (fit && points.length) programmatic = true
   if (fit && points.length === 1) {
     if (map.getLevel() > 8) map.setLevel(6) // 전국 축척에서는 핀 하나가 잘 보이도록 확대
     map.setCenter(points[0])
@@ -148,6 +153,12 @@ onMounted(async () => {
         t.scrollTop = 0
       }
     }, true)
+    // 지도가 멈출 때마다 현재 보이는 영역을 알린다. byUser: 사용자가 직접 옮기거나 확대·축소했는지
+    maps.event.addListener(map, 'idle', () => {
+      emit('view-change', { ...currentView(), byUser: !programmatic })
+      programmatic = false
+    })
+    lastFitKey = props.fitKey
     draw()
     drawPicked()
     // 패널 전환·창 크기 변경으로 지도 영역이 바뀌면 다시 배치한다
@@ -163,11 +174,24 @@ onMounted(async () => {
   }
 })
 
-watch(() => props.markers, () => draw(), { deep: true })
+function shouldFit() {
+  if (props.fitKey === undefined) return true
+  const changed = props.fitKey !== lastFitKey
+  lastFitKey = props.fitKey
+  return changed
+}
+function currentView() {
+  const b = map.getBounds()
+  const sw = b.getSouthWest()
+  const ne = b.getNorthEast()
+  return { minLat: sw.getLat(), maxLat: ne.getLat(), minLng: sw.getLng(), maxLng: ne.getLng(), level: map.getLevel() }
+}
+watch(() => props.markers, () => draw(shouldFit()), { deep: true })
 watch(() => props.selectedId, (id) => {
   draw(false)
   const m = props.markers.find((x) => x.id === id)
   // 재배치 직후의 panTo(애니메이션)는 무시되는 경우가 있어 setCenter 로 바로 옮긴다
+  if (m && map && m.latitude > 32.5 && m.latitude < 39.5) programmatic = true
   if (m && map && m.latitude > 32.5 && m.latitude < 39.5) map.setCenter(new window.kakao.maps.LatLng(m.latitude, m.longitude))
 })
 watch(() => props.picked, drawPicked, { deep: true })
