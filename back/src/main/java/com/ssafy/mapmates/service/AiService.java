@@ -70,8 +70,35 @@ public class AiService {
     }
 
     public Map<String, Object> planner(String message, Integer memberId, String history) {
+        return planner(message, memberId, history, false);
+    }
+
+    /** 사용자가 말하지 않은 기준을 되물을 때 보여 줄 질문과 고를 수 있는 답 */
+    private static final Map<String, Map<String, Object>> QUESTIONS = new LinkedHashMap<>();
+    static {
+        QUESTIONS.put("region", Map.of("key", "region", "label", "어디로 가시나요?", "options", List.of("서울", "부산", "제주", "강릉", "경주", "전주", "여수")));
+        QUESTIONS.put("days", Map.of("key", "days", "label", "며칠 일정인가요?", "options", List.of("당일", "1박 2일", "2박 3일", "3박 4일")));
+        QUESTIONS.put("pace", Map.of("key", "pace", "label", "하루를 얼마나 채울까요?", "options", List.of("여유롭게", "보통", "알차게"),
+                "hints", List.of("하루 볼거리 3곳", "하루 볼거리 5곳", "하루 볼거리 6곳")));
+        QUESTIONS.put("companion", Map.of("key", "companion", "label", "누구와 가시나요?", "options", List.of("혼자", "연인", "친구", "아이와 가족", "부모님")));
+    }
+
+    /**
+     * @param noAsk true 면 빠진 기준이 있어도 되묻지 않고 기본값으로 진행한다. (사용자가 질문에 답했거나 "알아서"를 고른 뒤)
+     */
+    public Map<String, Object> planner(String message, Integer memberId, String history, boolean noAsk) {
         ExecutionPlan plan = tripPlanner.plan(message, memberId != null, history);
         log.debug("실행 계획: {}", plan);
+        // 코스를 짜는 데 필요한 기준을 사용자가 말하지 않았으면, 임의로 정하지 않고 먼저 묻는다
+        if (!noAsk && plan.missing() != null && !plan.missing().isEmpty()) {
+            Map<String, Object> ask = new LinkedHashMap<>();
+            ask.put("mode", "planner");
+            ask.put("answer", "코스를 짜기 전에 " + (plan.missing().size() == 1 ? "하나만" : "몇 가지만") + " 정해 주세요.");
+            ask.put("questions", plan.missing().stream().map(QUESTIONS::get).filter(q -> q != null).toList());
+            ask.put("steps", List.of());
+            ask.put("plan", plan);
+            return ask;
+        }
         List<StepResult> results = tripPlanner.execute(plan, memberId, history);
 
         // Tool 실행 결과(Resource)를 Prompt 에 통합한다. LLM 은 이 데이터만 근거로 답한다.

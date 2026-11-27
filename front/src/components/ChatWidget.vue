@@ -135,11 +135,17 @@ async function scrollDown() {
   if (listEl.value) listEl.value.scrollTop = listEl.value.scrollHeight
 }
 
-async function send() {
-  const text = input.value.trim()
+/**
+ * @param sent  서버에 보낼 문장. 없으면 입력창의 글을 보낸다
+ * @param shown 내 말풍선에 보여 줄 글 (sent 와 다를 때)
+ * @param noAsk true 면 서버가 빠진 기준을 되묻지 않고 기본값으로 진행한다
+ */
+async function send(sent, shown, noAsk = false) {
+  const typed = typeof sent !== 'string'
+  const text = (typed ? input.value : sent).trim()
   if (!text || loading.value) return
-  messages.value.push({ role: 'user', text })
-  input.value = ''
+  messages.value.push({ role: 'user', text: shown || text })
+  if (typed) input.value = ''
   loading.value = true
   scrollDown()
   try {
@@ -147,7 +153,12 @@ async function send() {
       // 후속 요청("한 곳만 바꿔줘")을 이해하도록 직전 대화를 함께 보낸다 (방금 입력한 질문은 제외)
       const history = messages.value.slice(1, -1).filter((m) => m.role === 'user' || (m.role === 'ai' && m.trip))
         .slice(-6).map((m) => ({ role: m.role, text: m.text }))
-      const res = await http.post('/ai/chat', { message: text, mode: 'planner', history })
+      const res = await http.post('/ai/chat', { message: text, mode: 'planner', history, noAsk })
+      if (res.questions?.length) {
+        // 코스를 짜는 데 필요한 기준이 빠졌다. 고를 수 있는 답과 함께 되묻는다
+        messages.value.push({ role: 'ai', trip: true, text: res.answer, questions: res.questions, picks: {}, origin: text })
+        return
+      }
       const view = asCourse(res)
       messages.value.push({ role: 'ai', trip: true, text: (res.answer || '').replace(/\*\*/g, ''), tools: (res.steps || []).map((s) => TOOL_LABEL[s.tool] || s.tool), places: res.places || [], course: res.course || null, view })
       // 메인 지도를 보고 있으면 추천 결과를 바로 지도에 올린다. 다른 화면에서는 '지도에서 보기'를 눌러야 옮겨 간다
@@ -199,6 +210,17 @@ async function upload(e) {
 function addPlace(p) {
   draft.add(p)
 }
+const ASK_NAME = { region: '지역', days: '일수', pace: '하루 일정', companion: '동행' }
+const AUTO = '알아서 정해줘'
+/** 되물은 질문에 고른 답을 원래 요청에 붙여 다시 보낸다 */
+function answer(m) {
+  m.answered = true
+  const picks = m.questions.map((q) => [q.key, m.picks[q.key]])
+  const shown = picks.map(([, v]) => v).join(', ')
+  const sent = m.origin + '\n조건: ' + picks.map(([k, v]) => `${ASK_NAME[k]} ${v === AUTO ? '알아서 정해줘' : v}`).join(', ')
+  send(sent, shown, true)
+}
+
 /** 응답에 코스가 없고 장소만 있으면(한두 곳 추천) 지도에 보여 줄 수 있게 하루짜리 묶음으로 만든다 */
 const asCourse = (res) =>
   res.course || (res.places?.length ? { title: '추천 장소', days: 1, stops: res.places.map((p) => ({ ...p, dayNo: 1 })) } : null)
@@ -249,6 +271,18 @@ async function makePlan(m) {
             <i :class="['bi me-1', m.doc ? 'bi-file-earmark-text' : 'bi-robot']" aria-hidden="true"></i>{{ m.doc ? '문서 참고' : '일반 응답' }}
           </span>
           <div class="pre-line">{{ m.text }}</div>
+          <!-- 빠진 기준을 되묻는다: 질문마다 하나씩 고른다 -->
+          <div v-if="m.questions?.length" class="ask">
+            <fieldset v-for="q in m.questions" :key="q.key" class="ask-q" :disabled="m.answered">
+              <legend>{{ q.label }}</legend>
+              <div class="ask-opts">
+                <button v-for="(o, i) in q.options" :key="o" type="button" class="place-chip" :class="{ picked: m.picks[q.key] === o }" :aria-pressed="m.picks[q.key] === o" @click="m.picks[q.key] = o">{{ o }}<span v-if="q.hints" class="ask-hint">{{ q.hints[i] }}</span></button>
+                <button v-if="q.key !== 'region'" type="button" class="place-chip" :class="{ picked: m.picks[q.key] === AUTO }" :aria-pressed="m.picks[q.key] === AUTO" @click="m.picks[q.key] = AUTO">{{ AUTO }}</button>
+              </div>
+            </fieldset>
+            <button class="btn btn-sm btn-coral w-100" :disabled="m.answered || loading || m.questions.some((q) => !m.picks[q.key])" @click="answer(m)">이 조건으로 코스 짜기</button>
+            <div v-if="!m.answered" class="meta">고르는 대신 아래 입력창에 직접 적어도 됩니다.</div>
+          </div>
           <div v-if="m.notice" class="meta">{{ m.notice }}</div>
           <div v-if="m.sources?.length" class="meta">출처: <span v-for="(s, j) in m.sources" :key="j">{{ s.source }} ({{ Math.round(s.score * 100) }}%){{ j < m.sources.length - 1 ? ', ' : '' }}</span></div>
           <div v-if="m.tools?.length" class="meta"><i class="bi bi-tools me-1" aria-hidden="true"></i>{{ m.tools.join(', 이어서 ') }}</div>
@@ -294,7 +328,7 @@ async function makePlan(m) {
       <div v-if="loading" class="msg ai"><div class="bubble"><span class="spinner-grow spinner-grow-sm text-secondary" role="status"></span> 답변을 만들고 있어요…</div></div>
     </div>
 
-    <form class="chat-input" @submit.prevent="send">
+    <form class="chat-input" @submit.prevent="send()">
       <template v-if="mode === 'doc'">
         <input ref="fileEl" type="file" accept=".txt,.md,.pdf" hidden @change="upload" />
         <button type="button" class="btn btn-light" :disabled="uploading" aria-label="문서 업로드" title="문서 업로드 (txt, md, pdf)" @click="fileEl.click()">
@@ -321,6 +355,13 @@ async function makePlan(m) {
 .place-chip { border: 1px solid var(--mm-line-strong); background: #fff; color: var(--mm-ink); border-radius: var(--mm-r-pill); padding: 4px 12px; font-size: var(--mm-fs-sm); font-weight: 600; text-align: left; }
 .place-chip:hover:not(:disabled) { border-color: var(--mm-ink); }
 .place-chip.on { background: var(--mm-surface); color: var(--mm-muted); border-color: var(--mm-surface); }
+.place-chip.picked { background: var(--mm-ink); border-color: var(--mm-ink); color: #fff; }
+.ask { margin-top: var(--mm-sp-3); }
+.ask-q { border: 0; padding: 0; margin: 0 0 var(--mm-sp-3); min-width: 0; }
+.ask-q legend { font-size: var(--mm-fs-sm); font-weight: 700; color: var(--mm-ink); margin-bottom: var(--mm-sp-2); float: none; width: auto; }
+.ask-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.ask-hint { margin-left: 6px; font-weight: 400; font-size: var(--mm-fs-xs); opacity: 0.75; }
+.ask-q:disabled .place-chip:not(.picked) { opacity: 0.45; }
 .chat-fab:hover { background: var(--mm-coral-dark); }
 .chat-box { position: fixed; right: 20px; bottom: 20px; width: 380px; max-width: calc(100vw - 24px); height: 580px; max-height: calc(100vh - 90px); background: #fff; border-radius: var(--mm-r-lg); box-shadow: var(--mm-shadow-3); display: flex; flex-direction: column; overflow: hidden; z-index: 1040; }
 .chat-head { background: var(--mm-ink); color: #fff; padding: 10px 10px 10px 16px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }

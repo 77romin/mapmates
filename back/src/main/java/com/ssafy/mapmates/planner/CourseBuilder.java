@@ -57,6 +57,7 @@ public final class CourseBuilder {
         List<List<Place>> byDay = new ArrayList<>();
         for (int d = 0; d < dayCount; d++) byDay.add(new ArrayList<>());
         for (int i = 0; i < visits.size(); i++) byDay.get(i * dayCount / visits.size()).add(visits.get(i));
+        tighten(byDay);
 
         Place[] lunch = new Place[dayCount];
         Place[] dinner = new Place[dayCount];
@@ -96,6 +97,71 @@ public final class CourseBuilder {
 
     private static Stop stop(Place p, int dayNo, String slot) {
         return new Stop(p.no(), p.title(), p.type(), p.address(), p.latitude(), p.longitude(), dayNo, slot, null, null);
+    }
+
+    /** 하루 볼거리를 잇는 거리가 이만큼(km, 직선 기준)을 넘으면 동떨어진 곳을 옮기거나 뺀다 */
+    static final double DAY_MAX_KM = 25;
+    /** 다른 날의 가운데 지점과 이만큼(km) 안이면 그날로 옮긴다 */
+    static final double MOVE_WITHIN_KM = 8;
+
+    /**
+     * 하루가 너무 흩어지지 않게 한다.
+     * 하루 이동 거리가 상한을 넘으면 그날 나머지 장소들과 가장 동떨어진 곳을 고른다.
+     * 그곳이 다른 날 장소들과 가까우면 그날로 옮기고(가장 가까운 장소 바로 뒤), 아니면 코스에서 뺀다.
+     * 하루에 두 곳만 남으면 더 줄이지 않는다.
+     */
+    static void tighten(List<List<Place>> byDay) {
+        for (int round = 0; round < 12; round++) {
+            boolean changed = false;
+            for (int d = 0; d < byDay.size(); d++) {
+                List<Place> day = byDay.get(d);
+                if (day.size() <= 2 || pathKm(day) <= DAY_MAX_KM) continue;
+                Place far = day.get(0);
+                double farKm = -1;
+                for (Place p : day) { // 나머지 장소들의 가운데에서 가장 먼 곳
+                    double lat = day.stream().filter(x -> x != p).mapToDouble(Place::latitude).average().orElse(p.latitude());
+                    double lng = day.stream().filter(x -> x != p).mapToDouble(Place::longitude).average().orElse(p.longitude());
+                    double km = GeoUtil.distanceKm(lat, lng, p.latitude(), p.longitude());
+                    if (km > farKm) {
+                        farKm = km;
+                        far = p;
+                    }
+                }
+                day.remove(far);
+                int to = -1;
+                double best = MOVE_WITHIN_KM;
+                for (int e = 0; e < byDay.size(); e++) {
+                    List<Place> other = byDay.get(e);
+                    if (e == d || other.isEmpty()) continue;
+                    double lat = other.stream().mapToDouble(Place::latitude).average().orElse(0);
+                    double lng = other.stream().mapToDouble(Place::longitude).average().orElse(0);
+                    double km = GeoUtil.distanceKm(lat, lng, far.latitude(), far.longitude());
+                    if (km < best) {
+                        best = km;
+                        to = e;
+                    }
+                }
+                if (to >= 0) {
+                    List<Place> other = byDay.get(to);
+                    int at = 0;
+                    for (int i = 1; i < other.size(); i++) {
+                        if (GeoUtil.distanceKm(other.get(i).latitude(), other.get(i).longitude(), far.latitude(), far.longitude())
+                                < GeoUtil.distanceKm(other.get(at).latitude(), other.get(at).longitude(), far.latitude(), far.longitude())) at = i;
+                    }
+                    other.add(at + 1, far);
+                }
+                changed = true;
+            }
+            if (!changed) break;
+        }
+    }
+
+    private static double pathKm(List<Place> day) {
+        double km = 0;
+        for (int i = 1; i < day.size(); i++) {
+            km += GeoUtil.distanceKm(day.get(i - 1).latitude(), day.get(i - 1).longitude(), day.get(i).latitude(), day.get(i).longitude());
+        }
+        return km;
     }
 
     private static Place takeNearest(List<Place> from, double lat, double lng) {
