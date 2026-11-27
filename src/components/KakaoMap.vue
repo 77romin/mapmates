@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 /**
- * markers: [{ id, latitude, longitude, title, label?(번호 핀), kind?('hot'|'meet') }]
+ * markers: [{ id, latitude, longitude, title, label?(번호 핀), kind?('hot'|'meet'), image?(사진 핀), icon?(사진이 없을 때 아이콘 클래스) }]
  * path: true 면 markers 순서대로 경로선을 그린다.
  */
 const props = defineProps({
@@ -53,8 +53,28 @@ function pinEl(m) {
   b.className = 'mm-pin' + (m.kind ? ' ' + m.kind : '') + (m.id === props.selectedId ? ' selected' : '')
   b.title = m.title || ''
   b.setAttribute('aria-label', m.title || '장소')
-  if (m.label != null) b.textContent = m.label
-  else b.innerHTML = '<i class="bi bi-geo-alt-fill"></i>'
+  const iconEl = () => {
+    const i = document.createElement('i')
+    i.className = 'bi ' + (m.icon || 'bi-geo-alt-fill')
+    return i
+  }
+  if (m.label != null) {
+    b.textContent = m.label
+  } else if (m.image) {
+    // 사진 핀: 불러오지 못하면 아이콘 핀으로 바꾼다
+    b.classList.add('photo')
+    const img = document.createElement('img')
+    img.src = m.image
+    img.alt = ''
+    img.loading = 'lazy'
+    img.addEventListener('error', () => {
+      b.classList.remove('photo')
+      b.replaceChildren(iconEl())
+    })
+    b.appendChild(img)
+  } else {
+    b.appendChild(iconEl())
+  }
   b.addEventListener('click', (e) => {
     e.stopPropagation()
     emit('marker-click', m)
@@ -75,7 +95,14 @@ function draw(fit = true) {
   const bounds = new maps.LatLngBounds()
   const points = valid.map((m) => {
     const pos = new maps.LatLng(m.latitude, m.longitude)
-    const overlay = new maps.CustomOverlay({ position: pos, content: pinEl(m), yAnchor: 1, zIndex: m.id === props.selectedId ? 10 : 1 })
+    const el = pinEl(m)
+    const baseZ = m.id === props.selectedId ? 10 : 1
+    const overlay = new maps.CustomOverlay({ position: pos, content: el, yAnchor: 1, zIndex: baseZ })
+    // 겹친 핀도 확인할 수 있게, 마우스를 올리거나 포커스한 핀을 맨 위로 올린다
+    el.addEventListener('mouseenter', () => overlay.setZIndex(20))
+    el.addEventListener('mouseleave', () => overlay.setZIndex(baseZ))
+    el.addEventListener('focus', () => overlay.setZIndex(20))
+    el.addEventListener('blur', () => overlay.setZIndex(baseZ))
     overlay.setMap(map)
     overlays.push(overlay)
     bounds.extend(pos)
@@ -113,6 +140,14 @@ onMounted(async () => {
     maps.event.addListener(map, 'click', (e) => {
       if (props.clickable) emit('map-click', { latitude: e.latLng.getLat(), longitude: e.latLng.getLng() })
     })
+    // 핀에 포커스가 가면(키보드 Tab 등) 브라우저가 지도 내부 영역을 스크롤시켜 지도가 어긋난다. 스크롤을 원위치로 되돌린다.
+    el.value.addEventListener('scroll', (e) => {
+      const t = e.target
+      if (t.scrollLeft || t.scrollTop) {
+        t.scrollLeft = 0
+        t.scrollTop = 0
+      }
+    }, true)
     draw()
     drawPicked()
     // 패널 전환·창 크기 변경으로 지도 영역이 바뀌면 다시 배치한다
@@ -132,7 +167,8 @@ watch(() => props.markers, () => draw(), { deep: true })
 watch(() => props.selectedId, (id) => {
   draw(false)
   const m = props.markers.find((x) => x.id === id)
-  if (m && map) map.panTo(new window.kakao.maps.LatLng(m.latitude, m.longitude))
+  // 재배치 직후의 panTo(애니메이션)는 무시되는 경우가 있어 setCenter 로 바로 옮긴다
+  if (m && map && m.latitude > 32.5 && m.latitude < 39.5) map.setCenter(new window.kakao.maps.LatLng(m.latitude, m.longitude))
 })
 watch(() => props.picked, drawPicked, { deep: true })
 watch(() => [props.routePath, props.dashed], () => draw(false))
@@ -165,6 +201,13 @@ onBeforeUnmount(() => {
 .mm-pin.selected, .mm-pin:hover, .mm-pin.hot { background: #ff6b4a; }
 .mm-pin.selected::after, .mm-pin:hover::after, .mm-pin.hot::after { border-top-color: #ff6b4a; }
 .mm-pin.selected { transform: scale(1.2); transform-origin: bottom center; }
+.mm-pin.photo { width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 50%; border-width: 3px; background: #fff; overflow: visible; transition: transform 0.12s; transform-origin: bottom center; }
+.mm-pin.photo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.mm-pin.photo::after { border-top-color: #fff; bottom: -8px; }
+.mm-pin.photo:hover, .mm-pin.photo:focus-visible { background: #fff; transform: scale(1.35); }
+.mm-pin.photo:hover::after { border-top-color: #fff; }
+.mm-pin.photo.selected { border-color: #ff6b4a; background: #ff6b4a; transform: scale(1.45); }
+.mm-pin.photo.selected::after { border-top-color: #ff6b4a; }
 .mm-pin.meet { background: #0f9d76; }
 .mm-pin.meet::after { border-top-color: #0f9d76; }
 </style>

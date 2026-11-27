@@ -21,7 +21,7 @@ const selected = ref(null) // 상세 보기 중인 관광지 번호
 const extraMarkers = ref([]) // 상세의 주변 장소/충전소
 
 const markers = computed(() => [
-  ...items.value.map((a) => ({ id: a.no, latitude: a.latitude, longitude: a.longitude, title: a.title })),
+  ...items.value.map((a) => ({ id: a.no, latitude: a.latitude, longitude: a.longitude, title: a.title, image: a.firstImage1 || null, icon: typeIcon(a.contentTypeId) })),
   ...extraMarkers.value,
 ])
 

@@ -27,7 +27,7 @@ src/
 ├── router/index.js          라우트, 로그인 필요 화면 가드
 ├── components/
 │   ├── NavBar.vue           상단 메뉴 (반응형)
-│   ├── KakaoMap.vue         지도 (핀, 번호 핀, 경로선, 클릭 위치 선택)
+│   ├── KakaoMap.vue         지도 (사진 핀, 번호 핀, 경로선, 클릭 위치 선택)
 │   ├── AttractionDetail.vue 관광지 상세 패널
 │   ├── AttractionPopup.vue  장소 정보 팝업 (공연장 주변 장소 보기·담기)
 │   └── ChatWidget.vue       AI 길잡이 (여행 도우미 / 문서 Q&A)
