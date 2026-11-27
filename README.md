@@ -1,5 +1,7 @@
 # 너랑 갈.지도 (mapmates) — 산출물
 
+<img src="docs/brand/logo.webp" alt="너랑 갈.지도 로고" width="300" />
+
 > 너랑 갈 다음 여행을 지도 위에 · Find your route. Meet your mates.
 
 지도 한 장 위에서 경로를 짜고 동행(메이트)을 만나는 여행 플래너다. 이 저장소에는 설계 산출물, AI 서버, 발표 자료를 둔다.
