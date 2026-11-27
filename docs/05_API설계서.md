@@ -36,7 +36,7 @@
 | GET | `/attractions/sidos` | 시도 목록 | - | `[{ code, name }]` |
 | GET | `/attractions/guguns` | 구군 목록 | `sidoCode` | `[{ code, name }]` |
 | GET | `/attractions/content-types` | 콘텐츠 유형 목록 | - | `[{ code, name }]` |
-| GET | `/attractions` | 관광지 검색 | `sidoCode?, gugunCode?, contentTypeId?, keyword?, page=1, size=30` | `{ items, total, page, size }` |
+| GET | `/attractions` | 관광지 검색. `minLat, maxLat, minLng, maxLng`를 모두 주면 시도·구군 대신 그 지도 영역 안에서 찾고 중심에 가까운 순으로 정렬 | `sidoCode?, gugunCode?, contentTypeId?, keyword?, minLat?, maxLat?, minLng?, maxLng?, page=1, size=30` | `{ items, total, page, size }` |
 | GET | `/attractions/{no}` | 상세. 대표 사진이 없으면 한국관광공사 `detailImage2`에서 찾아 응답에 넣고 DB에 저장 | - | Attraction(overview, homepage 포함) |
 | GET | `/attractions/{no}/nearby` | 주변 장소 | `kind=festival\|store\|stay\|all, radius=5(km)` | `[Attraction + distance]` |
 | GET | `/attractions/{no}/weather` | 단기예보 | - | `{ available, forecasts:[{ time, TMP, SKY, PTY, POP, summary }], message? }` |
