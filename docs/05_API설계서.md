@@ -138,13 +138,13 @@
   "mode": "planner",
   "answer": "부산 1박 2일 추천 코스입니다. ...",
   "steps": [
-    { "tool": "SEARCH_ATTRACTIONS", "input": "region=부산, keyword=, type=관광지, count=6" },
+    { "tool": "SEARCH_ATTRACTIONS", "input": "region=부산, 조건=부산 1박 2일 여행, AI 추천 18곳 중 등록 확인 8곳, 주변에서 보충 0곳" },
     { "tool": "GET_WEATHER", "input": "lat=35.0230, lng=128.8169 (가덕도)" },
     { "tool": "OPTIMIZE_ROUTE", "input": "attractionNos=[58599, 58600, ...]" }
   ],
   "places": [ { "no": 58599, "title": "가덕도", "type": "관광지", "address": "...", "latitude": 35.02, "longitude": 128.81 } ],
   "route": { "method": "HELD_KARP_DP", "beforeKm": 60.2, "afterKm": 45.1, "order": [58599, 58600] },
-  "plan": { "steps": ["SEARCH_ATTRACTIONS", "GET_WEATHER", "OPTIMIZE_ROUTE"], "region": "부산", "count": 6 }
+  "plan": { "steps": ["SEARCH_ATTRACTIONS", "GET_WEATHER", "OPTIMIZE_ROUTE"], "region": "부산", "contentTypes": ["관광지", "문화시설", "음식점"], "days": 2, "count": 8, "intent": "부산 1박 2일 여행" }
 }
 ```
 
