@@ -55,7 +55,10 @@
 | PUT | `/plans/{id}` | 플랜 수정(참여자 누구나) | 위와 동일 | Plan |
 | DELETE | `/plans/{id}` | 플랜 삭제(작성자) | - | `{ message }` |
 | POST | `/plans/optimize` | 동선 최적화 | `{ attractionNos:[no...] }` | `{ method, beforeKm, afterKm, order, attractions }` |
+| POST | `/plans/route` | 이동 수단별 경로 | `{ mode: car\|walk\|transit, attractionNos:[no...] }` | `{ mode, exact, distanceKm, durationMin, legs:[{ from, to, distanceKm, durationMin, link }], path:[[위도, 경도]...], message? }` |
 | GET | `/plans/{id}/meeting-point` | 메이트 중간 집결지 | - | `{ latitude, longitude, memberCount, nearby }` |
+
+`/plans/route`: `car`·`walk`는 OSRM(OpenStreetMap 기반) 경로 탐색 서버로 실제 도로 경로를 구한다(`exact=true`). `transit`은 무료 공개 API가 없어 구간별 직선 거리와 카카오맵 대중교통 길찾기 링크(`link`)를 제공한다(`exact=false`, `durationMin=null`).
 
 `items` 배열의 순서가 방문 순서(`seq`)로 저장된다. `method`는 `HELD_KARP_DP`(12곳 이하) 또는 `NEAREST_NEIGHBOR_2OPT`.
 
