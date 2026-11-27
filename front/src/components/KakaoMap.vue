@@ -18,6 +18,8 @@ const props = defineProps({
   picked: { type: Object, default: null },
   // 지도 왼쪽을 덮는 패널의 폭(px). 이만큼을 뺀 영역을 '보이는 지도'로 본다
   padLeft: { type: Number, default: 0 },
+  // 목록에서 가리키고 있는 장소. 해당 핀을 키워서 맨 위로 올린다
+  hoverId: { type: [Number, String], default: null },
 })
 const emit = defineEmits(['marker-click', 'map-click', 'view-change'])
 
@@ -25,6 +27,7 @@ const el = ref(null)
 const error = ref('')
 let map = null
 let overlays = []
+let pinsById = new Map() // 장소 id -> { el, overlay, baseZ }
 let polyline = null
 let pickedMarker = null
 let resizeObserver = null
@@ -94,6 +97,7 @@ function draw(fit = true) {
   map.relayout() // 컨테이너 크기가 바뀐 뒤에도 범위 계산이 맞도록 한다
   overlays.forEach((o) => o.setMap(null))
   overlays = []
+  pinsById = new Map()
   polyline?.setMap(null)
   polyline = null
   // 원본 데이터에 국내 범위를 벗어난 좌표가 일부 있어, 지도 범위 계산에서 제외한다
@@ -111,6 +115,7 @@ function draw(fit = true) {
     el.addEventListener('blur', () => overlay.setZIndex(baseZ))
     overlay.setMap(map)
     overlays.push(overlay)
+    pinsById.set(m.id, { el, overlay, baseZ })
     bounds.extend(pos)
     return pos
   })
@@ -207,6 +212,18 @@ watch(() => props.selectedId, (id) => {
   if (m && map && m.latitude > 32.5 && m.latitude < 39.5) programmatic = true
   if (m && map && m.latitude > 32.5 && m.latitude < 39.5) centerOn(new window.kakao.maps.LatLng(m.latitude, m.longitude))
 })
+watch(() => props.hoverId, (id, old) => {
+  const prev = pinsById.get(old)
+  if (prev) {
+    prev.el.classList.remove('hover')
+    prev.overlay.setZIndex(prev.baseZ)
+  }
+  const cur = pinsById.get(id)
+  if (cur) {
+    cur.el.classList.add('hover')
+    cur.overlay.setZIndex(20)
+  }
+})
 watch(() => props.picked, drawPicked, { deep: true })
 watch(() => [props.routePath, props.dashed], () => draw(false))
 onBeforeUnmount(() => {
@@ -241,7 +258,9 @@ onBeforeUnmount(() => {
 .mm-pin.photo { width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 50%; border-width: 3px; background: #fff; overflow: visible; transition: transform 0.12s; transform-origin: bottom center; }
 .mm-pin.photo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
 .mm-pin.photo::after { border-top-color: #fff; bottom: -8px; }
-.mm-pin.photo:hover, .mm-pin.photo:focus-visible { background: #fff; transform: scale(1.35); }
+.mm-pin.photo:hover, .mm-pin.photo:focus-visible, .mm-pin.photo.hover { background: #fff; transform: scale(1.35); }
+.mm-pin.photo.hover { border-color: var(--mm-ink); }
+.mm-pin.photo.hover::after { border-top-color: var(--mm-ink); }
 .mm-pin.photo:hover::after { border-top-color: #fff; }
 .mm-pin.photo.selected { border-color: var(--mm-coral); background: var(--mm-coral); transform: scale(1.45); }
 .mm-pin.photo.selected::after { border-top-color: var(--mm-coral); }

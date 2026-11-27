@@ -24,6 +24,7 @@ const mode = ref('region')
 const view = ref(null) // 지도에 보이는 영역
 const moved = ref(false) // 마지막 검색 뒤 사용자가 지도를 옮겼는지
 const fitKey = ref(0) // 바뀔 때만 지도가 검색 결과에 맞춰 이동한다
+const hovered = ref(null) // 목록에서 가리키고 있는 장소 번호
 // 넓은 화면에서는 패널이 지도 위에 뜬다. 패널이 가리는 폭(패널 400 + 여백 16 × 2)
 const wide = window.matchMedia('(min-width: 768px)')
 const padLeft = ref(wide.matches ? 432 : 0)
@@ -94,6 +95,8 @@ onMounted(async () => {
   search(1, 'region')
 })
 
+/** '서울특별시 종로구 북촌로 57' -> '서울 종로구' */
+const area = (addr) => (addr || '').split(' ').slice(0, 2).join(' ').replace(/특별자치도|특별자치시|특별시|광역시/, '')
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size)))
 function open(no) {
   selected.value = no
@@ -154,17 +157,18 @@ function onLoaded(detail) {
           <div v-else-if="error" class="mm-empty"><i class="bi bi-wifi-off"></i>{{ error }}<br /><button class="btn btn-sm btn-outline-coral mt-2" @click="search(page)">다시 시도</button></div>
           <div v-else-if="!items.length" class="mm-empty"><i class="bi bi-search"></i>조건에 맞는 장소가 없습니다.<br />지역이나 유형을 바꿔 보세요.</div>
           <template v-else>
-            <div v-for="a in items" :key="a.no" class="mm-item" role="button" tabindex="0" @click="open(a.no)" @keyup.enter="open(a.no)">
-              <img v-if="a.firstImage1" :src="a.firstImage1" class="mm-thumb" alt="" loading="lazy" @error="a.firstImage1 = ''" />
-              <div v-else class="mm-thumb"><i :class="['bi', typeIcon(a.contentTypeId)]" aria-hidden="true"></i></div>
-              <div class="flex-grow-1 min-w-0 align-self-center">
+            <div class="place-grid">
+              <div v-for="a in items" :key="a.no" class="place-card" role="button" tabindex="0" @click="open(a.no)" @keyup.enter="open(a.no)" @mouseenter="hovered = a.no" @mouseleave="hovered = null" @focus="hovered = a.no" @blur="hovered = null">
+                <div class="place-photo">
+                  <img v-if="a.firstImage1" :src="a.firstImage1" alt="" loading="lazy" @error="a.firstImage1 = ''" />
+                  <i v-else :class="['bi', typeIcon(a.contentTypeId)]" aria-hidden="true"></i>
+                  <button class="mm-add place-add" :class="{ on: draft.has(a.no) }" :aria-label="draft.has(a.no) ? '담기 취소' : '플랜에 담기'" @click.stop="draft.has(a.no) ? draft.remove(a.no) : draft.add(a)">
+                    <i :class="['bi', draft.has(a.no) ? 'bi-check-lg' : 'bi-plus-lg']" aria-hidden="true"></i>
+                  </button>
+                </div>
                 <div class="mm-item-title text-truncate">{{ a.title }}</div>
-                <div class="mm-item-kind">{{ a.contentTypeName }}</div>
-                <div class="mm-item-meta text-truncate">{{ a.addr1 || '주소 정보 없음' }}</div>
+                <div class="mm-item-meta text-truncate">{{ a.contentTypeName }}<template v-if="area(a.addr1)">, {{ area(a.addr1) }}</template></div>
               </div>
-              <button class="mm-add align-self-center" :class="{ on: draft.has(a.no) }" :aria-label="draft.has(a.no) ? '담기 취소' : '플랜에 담기'" @click.stop="draft.has(a.no) ? draft.remove(a.no) : draft.add(a)">
-                <i :class="['bi', draft.has(a.no) ? 'bi-check-lg' : 'bi-plus-lg']" aria-hidden="true"></i>
-              </button>
             </div>
             <nav class="d-flex justify-content-center gap-2 p-3" aria-label="페이지">
               <button class="btn btn-sm btn-light" :disabled="page <= 1" @click="search(page - 1)">이전</button>
@@ -176,7 +180,7 @@ function onLoaded(detail) {
     </aside>
 
     <div class="mm-map">
-      <KakaoMap :markers="markers" :selected-id="selected" :fit-key="fitKey" :pad-left="padLeft" @marker-click="(m) => typeof m.id === 'number' && open(m.id)" @view-change="onViewChange" />
+      <KakaoMap :markers="markers" :selected-id="selected" :fit-key="fitKey" :pad-left="padLeft" :hover-id="hovered" @marker-click="(m) => typeof m.id === 'number' && open(m.id)" @view-change="onViewChange" />
       <button v-if="moved && !selected" class="btn btn-sm bg-ink research" @click="search(1, 'area')">
         <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>이 지역에서 다시 검색
       </button>
@@ -185,6 +189,15 @@ function onLoaded(detail) {
 </template>
 
 <style scoped>
+/* 사진이 주인공인 2열 카드 */
+.place-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--mm-sp-5) var(--mm-sp-3); padding: var(--mm-sp-4); }
+.place-card { min-width: 0; cursor: pointer; border-radius: var(--mm-r-md); }
+.place-card:focus-visible { outline: 0; box-shadow: 0 0 0 0.2rem rgba(255, 107, 74, 0.3); }
+.place-photo { position: relative; aspect-ratio: 1 / 1; border-radius: var(--mm-r-md); overflow: hidden; background: var(--mm-surface); display: flex; align-items: center; justify-content: center; color: var(--mm-placeholder); font-size: 2rem; margin-bottom: var(--mm-sp-2); }
+.place-photo img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+.place-card:hover .place-photo img { transform: scale(1.04); }
+.place-add { position: absolute; top: var(--mm-sp-2); right: var(--mm-sp-2); border-color: transparent; box-shadow: var(--mm-shadow-1); font-size: var(--mm-fs-md); }
+@media (prefers-reduced-motion: reduce) { .place-photo img { transition: none; } }
 .research { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 5; border-radius: var(--mm-r-pill); padding: 8px 18px; font-weight: 600; box-shadow: var(--mm-shadow-2); }
 /* 패널이 지도 위에 뜨는 넓은 화면에서는 가려지지 않은 영역의 가운데에 둔다 */
 @media (min-width: 768px) { .research { left: calc(50% + 216px); } }
