@@ -155,6 +155,7 @@ onMounted(async () => {
     }, true)
     // 지도가 멈출 때마다 현재 보이는 영역을 알린다. byUser: 사용자가 직접 옮기거나 확대·축소했는지
     maps.event.addListener(map, 'idle', () => {
+      if (!map) return // 화면을 떠난 뒤 늦게 도착한 이벤트는 무시한다
       emit('view-change', { ...currentView(), byUser: !programmatic })
       programmatic = false
     })

@@ -97,7 +97,7 @@ const STATE_CLASS = { 공연중: 'badge-soft', 공연예정: 'badge-ink' }
 <template>
   <div class="mm-page">
     <h1 class="h3 mm-title mb-1">공연 · 행사</h1>
-    <p class="text-secondary">여행지에서 볼 수 있는 공연과 문화행사를 찾고, 주변 장소를 플랜에 함께 담아 보세요.</p>
+    <p v-blur-in class="text-secondary">여행지에서 볼 수 있는 공연과 문화행사를 찾고, 주변 장소를 플랜에 함께 담아 보세요.</p>
 
     <ul class="nav nav-pills mb-3" role="tablist">
       <li class="nav-item"><button class="nav-link" :class="{ active: tab === 'performance' }" @click="tab = 'performance'">전국 공연 <span class="small opacity-75">KOPIS</span></button></li>
@@ -125,7 +125,7 @@ const STATE_CLASS = { 공연중: 'badge-soft', 공연예정: 'badge-ink' }
     <template v-else>
       <div class="row g-3">
         <div v-for="(it, i) in items" :key="it.id || i" class="col-6 col-md-4 col-lg-3">
-          <button class="mm-card culture-card w-100 h-100 text-start p-0" @click="open(it)">
+          <button v-reveal class="mm-card culture-card spot w-100 h-100 text-start p-0" @click="open(it)">
             <img v-if="it.poster || it.image" :src="it.poster || it.image" class="poster" alt="" loading="lazy" @error="it.poster = it.image = ''" />
             <div v-else class="poster d-flex align-items-center justify-content-center"><i class="bi bi-ticket-perforated fs-1" aria-hidden="true"></i></div>
             <div class="p-2">

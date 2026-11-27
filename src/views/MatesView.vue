@@ -107,14 +107,14 @@ const STATUS = { PENDING: '수락 대기 중', ACCEPTED: '참여 확정', REJECT
       <h1 class="h3 mm-title mb-0">메이트 찾기</h1>
       <button class="btn btn-coral" @click="openForm"><i class="bi bi-megaphone me-1" aria-hidden="true"></i>메이트 모집하기</button>
     </div>
-    <p class="text-secondary">같은 길을 갈 동행을 만나 보세요. <span v-if="auth.isLogin">내 취향 태그와 잘 맞는 모집글이 위에 보입니다.</span></p>
+    <p class="text-secondary"><span v-blur-in>같은 길을 갈 동행을 만나 보세요.</span> <span v-if="auth.isLogin">내 취향 태그와 잘 맞는 모집글이 위에 보입니다.</span></p>
 
     <div v-if="loading" class="mm-empty"><div class="spinner-border text-secondary" role="status"></div></div>
     <div v-else-if="error" class="mm-empty"><i class="bi bi-wifi-off"></i>{{ error }}<br /><button class="btn btn-sm btn-outline-coral mt-2" @click="load">다시 시도</button></div>
     <div v-else-if="!posts.length" class="mm-card mm-empty"><i class="bi bi-people"></i>아직 모집 중인 여행이 없습니다.<br />내 플랜으로 첫 모집글을 올려 보세요.</div>
     <div v-else class="row g-3">
       <div v-for="p in posts" :key="p.id" class="col-md-6 col-lg-4">
-        <button class="mm-card p-3 h-100 w-100 text-start mate-card" @click="open(p.id)">
+        <button v-reveal class="mm-card p-3 h-100 w-100 text-start mate-card spot" @click="open(p.id)">
           <div class="d-flex justify-content-between mb-2">
             <span class="badge" :class="p.status === 'OPEN' ? 'badge-soft' : 'bg-secondary'">{{ p.status === 'OPEN' ? '모집 중' : '마감' }}</span>
             <span v-if="p.matchRate != null" class="small fw-bold text-coral"><i class="bi bi-heart-fill" aria-hidden="true"></i> 취향 일치 {{ p.matchRate }}%</span>

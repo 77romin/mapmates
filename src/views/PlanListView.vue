@@ -47,7 +47,7 @@ async function remove(p) {
     </div>
     <div v-else class="row g-3">
       <div v-for="p in plans" :key="p.id" class="col-md-6 col-lg-4">
-        <div class="mm-card p-3 h-100 d-flex flex-column">
+        <div v-reveal class="mm-card spot p-3 h-100 d-flex flex-column">
           <div class="mb-1">
             <span v-if="p.memberId !== auth.member.id" class="badge badge-ink me-1">메이트 참여</span>
             <span v-if="p.isPublic" class="badge badge-soft">공개</span>

@@ -1,4 +1,5 @@
 <script setup>
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useDraftStore } from '@/stores/draft'
@@ -17,6 +18,15 @@ const menus = [
   { to: '/news', label: '뉴스', icon: 'bi-newspaper' },
 ]
 
+// M27 줄어드는 헤더: 조금이라도 내려가면 낮아지고 반투명 유리로 바뀐다
+const small = ref(false)
+const onScroll = () => (small.value = window.scrollY > 16)
+onMounted(() => {
+  window.addEventListener('scroll', onScroll, { passive: true })
+  onScroll()
+})
+onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
+
 async function logout() {
   await auth.logout()
   router.push('/')
@@ -24,7 +34,7 @@ async function logout() {
 </script>
 
 <template>
-  <nav class="navbar navbar-expand-lg fixed-top mm-nav" aria-label="주 메뉴">
+  <nav class="navbar navbar-expand-lg fixed-top mm-nav" :class="{ small }" aria-label="주 메뉴">
     <div class="container-fluid px-3">
       <RouterLink class="navbar-brand mm-brand" to="/" aria-label="너랑 갈.지도 홈">
         <img src="/logo-wordmark.png" alt="너랑 갈.지도" class="brand-img" />
