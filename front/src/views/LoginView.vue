@@ -33,7 +33,7 @@ async function submit() {
   <div class="auth-wrap">
     <form class="mm-card auth-card" novalidate @submit.prevent="submit">
       <img src="/logo.webp" alt="너랑 갈.지도 로고 — 너랑 갈 다음 여행을 지도 위에" class="auth-logo" />
-      <p v-blur-in class="text-center text-secondary small mb-2">해 질 무렵, 너랑 갈 다음 여행을 지도 위에</p>
+      <p class="text-center text-secondary small mb-2">너랑 갈 다음 여행을 지도 위에</p>
       <h1 class="h4 mm-title mb-3 text-center">로그인</h1>
       <label class="form-label small fw-semibold" for="uid">아이디</label>
       <input id="uid" v-model="form.userId" class="form-control mb-3" autocomplete="username" />

@@ -1,0 +1,26 @@
+/* 모션: 줄어드는 헤더, 메뉴 밑줄, 순차 등장만 남긴다. 색은 style.css 토큰을 쓴다. */
+
+/* 줄어드는 헤더: 스크롤하면 낮아지고 그림자가 생긴다 */
+.mm-nav { transition: min-height 0.3s, box-shadow 0.3s; }
+.mm-nav .brand-img { transition: height 0.3s; }
+.mm-nav.small { min-height: 48px; box-shadow: var(--mm-shadow-1); }
+.mm-nav.small .brand-img { height: 24px; }
+
+/* 메뉴 밑줄: 들어올 때는 왼쪽에서 그어지고, 나갈 때는 오른쪽으로 빠진다 */
+@media (min-width: 992px) {
+  .mm-nav .nav-link { position: relative; background: transparent !important; }
+  .mm-nav .nav-link::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: 2px; height: 2px; border-radius: 2px; background: var(--mm-ink); transform: scaleX(0); transform-origin: right; transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .mm-nav .nav-link:hover::after, .mm-nav .nav-link.active::after { transform: scaleX(1); transform-origin: left; }
+}
+
+/* 순차 등장 */
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.4s, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s; }
+.reveal.in { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .mm-nav { transition: none; }
+}
+@media (max-width: 640px) and (pointer: coarse) {
+  .reveal { opacity: 1 !important; transform: none !important; }
+}

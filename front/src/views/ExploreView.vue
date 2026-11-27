@@ -179,5 +179,5 @@ function onLoaded(detail) {
 </template>
 
 <style scoped>
-.research { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 5; border-radius: 20px; padding: 6px 16px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
+.research { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 5; border-radius: var(--mm-r-pill); padding: 6px 16px; box-shadow: var(--mm-shadow-2); }
 </style>

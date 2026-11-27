@@ -218,21 +218,21 @@ onBeforeUnmount(() => {
 <style>
 .kmap-wrap { position: absolute; inset: 0; }
 .kmap { width: 100%; height: 100%; }
-.kmap-error { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f4efe7; text-align: center; padding: 24px; }
-.kmap-error i { font-size: 2.4rem; color: #cbbda8; }
-.mm-pin { position: relative; min-width: 30px; height: 30px; padding: 0 7px; margin-bottom: 7px; border-radius: 15px; border: 2px solid #fff; background: #1f2a44; color: #fff; font-weight: 700; font-size: 13px; line-height: 1; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.mm-pin::after { content: ''; position: absolute; left: 50%; bottom: -7px; margin-left: -5px; border: 5px solid transparent; border-top-color: #1f2a44; border-bottom: 0; }
+.kmap-error { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--mm-surface); text-align: center; padding: 24px; }
+.kmap-error i { font-size: 2.4rem; color: var(--mm-placeholder); }
+.mm-pin { position: relative; min-width: 30px; height: 30px; padding: 0 7px; margin-bottom: 7px; border-radius: 15px; border: 2px solid #fff; background: var(--mm-ink); color: #fff; font-weight: 700; font-size: 13px; line-height: 1; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.mm-pin::after { content: ''; position: absolute; left: 50%; bottom: -7px; margin-left: -5px; border: 5px solid transparent; border-top-color: var(--mm-ink); border-bottom: 0; }
 .mm-pin i { font-size: 13px; }
-.mm-pin.selected, .mm-pin:hover, .mm-pin.hot { background: #ff6b4a; }
-.mm-pin.selected::after, .mm-pin:hover::after, .mm-pin.hot::after { border-top-color: #ff6b4a; }
+.mm-pin.selected, .mm-pin:hover, .mm-pin.hot { background: var(--mm-coral-dark); }
+.mm-pin.selected::after, .mm-pin:hover::after, .mm-pin.hot::after { border-top-color: var(--mm-coral-dark); }
 .mm-pin.selected { transform: scale(1.2); transform-origin: bottom center; }
 .mm-pin.photo { width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 50%; border-width: 3px; background: #fff; overflow: visible; transition: transform 0.12s; transform-origin: bottom center; }
 .mm-pin.photo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
 .mm-pin.photo::after { border-top-color: #fff; bottom: -8px; }
 .mm-pin.photo:hover, .mm-pin.photo:focus-visible { background: #fff; transform: scale(1.35); }
 .mm-pin.photo:hover::after { border-top-color: #fff; }
-.mm-pin.photo.selected { border-color: #ff6b4a; background: #ff6b4a; transform: scale(1.45); }
-.mm-pin.photo.selected::after { border-top-color: #ff6b4a; }
-.mm-pin.meet { background: #0f9d76; }
-.mm-pin.meet::after { border-top-color: #0f9d76; }
+.mm-pin.photo.selected { border-color: var(--mm-coral); background: var(--mm-coral); transform: scale(1.45); }
+.mm-pin.photo.selected::after { border-top-color: var(--mm-coral); }
+.mm-pin.meet { background: var(--mm-success); }
+.mm-pin.meet::after { border-top-color: var(--mm-success); }
 </style>

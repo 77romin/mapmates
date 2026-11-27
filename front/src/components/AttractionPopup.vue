@@ -94,12 +94,12 @@ const kakaoMapUrl = (x) => `https://map.kakao.com/link/map/${encodeURIComponent(
 <style scoped>
 .place-popup { z-index: 1060; }
 .place-popup .mm-modal-body { max-width: 440px; }
-.hero { position: relative; height: 200px; background: #f1ebe2; flex-shrink: 0; }
+.hero { position: relative; height: 200px; background: var(--mm-surface); flex-shrink: 0; }
 .hero.empty { height: 96px; }
 .hero img { width: 100%; height: 100%; object-fit: cover; }
-.no-img { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #b8ab98; gap: 4px; font-size: 0.85rem; }
+.no-img { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--mm-muted); gap: 4px; font-size: var(--mm-fs-sm); }
 .no-img i { font-size: 1.5rem; }
-.close { position: absolute; top: 10px; right: 10px; border-radius: 50%; width: 32px; height: 32px; padding: 0; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); }
+.close { position: absolute; top: 10px; right: 10px; border-radius: 50%; width: 32px; height: 32px; padding: 0; box-shadow: var(--mm-shadow-1); }
 .body { overflow-y: auto; }
 .overview { max-height: 9.5em; overflow-y: auto; line-height: 1.6; }
 </style>

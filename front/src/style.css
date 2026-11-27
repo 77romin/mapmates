@@ -1,37 +1,102 @@
+/*
+ * 너랑 갈.지도 디자인 토큰 + 공용 스타일.
+ * 기준 문서: front/DESIGN.md (Airbnb 기준안을 Mapmates 브랜드에 맞게 옮긴 것).
+ * 원칙: 흰 캔버스, 사진 우선, 포인트 색은 코랄 하나, 그라데이션 없음.
+ * 색·크기·모서리·그림자는 여기 변수만 쓴다. 컴포넌트에 값을 직접 적지 않는다.
+ */
 :root {
-  --mm-bg: #fff9f2;
-  --mm-ink: #1f2a44;
-  --mm-coral: #ff6b4a;
-  --mm-coral-dark: #e4532f;
-  --mm-line: #ece3d6;
-  --mm-muted: #6b7280;
+  /* 색: 바탕 */
+  --mm-bg: #ffffff;
+  --mm-surface: #f7f7f7;        /* 사진 자리, hover, 보조 배경 */
+  --mm-line: #ebebeb;           /* 카드·패널 구분선 */
+  --mm-line-strong: #dddddd;    /* 입력창·버튼 테두리 */
+
+  /* 색: 글자 */
+  --mm-ink: #1f2a44;            /* 로고의 네이비. 제목, 선택된 칩 */
+  --mm-text: #222222;           /* 본문 */
+  --mm-muted: #6a6a6a;          /* 보조 글자 (흰 바탕 대비 5.4:1) */
+  --mm-placeholder: #b0b0b0;    /* 사진 없음 아이콘 같은 장식 전용. 글자에는 쓰지 않는다 */
+
+  /* 색: 포인트 (코랄 하나) */
+  --mm-coral: #ff6b4a;          /* 지도 핀, 경로선, 포커스 링 같은 장식 */
+  --mm-coral-dark: #c93d22;     /* 버튼 배경, 코랄 글자 (흰색과 대비 5.0:1) */
+  --mm-coral-darker: #ad3219;   /* 버튼 hover·active */
+  --mm-coral-tint: #fff1ec;     /* 코랄 배지·선택 배경 */
+
+  /* 색: 상태 */
+  --mm-success: #0f9d76;
+  --mm-danger: #a12828;
+  --mm-danger-bg: #fdecec;
+  --mm-danger-line: #f5c2c2;
+
+  /* 글자 크기 5단계 */
+  --mm-fs-xs: 0.75rem;
+  --mm-fs-sm: 0.875rem;
+  --mm-fs-md: 1rem;
+  --mm-fs-lg: 1.25rem;
+  --mm-fs-xl: 1.625rem;
+
+  /* 모서리 3단계 + 알약 */
+  --mm-r-sm: 8px;               /* 버튼, 입력창 */
+  --mm-r-md: 14px;              /* 카드, 사진 */
+  --mm-r-lg: 20px;              /* 모달, 챗봇 창 */
+  --mm-r-pill: 999px;
+
+  /* 그림자 3단계 */
+  --mm-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --mm-shadow-2: 0 6px 16px rgba(0, 0, 0, 0.12);
+  --mm-shadow-3: 0 12px 40px rgba(0, 0, 0, 0.18);
+
+  /* 간격 */
+  --mm-sp-1: 4px;
+  --mm-sp-2: 8px;
+  --mm-sp-3: 12px;
+  --mm-sp-4: 16px;
+  --mm-sp-5: 24px;
+  --mm-sp-6: 32px;
+  --mm-sp-7: 48px;
+
   --mm-nav-h: 60px;
+
+  /* Bootstrap 변수 연결 */
   --bs-body-font-family: 'Pretendard', -apple-system, 'Segoe UI', sans-serif;
-  --bs-body-color: var(--mm-ink);
+  --bs-body-color: var(--mm-text);
   --bs-body-bg: var(--mm-bg);
-  --bs-link-color-rgb: 228, 83, 47;
-  --bs-link-hover-color-rgb: 190, 60, 30;
+  --bs-secondary-color: var(--mm-muted);
+  --bs-border-color: var(--mm-line-strong);
+  --bs-border-radius: var(--mm-r-sm);
+  --bs-border-radius-sm: var(--mm-r-sm);
+  --bs-link-color-rgb: 201, 61, 34;
+  --bs-link-hover-color-rgb: 173, 50, 25;
 }
 
 html, body, #app { height: 100%; }
 body { word-break: keep-all; }
+.text-secondary { color: var(--mm-muted) !important; }
 
-.btn-coral { --bs-btn-bg: var(--mm-coral); --bs-btn-border-color: var(--mm-coral); --bs-btn-color: #fff;
-  --bs-btn-hover-bg: var(--mm-coral-dark); --bs-btn-hover-border-color: var(--mm-coral-dark); --bs-btn-hover-color: #fff;
-  --bs-btn-active-bg: var(--mm-coral-dark); --bs-btn-active-color: #fff; --bs-btn-disabled-bg: #f3b3a3; --bs-btn-disabled-border-color: #f3b3a3; --bs-btn-disabled-color: #fff; }
-.btn-outline-coral { --bs-btn-color: var(--mm-coral-dark); --bs-btn-border-color: var(--mm-coral);
-  --bs-btn-hover-bg: var(--mm-coral); --bs-btn-hover-border-color: var(--mm-coral); --bs-btn-hover-color: #fff;
-  --bs-btn-active-bg: var(--mm-coral-dark); --bs-btn-active-color: #fff; }
-.text-coral { color: var(--mm-coral-dark) !important; }
+/* 버튼 */
+.btn-coral { --bs-btn-bg: var(--mm-coral-dark); --bs-btn-border-color: var(--mm-coral-dark); --bs-btn-color: #fff;
+  --bs-btn-hover-bg: var(--mm-coral-darker); --bs-btn-hover-border-color: var(--mm-coral-darker); --bs-btn-hover-color: #fff;
+  --bs-btn-active-bg: var(--mm-coral-darker); --bs-btn-active-border-color: var(--mm-coral-darker); --bs-btn-active-color: #fff;
+  --bs-btn-disabled-bg: var(--mm-line-strong); --bs-btn-disabled-border-color: var(--mm-line-strong); --bs-btn-disabled-color: #fff; font-weight: 600; }
+.btn-outline-coral { --bs-btn-color: var(--mm-coral-dark); --bs-btn-border-color: var(--mm-coral-dark);
+  --bs-btn-hover-bg: var(--mm-coral-tint); --bs-btn-hover-border-color: var(--mm-coral-dark); --bs-btn-hover-color: var(--mm-coral-darker);
+  --bs-btn-active-bg: var(--mm-coral-dark); --bs-btn-active-border-color: var(--mm-coral-dark); --bs-btn-active-color: #fff; }
+.btn-light { --bs-btn-bg: var(--mm-surface); --bs-btn-border-color: var(--mm-surface); --bs-btn-hover-bg: var(--mm-line); --bs-btn-hover-border-color: var(--mm-line); }
+/* 선택된 칩(네이비)은 hover·focus 에서도 글자가 보이도록 흰색 유지 */
 .bg-ink { background: var(--mm-ink) !important; color: #fff; }
-.badge-soft { background: #ffe8e1; color: var(--mm-coral-dark); font-weight: 600; }
-.badge-ink { background: #e8ecf5; color: var(--mm-ink); font-weight: 600; }
+.btn.bg-ink, .btn.bg-ink:hover, .btn.bg-ink:focus, .btn.bg-ink:active { color: #fff !important; background: var(--mm-ink) !important; border-color: var(--mm-ink); }
 
-.mm-card { background: #fff; border: 1px solid var(--mm-line); border-radius: 14px; }
-.mm-page { max-width: 1040px; margin: 0 auto; padding: 28px 16px 80px; }
-.mm-title { font-weight: 800; letter-spacing: -0.02em; }
-.mm-empty { text-align: center; color: var(--mm-muted); padding: 48px 16px; }
-.mm-empty i { font-size: 2rem; display: block; margin-bottom: 8px; color: #d6c9b8; }
+.text-coral { color: var(--mm-coral-dark) !important; }
+.badge-soft { background: var(--mm-coral-tint); color: var(--mm-coral-dark); font-weight: 600; }
+.badge-ink { background: var(--mm-surface); color: var(--mm-ink); font-weight: 600; }
+
+/* 카드·페이지 */
+.mm-card { background: #fff; border: 1px solid var(--mm-line); border-radius: var(--mm-r-md); }
+.mm-page { max-width: 1040px; margin: 0 auto; padding: var(--mm-sp-6) var(--mm-sp-4) 80px; }
+.mm-title { font-weight: 700; letter-spacing: -0.02em; color: var(--mm-ink); }
+.mm-empty { text-align: center; color: var(--mm-muted); padding: var(--mm-sp-7) var(--mm-sp-4); }
+.mm-empty i { font-size: 2rem; display: block; margin-bottom: var(--mm-sp-2); color: var(--mm-placeholder); }
 
 /* 지도 + 패널 레이아웃 */
 .mm-split { display: flex; height: calc(100vh - var(--mm-nav-h)); }
@@ -45,14 +110,14 @@ body { word-break: keep-all; }
   .mm-panel-body { overflow: visible; }
 }
 
-.mm-item { display: flex; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--mm-line); cursor: pointer; background: #fff; text-align: left; width: 100%; border-left: 0; border-right: 0; border-top: 0; }
-.mm-item:hover, .mm-item.active { background: #fff4ee; }
-.mm-thumb { width: 72px; height: 72px; border-radius: 10px; object-fit: cover; background: #f1ebe2; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #c9bba7; }
-.mm-num { width: 26px; height: 26px; border-radius: 50%; background: var(--mm-coral); color: #fff; font-weight: 700; font-size: 0.8rem; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.drag-handle { cursor: grab; color: #b8ab98; }
+.mm-item { display: flex; gap: var(--mm-sp-3); padding: var(--mm-sp-3) var(--mm-sp-4); border-bottom: 1px solid var(--mm-line); cursor: pointer; background: #fff; text-align: left; width: 100%; border-left: 0; border-right: 0; border-top: 0; }
+.mm-item:hover, .mm-item.active { background: var(--mm-surface); }
+.mm-thumb { width: 72px; height: 72px; border-radius: var(--mm-r-md); object-fit: cover; background: var(--mm-surface); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--mm-placeholder); }
+.mm-num { width: 26px; height: 26px; border-radius: 50%; background: var(--mm-coral-dark); color: #fff; font-weight: 700; font-size: var(--mm-fs-xs); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.drag-handle { cursor: grab; color: var(--mm-placeholder); }
 .sortable-ghost { opacity: 0.4; }
 
-.form-control:focus, .form-select:focus, .btn:focus-visible { border-color: var(--mm-coral); box-shadow: 0 0 0 0.2rem rgba(255, 107, 74, 0.25); }
+.form-control:focus, .form-select:focus, .btn:focus-visible { border-color: var(--mm-ink); box-shadow: 0 0 0 0.2rem rgba(255, 107, 74, 0.3); }
 .nav-pills .nav-link { color: var(--mm-ink); }
 .nav-pills .nav-link.active { background: var(--mm-ink); }
 .pre-line { white-space: pre-line; }
@@ -60,16 +125,11 @@ body { word-break: keep-all; }
 .min-h-0 { min-height: 0; }
 
 /* 모달 (메이트 상세·작성, 공연 상세 공통) */
-.mm-modal { position: fixed; inset: 0; background: rgba(31, 42, 68, 0.45); z-index: 1050; display: flex; align-items: center; justify-content: center; padding: 16px; }
-.mm-modal-body { background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto; }
+.mm-modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 1050; display: flex; align-items: center; justify-content: center; padding: var(--mm-sp-4); }
+.mm-modal-body { background: #fff; border-radius: var(--mm-r-lg); padding: var(--mm-sp-5); width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto; box-shadow: var(--mm-shadow-3); }
 
 /* 로그인·회원가입·비밀번호 찾기 공통 */
-.auth-wrap { min-height: calc(100vh - var(--mm-nav-h)); display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
-.auth-card { width: 100%; max-width: 400px; padding: 32px; }
-
-/* 선택된 버튼(네이비)은 hover·focus 에서도 글자가 보이도록 흰색 유지 */
-.btn.bg-ink, .btn.bg-ink:hover, .btn.bg-ink:focus, .btn.bg-ink:active { color: #fff !important; background: var(--mm-ink) !important; border-color: var(--mm-ink); }
-
-/* 로그인·회원가입 상단 로고 */
-.auth-logo { display: block; width: 100%; max-width: 260px; margin: -8px auto 8px; border-radius: 16px; }
+.auth-wrap { min-height: calc(100vh - var(--mm-nav-h)); display: flex; align-items: center; justify-content: center; padding: var(--mm-sp-5) var(--mm-sp-4); background: var(--mm-surface); }
+.auth-card { width: 100%; max-width: 400px; padding: var(--mm-sp-6); }
+.auth-logo { display: block; width: 100%; max-width: 260px; margin: -8px auto 8px; border-radius: var(--mm-r-md); }
 .auth-logo.small { max-width: 150px; }

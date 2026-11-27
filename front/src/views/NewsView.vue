@@ -33,7 +33,7 @@ const safe = (url) => (/^https?:\/\//.test(url) ? url : '#')
 <template>
   <div class="mm-page">
     <h1 class="h3 mm-title mb-1">여행 뉴스</h1>
-    <p v-blur-in class="text-secondary">관심 지역의 최신 여행 소식을 모았습니다.</p>
+    <p class="text-secondary">관심 지역의 최신 여행 소식을 모았습니다.</p>
     <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="뉴스 주제">
       <button v-for="k in KEYWORDS" :key="k" class="btn btn-sm rounded-pill" :class="keyword === k ? 'bg-ink' : 'btn-light border'" @click="load(k)">{{ k }}</button>
     </div>
@@ -52,5 +52,5 @@ const safe = (url) => (/^https?:\/\//.test(url) ? url : '#')
 <style scoped>
 .news-item { display: block; padding: 14px 18px; border-bottom: 1px solid var(--mm-line); color: var(--mm-ink); text-decoration: none; }
 .news-item:last-child { border-bottom: 0; }
-.news-item:hover { background: #fff4ee; }
+.news-item:hover { background: var(--mm-surface); }
 </style>

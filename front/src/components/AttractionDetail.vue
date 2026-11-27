@@ -142,9 +142,9 @@ const plain = (html) => (html || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>
 
 <style scoped>
 .detail-img { height: 190px; object-fit: cover; }
-.detail-noimg { height: 84px; background: #f1ebe2; color: #b8ab98; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.85rem; }
+.detail-noimg { height: 84px; background: var(--mm-surface); color: var(--mm-muted); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: var(--mm-fs-sm); }
 .detail-noimg i { font-size: 1.6rem; }
 .weather-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
-.weather-cell { flex: 0 0 auto; text-align: center; font-size: 0.78rem; background: var(--mm-bg); border-radius: 10px; padding: 6px 10px; min-width: 70px; }
+.weather-cell { flex: 0 0 auto; text-align: center; font-size: var(--mm-fs-xs); background: var(--mm-bg); border-radius: var(--mm-r-md); padding: 6px 10px; min-width: 70px; }
 .min-h-0 { min-height: 0; }
 </style>

@@ -94,5 +94,5 @@ async function withdraw() {
 
 <style scoped>
 .narrow { max-width: 760px; }
-.home-map { position: relative; height: 260px; border-radius: 12px; overflow: hidden; border: 1px solid var(--mm-line); }
+.home-map { position: relative; height: 260px; border-radius: var(--mm-r-md); overflow: hidden; border: 1px solid var(--mm-line); }
 </style>

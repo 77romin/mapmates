@@ -18,7 +18,7 @@ const menus = [
   { to: '/news', label: '뉴스', icon: 'bi-newspaper' },
 ]
 
-// M27 줄어드는 헤더: 조금이라도 내려가면 낮아지고 반투명 유리로 바뀐다
+// 줄어드는 헤더: 조금이라도 내려가면 낮아지고 그림자가 생긴다
 const small = ref(false)
 const onScroll = () => (small.value = window.scrollY > 16)
 onMounted(() => {
@@ -70,9 +70,9 @@ async function logout() {
 </template>
 
 <style scoped>
-.mm-nav { background: rgba(255, 255, 255, 0.96); border-bottom: 1px solid var(--mm-line); min-height: var(--mm-nav-h); backdrop-filter: blur(6px); }
+.mm-nav { background: #fff; border-bottom: 1px solid var(--mm-line); min-height: var(--mm-nav-h); }
 .mm-brand { padding: 0; margin-right: 14px; }
 .brand-img { height: 30px; width: auto; display: block; }
-.nav-link { font-weight: 600; color: #4b5563; border-radius: 8px; padding-inline: 12px !important; }
-.nav-link.active { color: var(--mm-coral-dark); background: #fff1ec; }
+.nav-link { font-weight: 600; color: var(--mm-muted); border-radius: var(--mm-r-sm); padding-inline: 12px !important; }
+.nav-link.active { color: var(--mm-ink); }
 </style>
