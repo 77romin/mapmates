@@ -83,12 +83,14 @@ public class AiService {
                 아래는 서버가 도구를 실행해 얻은 결과다. 이 결과에 있는 사실만 사용해 사용자 질문에 답하라.
                 결과에 없는 장소나 수치는 만들지 말고, 비어 있는 결과는 "조회된 정보가 없다"고 알려라.
                 OPTIMIZE_ROUTE 결과가 있으면 order 의 번호 순서대로 장소를 안내하고 이동 거리를 함께 알려라.
+                사용자 조건(%s)에 맞춰 설명하고, %d일 일정이면 일차별로 나눠 안내하라. 장소마다 왜 이 조건에 어울리는지 한마디를 붙여라.
+                강조 기호(별표 두 개, 샵, 백틱)는 쓰지 말고 일반 텍스트와 번호 목록만 사용하라.
 
                 [도구 실행 결과]
                 %s
                 [사용자 질문]
                 %s
-                """.formatted(context, message);
+                """.formatted(plan.intent(), plan.days(), context, message);
         String answer = chatClient.prompt().user(prompt).call().content();
 
         Map<String, Object> res = response("planner", answer, results);

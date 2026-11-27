@@ -65,6 +65,24 @@ public interface AttractionDao {
             + "<foreach collection='nos' item='n' open='(' separator=',' close=')'>#{n}</foreach></script>")
     List<Attraction> findByNos(@Param("nos") List<Integer> nos);
 
+    /** 사진이 있고 좌표가 정상인 장소 중에서 무작위로 뽑는다. (AI 추천 후보용) */
+    @Select("<script>SELECT " + COLS + JOINS
+            + "WHERE a.first_image1 IS NOT NULL AND a.first_image1 != '' AND a.latitude BETWEEN 33 AND 39 AND a.longitude BETWEEN 124 AND 132"
+            + "<if test='sidoCode != null'> AND a.area_code = #{sidoCode}</if>"
+            + "<if test='types != null and types.size() > 0'> AND a.content_type_id IN "
+            + "<foreach collection='types' item='t' open='(' separator=',' close=')'>#{t}</foreach></if>"
+            + "<if test=\"keyword != null and keyword != ''\"> AND (a.title LIKE CONCAT('%', #{keyword}, '%') OR a.addr1 LIKE CONCAT('%', #{keyword}, '%'))</if>"
+            + " ORDER BY RAND() LIMIT #{size}</script>")
+    List<Attraction> findRandom(@Param("sidoCode") Integer sidoCode, @Param("types") List<Integer> types,
+            @Param("keyword") String keyword, @Param("size") int size);
+
+    /** 이름이 포함된 장소 중 가장 잘 맞는 한 곳 (사진 있는 곳, 이름이 짧은 곳 우선) */
+    @Select("<script>SELECT " + COLS + JOINS
+            + "WHERE a.title LIKE CONCAT('%', #{name}, '%') AND a.latitude BETWEEN 33 AND 39 AND a.longitude BETWEEN 124 AND 132"
+            + "<if test='sidoCode != null'> AND a.area_code = #{sidoCode}</if>"
+            + " ORDER BY (a.title = #{name}) DESC, (a.first_image1 IS NULL OR a.first_image1 = ''), CHAR_LENGTH(a.title) LIMIT 1</script>")
+    Attraction findBestByName(@Param("sidoCode") Integer sidoCode, @Param("name") String name);
+
     @Update("UPDATE attractions SET first_image1 = #{url} WHERE no = #{no}")
     int updateImage(@Param("no") int no, @Param("url") String url);
 

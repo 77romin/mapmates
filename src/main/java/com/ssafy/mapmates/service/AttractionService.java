@@ -1,5 +1,7 @@
 package com.ssafy.mapmates.service;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -81,6 +83,49 @@ public class AttractionService {
         list.forEach(a -> a.setDistance(Math.round(GeoUtil.distanceKm(lat, lng, a.getLatitude(), a.getLongitude()) * 100) / 100.0));
         return list.stream().filter(a -> a.getDistance() <= radiusKm && a.getDistance() > 0.001)
                 .sorted(Comparator.comparingDouble(Attraction::getDistance)).limit(limit).toList();
+    }
+
+    /**
+     * AI 코스 추천용 후보 묶음.
+     * 무작위로 기준 장소 하나를 고르고 그 주변(radiusKm)에서 후보를 모아, 매번 다른 지역의 동선이 가까운 조합이 나오게 한다.
+     */
+    public List<Attraction> candidates(Integer sidoCode, List<Integer> types, String keyword, double radiusKm, int poolSize) {
+        List<Attraction> anchors = attractionDao.findRandom(sidoCode, List.of(12, 14), keyword, 1);
+        if (anchors.isEmpty()) anchors = attractionDao.findRandom(sidoCode, types, keyword, 1);
+        if (anchors.isEmpty()) return List.of();
+        return candidatesNear(anchors.get(0), sidoCode, types, radiusKm, poolSize);
+    }
+
+    /** 이름으로 실제 장소를 찾는다. 없으면 null. (AI 가 추천한 장소가 DB 에 있는지 확인하는 용도) */
+    public Attraction findByName(Integer sidoCode, String name) {
+        if (name == null || name.isBlank() || name.trim().length() < 2) return null;
+        return attractionDao.findBestByName(sidoCode, name.trim());
+    }
+
+    /** 기준 장소 주변의 후보 묶음 */
+    public List<Attraction> candidatesNear(Attraction anchor, Integer sidoCode, List<Integer> types, double radiusKm, int poolSize) {
+        List<Attraction> around = new ArrayList<>(nearby(anchor.getLatitude(), anchor.getLongitude(), radiusKm, types, 300).stream()
+                .filter(a -> a.getFirstImage1() != null && !a.getFirstImage1().isBlank())
+                .filter(a -> sidoCode == null || sidoCode.equals(a.getAreaCode())).toList());
+        Collections.shuffle(around);
+        // 한 유형이 후보를 독차지하지 않도록 유형별로 고르게 담는다
+        int perType = Math.max(2, poolSize / Math.max(1, types == null ? 1 : types.size()));
+        Map<Integer, Integer> used = new HashMap<>();
+        List<Attraction> pool = new ArrayList<>();
+        if (types == null || types.contains(anchor.getContentTypeId())) {
+            pool.add(anchor);
+            used.merge(anchor.getContentTypeId(), 1, Integer::sum);
+        }
+        for (Attraction a : around) {
+            if (pool.size() >= poolSize) break;
+            if (used.getOrDefault(a.getContentTypeId(), 0) >= perType) continue;
+            pool.add(a);
+            used.merge(a.getContentTypeId(), 1, Integer::sum);
+        }
+        if (pool.size() < 4) { // 주변에 후보가 부족하면 지역 전체에서 뽑는다
+            pool = new ArrayList<>(attractionDao.findRandom(sidoCode, types, null, poolSize));
+        }
+        return pool;
     }
 
     public Integer findSidoCode(String name) {

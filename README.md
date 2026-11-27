@@ -94,10 +94,12 @@ curl -X POST http://localhost:8080/api/ai/chat -H "Content-Type: application/jso
   -d '{"message":"Busan 2-day course with weather","mode":"planner"}'
 ```
 
+장소 추천 단계는 "AI가 조건에 맞는 장소를 추천 → 서버가 DB에 등록된 장소인지 확인 → 부족하면 주변 실제 장소에서 보충" 순서로 동작한다. 그래서 질문의 조건(동행, 일수, 분위기)에 따라 결과가 달라지고, 답에 쓰이는 장소는 모두 DB에 있는 장소다.
+
 Planner 실행 예 — "이번 주말 부산 1박2일 코스 짜줘. 날씨도 알려줘"
 
 ```
-SEARCH_ATTRACTIONS (region=부산, type=관광지, count=6)
+SEARCH_ATTRACTIONS (region=부산, AI 추천 → DB 확인)
    └ 결과의 첫 장소 좌표 → GET_WEATHER (lat=35.0230, lng=128.8169)
    └ 결과의 번호 목록   → OPTIMIZE_ROUTE (attractionNos=[58599, 58600, ...])
 → 세 결과를 Prompt에 넣어 최종 응답 생성
